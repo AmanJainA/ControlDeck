@@ -192,7 +192,7 @@ class _DeckHomeState extends State<DeckHome> {
               selected:category==c&&!favorites,selectedTileColor:accent.withValues(alpha:.15),
               leading:Icon(c=='All apps'?Icons.grid_view_rounded:c=='Personal'?Icons.person_rounded:
                 c=='Professional'?Icons.work_rounded:c=='Creative'?Icons.palette_rounded:Icons.folder_rounded,size:20),
-              title:Text(c),onTap:()=>setState(()=>{category=c,favorites=false}))),
+              title:Text(c),onTap:()=>setState(() { category = c; favorites = false; }))),
             const Divider(),ListTile(dense:true,selected:favorites,leading:const Icon(Icons.favorite),
               title:const Text('Favourites'),onTap:()=>setState(()=>favorites=!favorites)),
             const Spacer(),Text('CONTROLDECK  •  1.0',style:t.textTheme.labelSmall),
@@ -219,7 +219,7 @@ class _DeckHomeState extends State<DeckHome> {
               suffixIcon:search.text.isEmpty?null:IconButton(onPressed:(){search.clear();setState((){});},icon:const Icon(Icons.close)),
               filled:true,border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:BorderSide.none))),
             if(!wide) Padding(padding:const EdgeInsets.only(top:16),child:Wrap(spacing:7,runSpacing:7,children:[
-              ...categories.map((c)=>ChoiceChip(label:Text(c),selected:category==c&&!favorites,onSelected:(_)=>setState(()=>{category=c,favorites=false}))),
+              ...categories.map((c)=>ChoiceChip(label:Text(c),selected:category==c&&!favorites,onSelected:(_)=>setState(() { category = c; favorites = false; }))),
               FilterChip(label:const Text('Favourites'),selected:favorites,onSelected:(v)=>setState(()=>favorites=v)),
             ])),
             const SizedBox(height:24),
