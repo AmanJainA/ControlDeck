@@ -19,8 +19,9 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   late final SupabaseClient db;
   final search = TextEditingController();
   Map<String,dynamic>? user, heading, menu;
-  List<Map<String,dynamic>> headings=[], menus=[], folders=[], files=[];
+  List<Map<String,dynamic>> headings=[], menus=[], folders=[], files=[], trackingRows=[];
   int? selectedFolderId;
+  String typeFilter='all', trackingTab='online';
   bool busy=true;
   String view='login';
   String? error;
@@ -310,6 +311,20 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     finally { if (mounted) setState(() => busy = false); }
   }
 
+  Future<void> loadTracking(String tab) async {
+    if (!admin) return;
+    final table = tab == 'online' ? 'user_presence' : tab == 'login' ? 'login_history' : 'page_activity';
+    setState(() { view = 'tracking'; trackingTab = tab; trackingRows = []; busy = true; error = null; });
+    try {
+      final rows = await db.from(table).select('*').limit(200);
+      if (mounted) setState(() { trackingRows = List<Map<String,dynamic>>.from(rows); });
+    } catch (e) {
+      if (mounted) setState(() => error = message(e));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   Future<void> updateApproval(Map<String,dynamic> file, int status) async {
     final remark = TextEditingController(text: (file['remark'] ?? '').toString());
     if (status == 2) {
@@ -337,7 +352,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
 
   void back(){
     if(view=='files'&&heading!=null){openHeading(heading!);return;}
-    if(view=='files'||view=='menus'||view=='pending'||view=='nr'){setState(() { view = 'home'; heading = null; menu = null; });return;}
+    if(view=='files'||view=='menus'||view=='pending'||view=='nr'||view=='tracking'){setState(() { view = 'home'; heading = null; menu = null; });return;}
     Navigator.of(context).maybePop();
   }
 
@@ -383,12 +398,12 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   ]));
 
   @override Widget build(BuildContext context){
-    final title=view=='files'?(menu?['menuname']??'Files').toString():view=='menus'?(heading?['headingname']??'Workspace').toString():'Railways';
+    final title=view=='files'?(menu?['menuname']??'Files').toString():view=='menus'?(heading?['headingname']??'Workspace').toString():view=='tracking'?'Manage Tracking':'Railways';
     return Scaffold(appBar:AppBar(
       leading:IconButton(onPressed:user==null?()=>Navigator.of(context).maybePop():back,icon:const Icon(Icons.arrow_back_rounded)),
       title:Text(title),
       actions:[
-        if(user!=null)IconButton(tooltip:'Refresh',onPressed:view=='files'?(heading==null?openMyData:()=>openMenu(menu!)):view=='menus'?()=>openHeading(heading!):view=='pending'?openPendingApprovals:view=='nr'?openNRDashboard:loadHeadings,icon:const Icon(Icons.refresh_rounded)),
+        if(user!=null)IconButton(tooltip:'Refresh',onPressed:view=='files'?(heading==null?openMyData:()=>openMenu(menu!)):view=='menus'?()=>openHeading(heading!):view=='pending'?openPendingApprovals:view=='tracking'?()=>loadTracking(trackingTab):view=='nr'?openNRDashboard:loadHeadings,icon:const Icon(Icons.refresh_rounded)),
         if(user!=null)IconButton(tooltip:'Sign out',onPressed:signOut,icon:const Icon(Icons.logout_rounded)),
       ],
     ),body:user==null?(busy?openingDashboardView():loginView()):workspaceView(),
@@ -440,7 +455,11 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   ])));
 
   Widget workspaceView(){
-    final filtered=files.where((f)=>(selectedFolderId == null || (f['folder_id'] as num?)?.toInt() == selectedFolderId) && '${f['name']??''} ${f['type']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).toList();
+    final filtered=files.where((f){
+      final type=(f['type']??'').toString().toLowerCase();
+      final typeMatch=typeFilter=='all'||(typeFilter=='img'?['png','jpg','jpeg','gif','svg','webp'].any(type.contains):typeFilter=='pdf'?type.contains('pdf'):typeFilter=='doc'?type.contains('doc'):typeFilter=='xls'?type.contains('xls')||type.contains('csv'):true);
+      return (selectedFolderId==null||(f['folder_id'] as num?)?.toInt()==selectedFolderId)&&typeMatch&&'${f['name']??''} ${f['type']??''} ${f['folder']??''} ${f['uploaded_by']??''}'.toLowerCase().contains(search.text.toLowerCase());
+    }).toList();
     return Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:1100),child:ListView(padding:const EdgeInsets.all(20),children:[
       if(error!=null)Card(color:Theme.of(context).colorScheme.errorContainer,child:Padding(padding:const EdgeInsets.all(14),child:Text(error!))),
       if(busy)const LinearProgressIndicator(),
@@ -472,9 +491,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
           Card(child: ListTile(leading: const Icon(Icons.admin_panel_settings_outlined), title: const Text('Menu Access'), subtitle: const Text('Assign users to menus'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('user_menu_access', 'Menu Access'))),
           Card(child: ListTile(leading: const Icon(Icons.task_alt_rounded), title: const Text('Work Tracker'), subtitle: const Text('Manage tasks, reports and due dates'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('work_items', 'Work Tracker'))),
           Card(child: ListTile(leading: const Icon(Icons.link_rounded), title: const Text('Work Item Links'), subtitle: const Text('Connect tasks with Railway documents'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('work_item_links', 'Work Item Links'))),
-          Card(child: ListTile(leading: const Icon(Icons.monitor_heart_outlined), title: const Text('User Presence'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('user_presence', 'User Presence'))),
-          Card(child: ListTile(leading: const Icon(Icons.history_rounded), title: const Text('Login History'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('login_history', 'Login History'))),
-          Card(child: ListTile(leading: const Icon(Icons.timeline_rounded), title: const Text('Page Activity'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('page_activity', 'Page Activity'))),
+          Card(child: ListTile(leading: const Icon(Icons.monitor_heart_outlined), title: const Text('Manage Tracking'), subtitle: const Text('Currently Online, Login History and Page Activity'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => loadTracking('online'))),
         ],
       ]else if(view=='nr')...[
         hero('Northern Railway Dashboard', 'Approved repository documents: ' + files.length.toString(), Icons.dashboard_customize_outlined),
@@ -498,19 +515,41 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
           ]),
           onTap: () => showFile(f),
         )),
+      ]else if(view=='tracking')...[
+        trackingContent(),
       ]else if(view=='menus')...[
         hero((heading?['headingname']??'Workspace').toString(),'Choose a menu to browse its files.',Icons.folder_open_rounded),const SizedBox(height:14),
         if(menus.isEmpty)const EmptyRailway(title:'No menus available',detail:'No active menus or access grants were found.'),
         for(final m in menus)Card(child:ListTile(leading:const Icon(Icons.folder_copy_outlined),title:Text((m['menuname']??'Menu').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>openMenu(m))),
       ]else...[
-        hero((menu?['menuname']??'Files').toString(),'${filtered.length} records · native Flutter list',Icons.description_outlined),const SizedBox(height:14),
-        if (folders.isNotEmpty) Wrap(spacing:8,runSpacing:8,children:[ChoiceChip(label:const Text('All folders'),selected:selectedFolderId==null,onSelected:(_)=>setState(()=>selectedFolderId=null)),for(final folder in folders)ChoiceChip(label:Text((folder['foldername']??'Folder').toString()),selected:selectedFolderId==(folder['id'] as num).toInt(),onSelected:(_)=>setState(()=>selectedFolderId=(folder['id'] as num).toInt()))]),
+        hero((menu?['menuname']??'Files').toString(),'${filtered.length} records · searchable document register',Icons.description_outlined),const SizedBox(height:14),
+        if (folders.isNotEmpty) SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:const Text('All'),selected:selectedFolderId==null,onSelected:(_)=>setState(()=>selectedFolderId=null))),for(final folder in folders)Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:Text((folder['foldername']??'Folder').toString()),selected:selectedFolderId==(folder['id'] as num).toInt(),onSelected:(_)=>setState(()=>selectedFolderId=(folder['id'] as num).toInt())))])),
         if (folders.isNotEmpty) const SizedBox(height:10),
-        TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search_rounded),labelText:'Search documents')),const SizedBox(height:10),
-        if(filtered.isEmpty)const EmptyRailway(title:'No files found',detail:'No active documents match this menu and search.'),
-        for(final f in filtered)Card(child:ListTile(leading:fileIcon((f['type']??'').toString()),title:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text('${(f['type']??'FILE').toString().toUpperCase()} · ${(f['folder']??'No folder').toString()}\\n${(f['uploaded_by']??'Uploader unknown').toString()}',maxLines:2,overflow:TextOverflow.ellipsis),isThreeLine:true,trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>showFile(f))),
+        SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[for(final t in const ['all','img','pdf','doc','xls'])Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:Text(t=='all'?'All types':t.toUpperCase()),selected:typeFilter==t,onSelected:(_)=>setState(()=>typeFilter=t)))])),
+        const SizedBox(height:10),
+        TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search_rounded),labelText:'Search reports and documents')),const SizedBox(height:10),
+        if(filtered.isEmpty)const EmptyRailway(title:'No files found',detail:'No active documents match the selected folder, type and search.'),
+        if(filtered.isNotEmpty)Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columnSpacing:22,columns:const [DataColumn(label:Text('Document')),DataColumn(label:Text('Type')),DataColumn(label:Text('Folder')),DataColumn(label:Text('Uploaded by')),DataColumn(label:Text('Uploaded at')),DataColumn(label:Text('Open'))],rows:filtered.map((f)=>DataRow(onSelectChanged:(_)=>showFile(f),cells:[DataCell(SizedBox(width:220,child:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis))),DataCell(Row(mainAxisSize:MainAxisSize.min,children:[fileIcon((f['type']??'').toString()),const SizedBox(width:6),Text((f['type']??'FILE').toString().toUpperCase())])),DataCell(Text((f['folder']??'—').toString())),DataCell(Text((f['uploaded_by']??'—').toString())),DataCell(Text((f['uploaded_at']??'—').toString())),DataCell(IconButton(tooltip:'Open details',onPressed:()=>showFile(f),icon:const Icon(Icons.open_in_new_rounded)))])).toList()))),
       ],
     ])));
+  }
+
+  Widget trackingContent(){
+    final tabs=<({String id,String label,IconData icon})>[
+      (id:'online',label:'Currently Online',icon:Icons.person_pin_circle_outlined),
+      (id:'login',label:'Login History',icon:Icons.history_rounded),
+      (id:'activity',label:'Page Activity',icon:Icons.timeline_rounded),
+    ];
+    final columns=trackingRows.isEmpty?<String>[]:trackingRows.first.keys.take(6).map((k)=>k.toString()).toList();
+    return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      hero('Manage Tracking','Monitor active users, login history and page activity.',Icons.monitor_heart_outlined),
+      const SizedBox(height:16),
+      SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[for(final tab in tabs)Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(avatar:Icon(tab.icon,size:18),label:Text(tab.label),selected:trackingTab==tab.id,onSelected:(_)=>loadTracking(tab.id)))])),
+      const SizedBox(height:12),
+      if(busy)const LinearProgressIndicator(),
+      if(!busy&&trackingRows.isEmpty)EmptyRailway(title:'No ${trackingTab=='online'?'online users':trackingTab=='login'?'login history':'page activity'} found',detail:'No records are available for this tab, or the current account cannot read its data.'),
+      if(trackingRows.isNotEmpty)Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columns:columns.map((k)=>DataColumn(label:Text(k.replaceAll('_',' ').toUpperCase()))).toList(),rows:trackingRows.map((r)=>DataRow(cells:columns.map((k)=>DataCell(SizedBox(width:150,child:Text((r[k]??'—').toString(),maxLines:2,overflow:TextOverflow.ellipsis)))).toList())).toList()))),
+    ]);
   }
 
   Widget hero(String title,String subtitle,IconData icon)=>Container(padding:const EdgeInsets.all(22),decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),gradient:const LinearGradient(colors:[Color(0xFF102D4D),Color(0xFF176B87)])),child:Row(children:[
