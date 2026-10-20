@@ -67,3 +67,30 @@ flutter run -d chrome
 - `pubspec.yaml` — Flutter dependencies
 - `supabase/controldeck_schema.sql` — table and RLS setup
 - `analysis_options.yaml` — Dart lint configuration
+
+
+## Native project workspaces
+
+ControlDeck opens project screens inside Flutter; it does not navigate to GitHub Pages.
+
+- **LifeHub**: uses the LifeHub custom-auth function and displays the signed-in user's task list with quick task creation.
+- **Portfolio**: reads the live public portfolio profile, skills, projects, experience, education, and social-link records from the `portfolio` schema.
+- **Notes**: browses the database-driven languages, topics, and JSON lesson content from the `notes` schema.
+- **Interview**: uses the `interview.login_user` RPC for sign-in and displays the assessment question catalogue.
+- **Railways**: opens a native workspace surface for Railway workflows.
+
+### Notes and Interview database configuration
+
+Those two React projects intentionally keep their Supabase URL and public anon key in local environment variables rather than committing them. Supply the same project values when running ControlDeck:
+
+```bash
+flutter run -d macos \
+  --dart-define=NOTES_SUPABASE_URL=https://YOUR-NOTES-PROJECT.supabase.co \
+  --dart-define=NOTES_SUPABASE_ANON_KEY=YOUR_NOTES_ANON_KEY \
+  --dart-define=INTERVIEW_SUPABASE_URL=https://YOUR-INTERVIEW-PROJECT.supabase.co \
+  --dart-define=INTERVIEW_SUPABASE_ANON_KEY=YOUR_INTERVIEW_ANON_KEY
+```
+
+For Android/iOS builds, pass the same `--dart-define` values to the relevant `flutter build` command. Use the public anon/publishable keys only; never put a service-role key in a client app.
+
+The Flutter interfaces are a native implementation based on each repository's current `main` branch, not a WebView of the deployed React pages. Some advanced React workflows (including the full timed assessment and admin CRUD flows) still need to be ported into native Flutter screens.
