@@ -10,11 +10,12 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'supabase_config.dart';
 
-const controlDeckWorkspaceUrl = String.fromEnvironment('SUPABASE_URL');
-const controlDeckWorkspaceKey = String.fromEnvironment('SUPABASE_ANON_KEY');
-const notesWorkspaceUrl = String.fromEnvironment('NOTES_SUPABASE_URL', defaultValue: String.fromEnvironment('SUPABASE_URL'));
-const notesWorkspaceKey = String.fromEnvironment('NOTES_SUPABASE_ANON_KEY', defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY'));
+const controlDeckWorkspaceUrl = SupabaseConfig.primaryUrl;
+const controlDeckWorkspaceKey = SupabaseConfig.primaryKey;
+const notesWorkspaceUrl = SupabaseConfig.primaryUrl;
+const notesWorkspaceKey = SupabaseConfig.primaryKey;
 const _notesSessionKey = 'controldeck.notes.session.v1';
 const _notesAdminEmail = 'amanjain033@gmail.com';
 
