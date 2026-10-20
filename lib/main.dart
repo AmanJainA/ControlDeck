@@ -421,7 +421,7 @@ class AppWorkspaceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     switch (app.id.toLowerCase()) {
-      case 'portfolio': return PortfolioNativeScreen(admin: admin);
+      case 'portfolio': return admin ? const PortfolioAdminNativeScreen() : const PortfolioNativeScreen();
       case 'notes': return const NotesNativeScreen();
       case 'interview': return const InterviewNativeScreen();
       case 'lifehub': return const LifeHubNativeScreen();
@@ -550,6 +550,162 @@ class _PortfolioNativeScreenState extends State<PortfolioNativeScreen> {
     final out = <String, dynamic>{};
     for (final k in keys) { final v = row[k]; if (v != null && v.toString().trim().isNotEmpty) out[k] = v; }
     return out;
+  }
+}
+
+
+class PortfolioAdminNativeScreen extends StatefulWidget {
+  const PortfolioAdminNativeScreen({super.key});
+  @override State<PortfolioAdminNativeScreen> createState() => _PortfolioAdminNativeScreenState();
+}
+
+class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen> {
+  late final SupabaseClient client = SupabaseClient(_portfolioUrl, _portfolioKey);
+  final email = TextEditingController();
+  final password = TextEditingController();
+  bool busy = false;
+  String? message;
+  String? token;
+  String section = 'projects';
+  Map<String, dynamic> data = {};
+
+  static const resources = <Map<String, dynamic>>[
+    {'key':'languages','label':'Languages','resource':'language','fields':[
+      {'key':'name','label':'Name'},{'key':'icon_url','label':'Icon URL'},{'key':'icon_class','label':'Icon class'},{'key':'level','label':'Level'},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
+    {'key':'skills','label':'Skills','resource':'skill','fields':[
+      {'key':'category','label':'Category'},{'key':'name','label':'Name'},{'key':'description','label':'Description','multi':true},{'key':'percent','label':'Percent','number':true},{'key':'icon_class','label':'Icon class'},{'key':'icon_url','label':'Icon URL'},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
+    {'key':'projects','label':'Projects','resource':'project','fields':[
+      {'key':'title','label':'Title'},{'key':'summary','label':'Summary','multi':true},{'key':'image_url','label':'Image URL'},{'key':'link','label':'Project URL'},{'key':'repo_url','label':'Repository URL'},{'key':'tech_stack','label':'Tech stack'},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
+    {'key':'education','label':'Education','resource':'education','fields':[
+      {'key':'period','label':'Period'},{'key':'location','label':'Location'},{'key':'title','label':'Title'},{'key':'details','label':'Details','multi':true},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
+    {'key':'experience','label':'Work Experience','resource':'experience','fields':[
+      {'key':'period','label':'Period'},{'key':'company','label':'Company'},{'key':'title','label':'Title'},{'key':'details','label':'Details','multi':true},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
+    {'key':'social_links','label':'Social Platforms','resource':'social','fields':[
+      {'key':'label','label':'Label'},{'key':'url','label':'URL'},{'key':'icon_class','label':'Icon class'},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
+  ];
+
+  @override void dispose() { email.dispose(); password.dispose(); super.dispose(); }
+
+  Future<void> signIn() async {
+    setState(() { busy = true; message = null; });
+    try {
+      final raw = await client.schema('portfolio').rpc('admin_login', params: {'p_email': email.text.trim(), 'p_password': password.text});
+      final result = raw is List && raw.isNotEmpty ? Map<String, dynamic>.from(raw.first as Map) : Map<String, dynamic>.from(raw as Map);
+      if (result['ok'] != true || result['token'] == null) throw Exception((result['message'] ?? 'Admin sign-in failed.').toString());
+      token = result['token'].toString();
+      await loadData();
+    } catch (e) {
+      if (mounted) setState(() { message = e.toString().replaceFirst('Exception: ', ''); busy = false; });
+    }
+  }
+
+  Future<void> loadData() async {
+    if (token == null) return;
+    try {
+      final raw = await client.schema('portfolio').rpc('admin_get_all', params: {'p_token': token});
+      if (raw is! Map) throw Exception('Unexpected response from the Portfolio admin API.');
+      if (mounted) setState(() { data = Map<String, dynamic>.from(raw); busy = false; message = null; });
+    } catch (e) {
+      if (mounted) setState(() { message = e.toString().replaceFirst('Exception: ', ''); busy = false; token = null; data = {}; });
+    }
+  }
+
+  Future<void> signOut() async {
+    final old = token;
+    setState(() { token = null; data = {}; password.clear(); });
+    if (old != null) { try { await client.schema('portfolio').rpc('admin_logout', params: {'p_token': old}); } catch (_) {} }
+  }
+
+  Future<void> editRecord(Map<String, dynamic> resource, [Map<String, dynamic>? old]) async {
+    final fields = List<Map<String, dynamic>>.from(resource['fields'] as List);
+    final controllers = <String, TextEditingController>{};
+    final boolValues = <String, bool>{};
+    for (final field in fields) {
+      final key = field['key'].toString();
+      if (field['bool'] == true) boolValues[key] = old?[key] as bool? ?? true;
+      else controllers[key] = TextEditingController(text: old?[key]?.toString() ?? '');
+    }
+    final accepted = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
+      title: Text((old == null ? 'Add ' : 'Edit ') + resource['label'].toString()),
+      content: SizedBox(width: 520, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        for (final field in fields)
+          if (field['bool'] == true)
+            CheckboxListTile(contentPadding: EdgeInsets.zero, title: Text(field['label'].toString()), value: boolValues[field['key']] ?? true, onChanged: (v) => setDialog(() => boolValues[field['key'].toString()] = v ?? false))
+          else
+            Padding(padding: const EdgeInsets.only(bottom: 10), child: TextField(controller: controllers[field['key']], minLines: field['multi'] == true ? 2 : 1, maxLines: field['multi'] == true ? 4 : 1, keyboardType: field['number'] == true ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text, decoration: InputDecoration(labelText: field['label'].toString()))),
+      ]))),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save'))],
+    )));
+    if (accepted == true && token != null) {
+      final payload = <String, dynamic>{if (old?['id'] != null) 'id': old!['id']};
+      for (final field in fields) {
+        final key = field['key'].toString();
+        if (field['bool'] == true) payload[key] = boolValues[key] ?? true;
+        else {
+          final value = controllers[key]!.text.trim();
+          payload[key] = field['number'] == true ? (num.tryParse(value) ?? 0) : value;
+        }
+      }
+      setState(() { busy = true; message = null; });
+      try {
+        await client.schema('portfolio').rpc('admin_upsert', params: {'p_token': token, 'p_resource': resource['resource'], 'p_data': payload});
+        await loadData();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Portfolio record saved.')));
+      } catch (e) { if (mounted) setState(() { busy = false; message = e.toString().replaceFirst('Exception: ', ''); }); }
+    }
+    for (final controller in controllers.values) { controller.dispose(); }
+  }
+
+  Future<void> deleteRecord(Map<String, dynamic> resource, Map<String, dynamic> row) async {
+    if (row['id'] == null || token == null) return;
+    final accepted = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Delete record?'), content: const Text('This removes the selected item from the Portfolio database.'), actions: [
+      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete'))]));
+    if (accepted != true || token == null) return;
+    setState(() { busy = true; message = null; });
+    try {
+      await client.schema('portfolio').rpc('admin_delete', params: {'p_token': token, 'p_resource': resource['resource'], 'p_id': row['id']});
+      await loadData();
+    } catch (e) { if (mounted) setState(() { busy = false; message = e.toString().replaceFirst('Exception: ', ''); }); }
+  }
+
+  @override Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (token == null) return Scaffold(
+      appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: const Text('Portfolio Admin')),
+      body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 430), child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(22), children: [
+        const _WorkspaceHero(title: 'Portfolio CMS', subtitle: 'Sign in to manage public portfolio content.', icon: Icons.admin_panel_settings_rounded),
+        const SizedBox(height: 18), TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Admin email')),
+        const SizedBox(height: 12), TextField(controller: password, obscureText: true, onSubmitted: (_) => signIn(), decoration: const InputDecoration(labelText: 'Password')),
+        if (message != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(message!, style: TextStyle(color: theme.colorScheme.error))),
+        const SizedBox(height: 16), FilledButton(onPressed: busy ? null : signIn, child: busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Sign in')),
+      ]))));
+    final chosen = resources.where((r) => r['key'] == section).toList();
+    final current = chosen.isEmpty ? resources[2] : chosen.first;
+    final rows = List<Map<String, dynamic>>.from(data[current['key']] as List? ?? []);
+    return Scaffold(
+      appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: const Text('Portfolio Admin'), actions: [
+        IconButton(tooltip: 'Refresh', onPressed: busy ? null : loadData, icon: const Icon(Icons.refresh_rounded)),
+        IconButton(tooltip: 'Sign out', onPressed: signOut, icon: const Icon(Icons.logout_rounded)), const SizedBox(width: 8)]),
+      body: Column(children: [
+        SingleChildScrollView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), child: Row(children: [
+          for (final r in resources) Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(r['label'].toString()), selected: section == r['key'], onSelected: (_) => setState(() => section = r['key'].toString()))),
+        ])),
+        if (message != null) Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), child: Text(message!, style: TextStyle(color: theme.colorScheme.error))),
+        Expanded(child: busy ? const Center(child: CircularProgressIndicator()) : ListView(padding: const EdgeInsets.all(16), children: [
+          Row(children: [Expanded(child: Text(current['label'].toString(), style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))), FilledButton.icon(onPressed: () => editRecord(current), icon: const Icon(Icons.add_rounded), label: const Text('Add'))]),
+          const SizedBox(height: 12),
+          if (rows.isEmpty) const _Notice(text: 'No records yet. Add the first record to this collection.', icon: Icons.inbox_outlined),
+          for (final row in rows) Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text((row['title'] ?? row['name'] ?? row['label'] ?? row['company'] ?? 'Untitled record').toString(), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4), Text(row.entries.where((e) => e.key != 'id' && e.value != null && e.value.toString().trim().isNotEmpty).take(5).map((e) => e.key + ': ' + e.value.toString()).join(' · '), maxLines: 3, overflow: TextOverflow.ellipsis),
+            Align(alignment: Alignment.centerRight, child: Wrap(spacing: 4, children: [
+              IconButton(tooltip: 'Edit', onPressed: () => editRecord(current, row), icon: const Icon(Icons.edit_outlined)),
+              IconButton(tooltip: 'Delete', onPressed: () => deleteRecord(current, row), icon: const Icon(Icons.delete_outline_rounded)),
+            ])),
+          ]))),
+        ])),
+      ]),
+    );
   }
 }
 
