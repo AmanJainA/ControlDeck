@@ -267,6 +267,26 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     Navigator.of(context).maybePop();
   }
 
+  Future<void> openDocument(Map<String,dynamic> file) async {
+    final link = (file['links'] ?? '').toString().trim();
+    if (link.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No document link is saved.')));
+      return;
+    }
+    Uri? uri = Uri.tryParse(link);
+    if (uri == null || !uri.hasScheme) {
+      try {
+        uri = Uri.parse(await db.storage.from('documents').createSignedUrl(link, 300));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message(e))));
+        return;
+      }
+    }
+    if (!await launchUrl(uri, mode: LaunchMode.platformDefault) && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open this document.')));
+    }
+  }
+
   Future<void> showFile(Map<String,dynamic> f) async {
     final link=(f['links']??'').toString().trim();
     await showModalBottomSheet<void>(context:context,showDragHandle:true,isScrollControlled:true,builder:(ctx)=>SafeArea(child:Padding(
@@ -279,12 +299,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         detail('Uploaded at',(f['uploaded_at']??'—').toString()),
         if((f['remark']??'').toString().isNotEmpty)detail('Remark',f['remark'].toString()),
         const SizedBox(height:16),
-        SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:link.isEmpty?null:()async{
-          final uri=Uri.tryParse(link);
-          if(uri==null||!await launchUrl(uri,mode:LaunchMode.platformDefault)){
-            if(ctx.mounted)ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content:Text('Could not open this document link.')));
-          }
-        },icon:const Icon(Icons.open_in_new_rounded),label:const Text('Open document'))),
+        SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:link.isEmpty?null:()=>openDocument(f),icon:const Icon(Icons.open_in_new_rounded),label:const Text('Open document'))),
         const SizedBox(height:8),Text('File details are displayed in Flutter. The linked document opens in a supported viewer.',style:Theme.of(ctx).textTheme.bodySmall),
       ]))));
   }
