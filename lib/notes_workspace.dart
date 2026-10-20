@@ -24,8 +24,10 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   String page = 'Home', query = '';
   String? error, notice, token;
   Map<String,dynamic>? profile, language, topic;
-  List<Map<String,dynamic>> languages = [], topics = [], allTopics = [], progress = [], profiles = [], onlineUsers = [], loginActivity = [], pageVisits = [];
+  List<Map<String,dynamic>> languages = [], topics = [], allTopics = [], progress = [], profiles = [], contents = [], onlineUsers = [], loginActivity = [], pageVisits = [];
   String activityTab = 'Online';
+  String adminTab = 'Overview';
+  String adminTopicSearch = '';
   List<dynamic> blocks = [];
   final email = TextEditingController(text: _notesAdminEmail);
   final password = TextEditingController();
@@ -289,13 +291,14 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   }
   Future<void> loadAdmin() async {
     if(!isAdmin){setState(()=>error='Admin access is restricted.');return;}
-    setState(()=>{loading=true,error=null});
+    setState(()=>{loading=true,error=null,notice=null,page='Admin'});
     try {
       final result=await Future.wait([
         client!.schema('notes').from('profiles').select('id,email,full_name,created_at').order('created_at',ascending:false),
-        client!.schema('notes').from('topics').select('*').order('sort_order'),
+        client!.schema('notes').from('topics').select('*').order('sort_order').order('title'),
+        client!.schema('notes').from('topic_content').select('id,topic_id,content,updated_at').order('updated_at',ascending:false),
       ]);
-      if(mounted)setState(()=>{profiles=List<Map<String,dynamic>>.from(result[0]),topics=List<Map<String,dynamic>>.from(result[1]),page='Admin'});
+      if(mounted)setState(()=>{profiles=List<Map<String,dynamic>>.from(result[0]),topics=List<Map<String,dynamic>>.from(result[1]),allTopics=List<Map<String,dynamic>>.from(result[1]),contents=List<Map<String,dynamic>>.from(result[2]),page='Admin'});
     }catch(e){if(mounted)setState(()=>error=friendly(e));}
     finally{if(mounted)setState(()=>loading=false);}
   }
@@ -331,18 +334,20 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   }
   Future<void> editContent(Map<String,dynamic> item) async {
     if(!isAdmin)return;
+    final returnToAdmin = page == 'Admin';
     try{
       final row=await client!.schema('notes').from('topic_content').select('content').eq('topic_id',item['id']).maybeSingle();
       final c=TextEditingController(text:const JsonEncoder.withIndent('  ').convert(row?['content']??[]));
       final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:Text('Lesson JSON · ${item['title']}'),content:SizedBox(width:700,child:TextField(controller:c,minLines:10,maxLines:20,style:const TextStyle(fontFamily:'monospace'),decoration:const InputDecoration(helperText:'JSON array: heading, subheading, paragraph, code, list, image, note, table, divider'))),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Save'))]));
-      if(ok==true){final parsed=jsonDecode(c.text);if(parsed is! List)throw Exception('Lesson content must be a JSON array.');await client!.schema('notes').from('topic_content').upsert({'topic_id':item['id'],'content':parsed,'updated_at':DateTime.now().toIso8601String()},onConflict:'topic_id');if(mounted)setState(()=>notice='Lesson content saved.');}
+      if(ok==true){final parsed=jsonDecode(c.text);if(parsed is! List)throw Exception('Lesson content must be a JSON array.');await client!.schema('notes').from('topic_content').upsert({'topic_id':item['id'],'content':parsed,'updated_at':DateTime.now().toIso8601String()},onConflict:'topic_id');if(mounted)setState(()=>notice='Lesson content saved.');if(returnToAdmin)await loadAdmin();}
       c.dispose();
     }catch(e){if(mounted)setState(()=>error=friendly(e));}
   }
   Future<void> deleteRow(String table,Map<String,dynamic> row) async {
+    final returnToAdmin = page == 'Admin';
     final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:Text('Delete ${row['title']??row['name']}?'),content:const Text('This action cannot be undone.'),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Delete'))]));
     if(ok!=true)return;
-    try{await client!.schema('notes').from(table).delete().eq('id',row['id']);if(table=='languages')await loadLanguages();else await loadTopics(language??languages.first);}
+    try{await client!.schema('notes').from(table).delete().eq('id',row['id']);if(table=='languages')await loadLanguages();else await loadTopics(language??languages.first);if(returnToAdmin)await loadAdmin();}
     catch(e){if(mounted)setState(()=>error=friendly(e));}
   }
   int get _selectedNavIndex => switch (page) {
@@ -617,16 +622,134 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       for(final row in rows)Card(child:ListTile(title:Text((row['username']??row['email']??row['page_name']??row['page_url']??row['user_id']??'Activity record').toString()),subtitle:Text(row.entries.where((e)=>e.value!=null).take(5).map((e)=>'${e.key}: ${e.value}').join(' · ')))),
     ];
   }
-  List<Widget> adminView(ThemeData theme)=>[
-    _NotesHero(title:'Notes Admin Management',subtitle:'Manage curriculum, lesson content and profiles.'),
-    Align(alignment:Alignment.centerLeft,child:OutlinedButton.icon(onPressed:loadActivity,icon:const Icon(Icons.query_stats_rounded),label:const Text('Open activity monitor'))),
-    Row(children:[Expanded(child:Text('Languages',style:theme.textTheme.titleLarge)),FilledButton.icon(onPressed:()=>editLanguage(),icon:const Icon(Icons.add),label:const Text('Add'))]),
-    for(final l in languages)Card(child:ListTile(title:Text(l['name'].toString()),subtitle:Text('${l['slug']} · order ${l['sort_order']}'),trailing:Wrap(children:[IconButton(onPressed:()=>editLanguage(l),icon:const Icon(Icons.edit_outlined)),IconButton(onPressed:()=>deleteRow('languages',l),icon:const Icon(Icons.delete_outline))]))),
-    Row(children:[Expanded(child:Text('Topics',style:theme.textTheme.titleLarge)),FilledButton.icon(onPressed:()=>editTopic(),icon:const Icon(Icons.add),label:const Text('Add'))]),
-    for(final t in topics)Card(child:ListTile(title:Text(t['title'].toString()),trailing:Wrap(children:[IconButton(onPressed:()=>editTopic(t),icon:const Icon(Icons.edit_outlined)),IconButton(onPressed:()=>editContent(t),icon:const Icon(Icons.edit_note)),IconButton(onPressed:()=>deleteRow('topics',t),icon:const Icon(Icons.delete_outline))]))),
-    Text('Profiles',style:theme.textTheme.titleLarge),for(final p in profiles)Card(child:ListTile(title:Text(p['full_name']?.toString()??'Unnamed user'),subtitle:Text(p['email']?.toString()??''))),
-    const _NotesNotice(title:'Database policy required',detail:'Admin writes are enforced by Supabase RLS. Apply docs/NOTES_ADMIN_POLICIES.sql in the Notes project before using admin edit controls.'),
-  ];
+  List<Widget> adminView(ThemeData theme) {
+    final adminTopics = allTopics.isNotEmpty ? allTopics : topics;
+    final lessonCount = contents.length;
+    final missingCount = adminTopics.length > lessonCount ? adminTopics.length - lessonCount : 0;
+    Widget tab(String value, String label, IconData icon) => ChoiceChip(
+      avatar: Icon(icon, size: 18), label: Text(label), selected: adminTab == value,
+      onSelected: (_) => setState(() => adminTab = value),
+    );
+    Widget sectionTitle(String title, String subtitle, Widget? action) => Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 12),
+      child: Row(children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4), Text(subtitle, style: theme.textTheme.bodyMedium),
+        ])),
+        if (action != null) action,
+      ]),
+    );
+    return [
+      _NotesHero(title:'Admin Management',subtitle:'Manage the Notes curriculum, lesson content, profiles and activity. Select a section below to get started.'),
+      const SizedBox(height: 14),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        tab('Overview', 'Overview', Icons.dashboard_rounded),
+        tab('Languages', 'Languages', Icons.code_rounded),
+        tab('Topics', 'Topics', Icons.list_alt_rounded),
+        tab('Content', 'Lesson content', Icons.article_outlined),
+        tab('Profiles', 'Profiles', Icons.people_alt_outlined),
+        tab('Activity', 'Activity', Icons.query_stats_rounded),
+      ]),
+      const SizedBox(height: 16),
+      if (adminTab == 'Overview') ...[
+        Text('Workspace overview', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        const Text('Quick summary of curriculum records and shortcuts to common tasks.'),
+        const SizedBox(height: 12),
+        LayoutBuilder(builder: (context, box) {
+          final cols = box.maxWidth > 760 ? 3 : box.maxWidth > 460 ? 2 : 1;
+          return GridView.count(
+            crossAxisCount: cols, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: cols == 1 ? 3.0 : 1.55,
+            children: [
+              _NotesStatCard(label: 'Languages', value: languages.length.toString(), icon: Icons.code_rounded),
+              _NotesStatCard(label: 'Topics', value: adminTopics.length.toString(), icon: Icons.menu_book_rounded),
+              _NotesStatCard(label: 'Lessons with content', value: lessonCount.toString(), icon: Icons.article_rounded),
+              _NotesStatCard(label: 'Topics without content', value: missingCount.toString(), icon: Icons.article_outlined),
+              _NotesStatCard(label: 'Profiles', value: profiles.length.toString(), icon: Icons.people_alt_rounded),
+              _NotesStatCard(label: 'Online now', value: onlineUsers.length.toString(), icon: Icons.wifi_rounded),
+            ],
+          );
+        }),
+        sectionTitle('Common tasks', 'Choose a section to manage.', null),
+        Card(child: Column(children: [
+          ListTile(leading: const Icon(Icons.code_rounded), title: const Text('Manage languages'), subtitle: const Text('Create or edit programming tracks.'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => setState(() => adminTab = 'Languages')),
+          const Divider(height: 1),
+          ListTile(leading: const Icon(Icons.menu_book_rounded), title: const Text('Manage topics'), subtitle: const Text('Organise lesson titles and language assignments.'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => setState(() => adminTab = 'Topics')),
+          const Divider(height: 1),
+          ListTile(leading: const Icon(Icons.edit_note_rounded), title: const Text('Manage lesson content'), subtitle: const Text('Add or edit lesson blocks for a topic.'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => setState(() => adminTab = 'Content')),
+          const Divider(height: 1),
+          ListTile(leading: const Icon(Icons.query_stats_rounded), title: const Text('Review activity'), subtitle: const Text('Inspect online users, sign-ins and page visits.'), trailing: const Icon(Icons.chevron_right_rounded), onTap: loadActivity),
+        ])),
+        const SizedBox(height: 8),
+        const _NotesNotice(title: 'Access and data safety', detail: 'Supabase Row Level Security (RLS) must allow admin changes. Deleting a language or topic can also remove related records.'),
+      ],
+      if (adminTab == 'Languages') ...[
+        sectionTitle('Languages', 'Manage programming tracks shown on the Notes home screen.', FilledButton.icon(onPressed: () => editLanguage(), icon: const Icon(Icons.add_rounded), label: const Text('Add'))),
+        if (languages.isEmpty) const _NotesNotice(title: 'No languages found', detail: 'Refresh the workspace or check the Notes database connection.'),
+        for (final l in languages) Card(child: ListTile(
+          leading: const Icon(Icons.code_rounded), title: Text(l['name']?.toString() ?? 'Unnamed language'),
+          subtitle: Text((l['slug'] ?? '').toString() + ' · Display order ' + (l['sort_order'] ?? 0).toString()),
+          trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(tooltip: 'Edit language', onPressed: () => editLanguage(l), icon: const Icon(Icons.edit_outlined)),
+            IconButton(tooltip: 'Delete language', onPressed: () => deleteRow('languages', l), icon: const Icon(Icons.delete_outline_rounded)),
+          ]),
+        )),
+      ],
+      if (adminTab == 'Topics') ...[
+        sectionTitle('Topics', 'Each topic belongs to a language and can have its own lesson content.', FilledButton.icon(onPressed: () => editTopic(), icon: const Icon(Icons.add_rounded), label: const Text('Add topic'))),
+        if (adminTopics.isEmpty) const _NotesNotice(title: 'No topics found', detail: 'Add a topic or check the Notes database connection.'),
+        for (final t in adminTopics) Card(child: ListTile(
+          leading: const Icon(Icons.menu_book_rounded), title: Text(t['title']?.toString() ?? 'Untitled topic'),
+          subtitle: Text(languages.firstWhere((l) => l['id'].toString() == t['language_id'].toString(), orElse: () => <String,dynamic>{'name':'Language'})['name'].toString() + ' · ' + (t['slug'] ?? '').toString() + ' · Order ' + (t['sort_order'] ?? 0).toString()),
+          isThreeLine: true,
+          trailing: PopupMenuButton<String>(
+            tooltip: 'Topic actions',
+            onSelected: (action) {
+              if (action == 'edit') editTopic(t);
+              if (action == 'content') editContent(t);
+              if (action == 'delete') deleteRow('topics', t);
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('Edit topic')),
+              PopupMenuItem(value: 'content', child: Text('Edit lesson content')),
+              PopupMenuItem(value: 'delete', child: Text('Delete topic')),
+            ],
+          ),
+        )),
+      ],
+      if (adminTab == 'Content') ...[
+        sectionTitle('Lesson content', 'Add or edit a topic’s JSON lesson blocks.', IconButton(tooltip: 'Refresh admin data', onPressed: loadAdmin, icon: const Icon(Icons.refresh_rounded))),
+        TextField(decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), labelText: 'Search topics by title'), onChanged: (value) => setState(() => adminTopicSearch = value)),
+        const SizedBox(height: 8),
+        for (final t in adminTopics.where((t) => (t['title'] ?? '').toString().toLowerCase().contains(adminTopicSearch.toLowerCase().trim())))
+          Builder(builder: (context) {
+            final found = contents.where((item) => item['topic_id'].toString() == t['id'].toString()).toList();
+            final hasContent = found.isNotEmpty;
+            final count = hasContent && found.first['content'] is List ? (found.first['content'] as List).length : 0;
+            return Card(child: ListTile(
+              leading: Icon(hasContent ? Icons.article_rounded : Icons.note_add_outlined, color: hasContent ? theme.colorScheme.primary : theme.colorScheme.error),
+              title: Text(t['title']?.toString() ?? 'Untitled topic'),
+              subtitle: Text(hasContent ? 'Content saved · ' + count.toString() + ' blocks' : 'No lesson content saved yet'),
+              trailing: FilledButton.tonalIcon(onPressed: () => editContent(t), icon: Icon(hasContent ? Icons.edit_note_rounded : Icons.add_rounded), label: Text(hasContent ? 'Edit' : 'Add')),
+            ));
+          }),
+      ],
+      if (adminTab == 'Profiles') ...[
+        sectionTitle('Profiles', 'Review profile records. Authentication credentials are not editable here.', IconButton(tooltip: 'Refresh admin data', onPressed: loadAdmin, icon: const Icon(Icons.refresh_rounded))),
+        if (profiles.isEmpty) const _NotesNotice(title: 'No profiles found', detail: 'No profile rows were returned, or this token cannot read them.'),
+        for (final p in profiles) Card(child: ListTile(
+          leading: const CircleAvatar(child: Icon(Icons.person_outline_rounded)),
+          title: Text((p['full_name'] ?? '').toString().trim().isEmpty ? 'Unnamed user' : p['full_name'].toString()),
+          subtitle: Text((p['email'] ?? 'No email').toString() + '\nProfile ID: ' + (p['id'] ?? '').toString()),
+          isThreeLine: true,
+          trailing: IconButton(tooltip: 'Copy profile ID', onPressed: () async { await Clipboard.setData(ClipboardData(text: p['id'].toString())); if (mounted) setState(() => notice = 'Profile ID copied.'); }, icon: const Icon(Icons.copy_rounded)),
+        )),
+      ],
+      if (adminTab == 'Activity') ...activityView(theme),
+    ];
+  }
   Widget message(String text,bool isError)=>Container(margin:const EdgeInsets.only(bottom:10),padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:(isError?Theme.of(context).colorScheme.error:Colors.green).withValues(alpha:.12),borderRadius:BorderRadius.circular(12)),child:Text(text,style:TextStyle(color:isError?Theme.of(context).colorScheme.error:Colors.green)));
 }
 
