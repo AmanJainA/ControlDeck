@@ -322,13 +322,17 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     return activityErrors.containsKey('Profiles') ? 'User unavailable (ID: $rawId)' : 'Unknown user (ID: $rawId)';
   }
 
-  String _activityLabel(String key) => key.replaceAll('_', ' ').split(' ').map((part) =>
+  String _activityLabel(String key) {
+    if (key == 'user_id' || key == 'profile_id') return 'User';
+    return key.replaceAll('_', ' ').split(' ').map((part) =>
       part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1)}').join(' ');
+  }
 
   List<String> _activityColumns(List<Map<String, dynamic>> rows) {
     final keys = <String>{};
     for (final row in rows) { keys.addAll(row.keys); }
     keys.removeAll(['username', 'full_name', 'name']);
+    if (keys.contains('user_id')) keys.remove('profile_id');
     final preferred = activityTab == 'Online'
       ? ['user_id', 'profile_id', 'email', 'page_name', 'last_seen_at', 'created_at']
       : activityTab == 'Logins'
@@ -779,49 +783,57 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
           detail: activityErrors[activityTab] ?? 'No records were returned for this tab. Check table data and Supabase RLS permissions.',
         )
       else
-        Card(
-          clipBehavior: Clip.antiAlias,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 22,
-              headingRowHeight: 50,
-              dataRowMinHeight: 54,
-              dataRowMaxHeight: 100,
-              columns: columns.map((key) => DataColumn(label: Text(key == 'S. No.' ? key : _activityLabel(key), maxLines: 2))).toList(),
-              rows: List<DataRow>.generate(rows.length, (i) => DataRow(
-                cells: columns.map((key) => DataCell(
-                  ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: key == 'user_agent' || key == 'page_url' ? 280 : 210),
-                    child: SelectableText(_activityCell(rows[i], key, i), maxLines: 4),
+        LayoutBuilder(builder: (context, constraints) {
+          if (constraints.maxWidth < 760) {
+            return Column(children: [
+              for (var i = 0; i < rows.length; i++)
+                Card(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
+                        CircleAvatar(radius: 17, child: Text('${i + 1}')),
+                        const SizedBox(width: 10),
+                        Expanded(child: Text(_activityUserName(rows[i]), style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800))),
+                      ]),
+                      const Divider(height: 20),
+                      for (final key in columns.where((key) => key != 'S. No.'))
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(_activityLabel(key), style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.primary)),
+                            const SizedBox(height: 3),
+                            SelectableText(_activityCell(rows[i], key, i)),
+                          ]),
+                        ),
+                    ]),
                   ),
-                )).toList(),
-              )),
+                ),
+            ]);
+          }
+          return Card(
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columnSpacing: 22,
+                headingRowHeight: 50,
+                dataRowMinHeight: 54,
+                dataRowMaxHeight: 100,
+                columns: columns.map((key) => DataColumn(label: Text(key == 'S. No.' ? key : _activityLabel(key), maxLines: 2))).toList(),
+                rows: List<DataRow>.generate(rows.length, (i) => DataRow(
+                  cells: columns.map((key) => DataCell(
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: key == 'user_agent' || key == 'page_url' ? 280 : 210),
+                      child: SelectableText(_activityCell(rows[i], key, i), maxLines: 4),
+                    ),
+                  )).toList(),
+                )),
+              ),
             ),
-          ),
-        ),
-      if (rows.isNotEmpty) ...[
-        const SizedBox(height: 14),
-        Text('Record details', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 6),
-        for (var i = 0; i < rows.length; i++)
-          Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ExpansionTile(
-              leading: CircleAvatar(child: Text('${i + 1}')),
-              title: Text(_activityUserName(rows[i]), maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text(_activityLabel(activityTab == 'Online' ? 'last_seen_at' : activityTab == 'Logins' ? 'login_time' : 'visit_time') + ': ' + _activityCell(rows[i], activityTab == 'Online' ? 'last_seen_at' : activityTab == 'Logins' ? 'login_time' : 'visit_time', i)),
-              children: [
-                for (final entry in rows[i].entries)
-                  ListTile(
-                    dense: true,
-                    title: Text(_activityLabel(entry.key), style: theme.textTheme.labelMedium),
-                    subtitle: SelectableText(entry.key == 'user_id' || entry.key == 'profile_id' ? _activityUserName(rows[i]) : _activityCell(rows[i], entry.key, i)),
-                  ),
-              ],
-            ),
-          ),
-      ],
+          );
+        }),
     ];
   }
   List<Widget> adminView(ThemeData theme) {
