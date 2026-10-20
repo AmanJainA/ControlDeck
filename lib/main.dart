@@ -302,16 +302,18 @@ class _DeckHomeState extends State<DeckHome> {
 
   @override Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final wide = MediaQuery.sizeOf(context).width >= 850;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final wide = screenWidth >= 850;
+    final compact = screenWidth < 360;
     final items = shown;
     final personal = apps.where((a) => a.category == 'Personal').length;
     final professional = apps.where((a) => a.category == 'Professional').length;
     return Scaffold(
-      appBar: AppBar(title: wide ? const _BrandMark() : const Text('ControlDeck', style: TextStyle(fontWeight: FontWeight.w800)), actions: [
+      appBar: AppBar(title: compact ? const SizedBox(width: 4) : (wide ? const _BrandMark() : const Text('ControlDeck', style: TextStyle(fontWeight: FontWeight.w800))), actions: [
         AnimatedContainer(
           duration: const Duration(milliseconds: 280),
           curve: Curves.easeInOutCubic,
-          width: searchExpanded ? (wide ? 270 : (MediaQuery.sizeOf(context).width < 420 ? 132 : 176)) : 44,
+          width: searchExpanded ? (wide ? 270 : (screenWidth < 360 ? 112 : screenWidth < 420 ? 132 : 176)) : 44,
           height: 42,
           decoration: BoxDecoration(
             color: searchExpanded ? Theme.of(context).colorScheme.surfaceContainerHighest : Colors.transparent,
@@ -347,9 +349,10 @@ class _DeckHomeState extends State<DeckHome> {
                   icon: const Icon(Icons.search_rounded),
                 ),
         ),
-        if (widget.cloudUserId != null) const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Center(child: _StatusPill(label: 'Cloud synced', icon: Icons.cloud_done_rounded, color: accent))),
+        if (widget.cloudUserId != null && screenWidth >= 520) const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Center(child: _StatusPill(label: 'Cloud synced', icon: Icons.cloud_done_rounded, color: accent))),
         IconButton(tooltip: 'Toggle theme', onPressed: () => widget.onTheme(!widget.dark), icon: Icon(widget.dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded)),
-        if (widget.cloudUserId != null && MediaQuery.sizeOf(context).width >= 420) IconButton(tooltip: 'Sign out', onPressed: () => Supabase.instance.client.auth.signOut(), icon: const Icon(Icons.logout_rounded)),
+        if (widget.cloudUserId != null && screenWidth >= 520) IconButton(tooltip: 'Sign out', onPressed: () => Supabase.instance.client.auth.signOut(), icon: const Icon(Icons.logout_rounded)),
+        if (widget.cloudUserId != null && screenWidth < 520) PopupMenuButton<String>(tooltip: 'Account options', onSelected: (value) { if (value == 'signout') Supabase.instance.client.auth.signOut(); }, itemBuilder: (_) => const [PopupMenuItem(value: 'signout', child: Row(children: [Icon(Icons.logout_rounded), SizedBox(width: 10), Text('Sign out')]))]),
         const SizedBox(width: 8),
       ]),
       body: Row(children: [
@@ -704,7 +707,7 @@ class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
     if (taskTitle.text.trim().isEmpty || profile == null) return;
     setState(() { busy = true; error = null; });
     try {
-      await client.from('tasks').insert({'user_id':profile!['id'],'title':taskTitle.text.trim(),'priority':'medium','done':false});
+      await client.from('tasks').insert({'user_id':profile!['id'],'title':taskTitle.text.trim(),'priority':'medium','status':'pending'});
       taskTitle.clear(); await loadTasks();
     } catch (e) { if (mounted) setState(() { error = e.toString(); busy = false; }); }
   }
@@ -721,7 +724,7 @@ class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
       const SizedBox(height: 18),
       Row(children: [Expanded(child: TextField(controller: taskTitle, onSubmitted: (_) => addTask(), decoration: const InputDecoration(labelText: 'Add a task', prefixIcon: Icon(Icons.add_task_rounded)))), const SizedBox(width: 10), FilledButton(onPressed: busy ? null : addTask, child: const Text('Add'))]),
       const SizedBox(height: 14),
-      _DataSection(title: 'Tasks', rows: tasks.map((t) => {'title':t['title'],'priority':t['priority'],'due date':t['due_date'],'status':t['done'] == true ? 'Done' : 'Pending'}).toList()),
+      _DataSection(title: 'Tasks', rows: tasks.map((t) => {'title':t['title'],'priority':t['priority'],'due date':t['due_date'],'status':t['status'] == 'done' ? 'Done' : 'Pending'}).toList()),
       if (busy) const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator())),
       if (error != null) Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
       OutlinedButton.icon(onPressed: () => setState(() { profile = null; tasks = []; sessionId = null; client = SupabaseClient(_lifeHubUrl, _lifeHubKey); }), icon: const Icon(Icons.logout_rounded), label: const Text('Sign out')),
