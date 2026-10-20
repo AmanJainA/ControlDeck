@@ -16,7 +16,7 @@ create table if not exists public.controldeck_apps (
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint controldeck_apps_http_url check (url ~* '^https?://'),
+  constraint controldeck_apps_http_url check (url = '' or url ~* '^https?://'),
   constraint controldeck_apps_admin_url check (admin_url = '' or admin_url ~* '^https?://')
 );
 
