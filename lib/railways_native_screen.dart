@@ -234,7 +234,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
 
   void back(){
     if(view=='files'&&heading!=null){openHeading(heading!);return;}
-    if(view=='files'||view=='menus'){setState(() { view = 'home'; heading = null; menu = null; });return;}
+    if(view=='files'||view=='menus'||view=='pending'||view=='nr'){setState(() { view = 'home'; heading = null; menu = null; });return;}
     Navigator.of(context).maybePop();
   }
 
@@ -270,7 +270,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       leading:IconButton(onPressed:user==null?()=>Navigator.of(context).maybePop():back,icon:const Icon(Icons.arrow_back_rounded)),
       title:Text(title),
       actions:[
-        if(user!=null)IconButton(tooltip:'Refresh',onPressed:view=='files'?(heading==null?openMyData:()=>openMenu(menu!)):view=='menus'?()=>openHeading(heading!):loadHeadings,icon:const Icon(Icons.refresh_rounded)),
+        if(user!=null)IconButton(tooltip:'Refresh',onPressed:view=='files'?(heading==null?openMyData:()=>openMenu(menu!)):view=='menus'?()=>openHeading(heading!):view=='pending'?openPendingApprovals:view=='nr'?openNRDashboard:loadHeadings,icon:const Icon(Icons.refresh_rounded)),
         if(user!=null)IconButton(tooltip:'Sign out',onPressed:()=>setState(() { user = null; headings = []; menus = []; files = []; view = 'login'; error = null; }),icon:const Icon(Icons.logout_rounded)),
       ],
     ),body:user==null?loginView():workspaceView());
