@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'railways_embed_stub.dart'
     if (dart.library.io) 'railways_embed_mobile.dart'
     if (dart.library.html) 'railways_embed_web.dart' as railways_embed;
@@ -722,6 +721,65 @@ class RailwaysNativeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => railways_embed.buildRailwaysEmbed(context);
+}
+
+class _NativeFeatureScreen extends StatelessWidget {
+  const _NativeFeatureScreen({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.features,
+  });
+
+  final String title, subtitle;
+  final IconData icon;
+  final List<String> features;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      leading: IconButton(
+        onPressed: () => Navigator.of(context).maybePop(),
+        icon: const Icon(Icons.arrow_back_rounded),
+      ),
+      title: Text(title),
+    ),
+    body: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 960),
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            _WorkspaceHero(title: title, subtitle: subtitle, icon: icon),
+            const SizedBox(height: 20),
+            Text(
+              'Workspace modules',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 12),
+            LayoutBuilder(builder: (context, box) {
+              final columns = box.maxWidth > 700 ? 2 : 1;
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: columns,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: columns == 1 ? 4.2 : 3.4,
+                children: features.map((feature) => Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.widgets_outlined),
+                    title: Text(feature),
+                    subtitle: const Text('Native ControlDeck workspace'),
+                  ),
+                )).toList(),
+              );
+            }),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _WorkspaceHero extends StatelessWidget {
