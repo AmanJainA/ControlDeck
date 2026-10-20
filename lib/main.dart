@@ -834,7 +834,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
     {'key':'education','label':'Education','resource':'education','fields':[
       {'key':'period','label':'Period'},{'key':'location','label':'Location'},{'key':'title','label':'Title'},{'key':'details','label':'Details','multi':true,'array':true},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
     {'key':'experience','label':'Work Experience','resource':'experience','fields':[
-      {'key':'period','label':'Period'},{'key':'company','label':'Company'},{'key':'title','label':'Title'},{'key':'details','label':'Details','multi':true},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
+      {'key':'period','label':'Period'},{'key':'company','label':'Company'},{'key':'title','label':'Title'},{'key':'details','label':'Details','multi':true,'array':true},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
     {'key':'social_links','label':'Social Platforms','resource':'social','fields':[
       {'key':'label','label':'Label'},{'key':'url','label':'URL'},{'key':'icon_class','label':'Icon class'},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
     {'key':'contact','label':'Contact messages','resource':'contact','fields':[
@@ -923,7 +923,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
         else {
           final value = controllers[key]!.text.trim();
           if (field['array'] == true) {
-            payload[key] = value.split(RegExp(r'[\\n,]')).map((part) => part.trim()).where((part) => part.isNotEmpty).toList();
+            payload[key] = value.split(field['multi'] == true ? '\n' : ',').map((part) => part.trim()).where((part) => part.isNotEmpty).toList();
           } else {
             payload[key] = field['number'] == true ? (num.tryParse(value) ?? 0) : value;
           }
