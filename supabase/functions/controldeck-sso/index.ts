@@ -48,43 +48,30 @@ Deno.serve(async (req: Request) => {
   }
 
   if (app === "railways") {
-    const railwayUrl = Deno.env.get("RAILWAYS_SUPABASE_URL");
-    const railwayServiceRoleKey = Deno.env.get("RAILWAYS_SUPABASE_SERVICE_ROLE_KEY");
-    if (!railwayUrl || !railwayServiceRoleKey) {
-      console.error("[controldeck-sso] Railways server credentials are not configured");
-      return json({ error: "Railways shared sign-in is not configured on the server yet." }, 503);
+    // Backward-compatible bridge for older Flutter builds still calling
+    // controldeck-sso. Railways account lookup is handled by the function
+    // deployed in the Railways project, which uses its own server-side key.
+    // The URL and publishable key are public client configuration, not secrets.
+    const railwaySsoUrl = "https://drcxxbymdonyfjtkiouf.supabase.co/functions/v1/railways-sso";
+    const railwayPublishableKey = "sb_publishable_G4oyRa9CfTI80TEMOXU3dA_6NTOipc3";
+    try {
+      const railwayResponse = await fetch(railwaySsoUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": authorization,
+          "apikey": railwayPublishableKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action, app: "railways" }),
+      });
+      const responseBody = await railwayResponse.json().catch(() => ({
+        error: "Railways sign-in returned an unreadable response.",
+      }));
+      return json(responseBody, railwayResponse.status);
+    } catch (error) {
+      console.error("[controldeck-sso] Railways SSO bridge failed", error);
+      return json({ error: "Could not reach the Railways sign-in service. Please try again." }, 502);
     }
-    // Explicit server-side mapping from verified ControlDeck email to the existing Railways account.
-    const railwayEmailByControlDeckEmail: Record<string, string> = {
-      "amanjain033@gmail.com": "aman.jain@nangia.co.in",
-    };
-    const railwayEmail = railwayEmailByControlDeckEmail[email];
-    if (!railwayEmail) return json({ error: "This ControlDeck account is not linked to an existing Railways account." }, 403);
-
-    const railwayAdmin = createClient(railwayUrl, railwayServiceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const { data: railwayUser, error: railwayLookupError } = await railwayAdmin
-      .from("users")
-      .select("id,username,email,role,dept,project")
-      .ilike("email", railwayEmail)
-      .maybeSingle();
-    if (railwayLookupError) {
-      console.error("[controldeck-sso] Railways account lookup failed", { code: railwayLookupError.code });
-      return json({ error: "Could not verify the existing Railways account." }, 500);
-    }
-    if (!railwayUser) return json({ error: "The mapped Railways account was not found. No Railway data or permissions were changed." }, 403);
-    if (action === "logout") return json({ ok: true, action: "logout" });
-    if (action !== "exchange") return json({ error: "Unknown action." }, 400);
-    return json({
-      ok: true,
-      app,
-      user: {
-        id: railwayUser.id, username: railwayUser.username, email: railwayUser.email,
-        role: railwayUser.role, dept: railwayUser.dept, project: railwayUser.project,
-      },
-      controlDeckUserId: user.id,
-    });
   }
 
   const profileQuery = app === "lifehub"
