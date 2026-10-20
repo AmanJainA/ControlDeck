@@ -307,11 +307,11 @@ class _DeckHomeState extends State<DeckHome> {
     final personal = apps.where((a) => a.category == 'Personal').length;
     final professional = apps.where((a) => a.category == 'Professional').length;
     return Scaffold(
-      appBar: AppBar(title: const _BrandMark(), actions: [
+      appBar: AppBar(title: wide ? const _BrandMark() : const Text('ControlDeck', style: TextStyle(fontWeight: FontWeight.w800)), actions: [
         AnimatedContainer(
           duration: const Duration(milliseconds: 280),
           curve: Curves.easeInOutCubic,
-          width: searchExpanded ? (wide ? 270 : 176) : 44,
+          width: searchExpanded ? (wide ? 270 : (MediaQuery.sizeOf(context).width < 420 ? 132 : 176)) : 44,
           height: 42,
           decoration: BoxDecoration(
             color: searchExpanded ? Theme.of(context).colorScheme.surfaceContainerHighest : Colors.transparent,
@@ -349,7 +349,7 @@ class _DeckHomeState extends State<DeckHome> {
         ),
         if (widget.cloudUserId != null) const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Center(child: _StatusPill(label: 'Cloud synced', icon: Icons.cloud_done_rounded, color: accent))),
         IconButton(tooltip: 'Toggle theme', onPressed: () => widget.onTheme(!widget.dark), icon: Icon(widget.dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded)),
-        if (widget.cloudUserId != null) IconButton(tooltip: 'Sign out', onPressed: () => Supabase.instance.client.auth.signOut(), icon: const Icon(Icons.logout_rounded)),
+        if (widget.cloudUserId != null && MediaQuery.sizeOf(context).width >= 420) IconButton(tooltip: 'Sign out', onPressed: () => Supabase.instance.client.auth.signOut(), icon: const Icon(Icons.logout_rounded)),
         const SizedBox(width: 8),
       ]),
       body: Row(children: [
@@ -417,88 +417,344 @@ class AppWorkspaceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    switch (app.id.toLowerCase()) {
+      case 'portfolio': return PortfolioNativeScreen(admin: admin);
+      case 'notes': return const NotesNativeScreen();
+      case 'interview': return const InterviewNativeScreen();
+      case 'lifehub': return const LifeHubNativeScreen();
+      case 'railways': return const _NativeFeatureScreen(title: 'Railways', subtitle: 'Railway workflows and operational tools', icon: Icons.train_rounded, features: ['Railway portal overview', 'Operational records', 'Data collection', 'Reports and status tracking']);
+      default: return _NativeFeatureScreen(title: app.name, subtitle: app.description, icon: iconFor(app.iconKey), features: ['Overview', 'Recent activity', 'Workspace settings']);
+    }
+  }
+}
+
+const _portfolioUrl = 'https://ixjdjvkktlzgiyojnsto.supabase.co';
+const _portfolioKey = 'sb_publishable_Qb66X-cvzAckaQev2ku1VA__CoLmIB1';
+const _lifeHubUrl = 'https://wrssvnvagpnvlwhnqqta.supabase.co';
+const _lifeHubKey = 'sb_publishable_AEu-JBRYrCLYrVq3VjAtyA_ya5ApyM';
+const _notesUrl = String.fromEnvironment('NOTES_SUPABASE_URL');
+const _notesKey = String.fromEnvironment('NOTES_SUPABASE_ANON_KEY');
+const _interviewUrl = String.fromEnvironment('INTERVIEW_SUPABASE_URL');
+const _interviewKey = String.fromEnvironment('INTERVIEW_SUPABASE_ANON_KEY');
+
+class _NativeFeatureScreen extends StatelessWidget {
+  const _NativeFeatureScreen({required this.title, required this.subtitle, required this.icon, required this.features});
+  final String title, subtitle;
+  final IconData icon;
+  final List<String> features;
+  @override Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: Text(title)),
+    body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 960), child: ListView(padding: const EdgeInsets.all(20), children: [
+      _WorkspaceHero(title: title, subtitle: subtitle, icon: icon),
+      const SizedBox(height: 20),
+      Text('Workspace modules', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+      const SizedBox(height: 12),
+      LayoutBuilder(builder: (context, box) {
+        final cols = box.maxWidth > 700 ? 2 : 1;
+        return GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: cols, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: cols == 1 ? 4.2 : 3.4,
+          children: features.map((f) => Card(child: ListTile(leading: const Icon(Icons.widgets_outlined), title: Text(f), subtitle: const Text('Native ControlDeck workspace')))).toList());
+      }),
+    ]))),
+  );
+}
+
+class _WorkspaceHero extends StatelessWidget {
+  const _WorkspaceHero({required this.title, required this.subtitle, required this.icon});
+  final String title, subtitle;
+  final IconData icon;
+  @override Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tint = Color(app.accentHex);
-    final title = admin ? '${app.name} Admin' : app.name;
+    return Container(width: double.infinity, padding: const EdgeInsets.all(22), decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(24),
+      gradient: LinearGradient(colors: [accent.withValues(alpha: .18), theme.colorScheme.surfaceContainerHighest]),
+    ), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(width: 54, height: 54, decoration: BoxDecoration(color: accent.withValues(alpha: .18), borderRadius: BorderRadius.circular(16)), child: Icon(icon, color: accent, size: 28)),
+      const SizedBox(height: 18),
+      Text(title, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+      const SizedBox(height: 8),
+      Text(subtitle, style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+    ]));
+  }
+}
+
+class PortfolioNativeScreen extends StatefulWidget {
+  const PortfolioNativeScreen({super.key, this.admin = false});
+  final bool admin;
+  @override State<PortfolioNativeScreen> createState() => _PortfolioNativeScreenState();
+}
+class _PortfolioNativeScreenState extends State<PortfolioNativeScreen> {
+  late final SupabaseClient client = SupabaseClient(_portfolioUrl, _portfolioKey);
+  bool loading = true;
+  String? error;
+  Map<String, List<Map<String, dynamic>>> data = {};
+  String section = 'Overview';
+  final sections = const ['Overview', 'Skills', 'Projects', 'Experience', 'Education', 'Social'];
+  @override void initState() { super.initState(); load(); }
+  Future<void> load() async {
+    setState(() { loading = true; error = null; });
+    try {
+      final db = client.schema('portfolio');
+      final results = await Future.wait([
+        db.from('site_profile').select('*').limit(1),
+        db.from('languages').select('*').order('sort_order'),
+        db.from('skills').select('*').order('sort_order'),
+        db.from('projects').select('*').order('sort_order'),
+        db.from('experience').select('*').order('sort_order'),
+        db.from('education').select('*').order('sort_order'),
+        db.from('social_links').select('*').order('sort_order'),
+      ]);
+      final keys = ['profile','languages','skills','projects','experience','education','social'];
+      final next = <String, List<Map<String, dynamic>>>{};
+      for (var i = 0; i < results.length; i++) {
+        final value = results[i] as List;
+        next[keys[i]] = value.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      if (mounted) setState(() { data = next; loading = false; });
+    } catch (e) { if (mounted) setState(() { error = e.toString(); loading = false; }); }
+  }
+  @override Widget build(BuildContext context) {
+    final profile = data['profile']?.firstOrNull ?? {};
+    final name = (profile['full_name'] ?? 'Aman Jain').toString();
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          tooltip: 'Back',
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-        actions: const [SizedBox(width: 12)],
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 920),
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [tint.withValues(alpha: .18), theme.colorScheme.surfaceContainerHighest],
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 58, height: 58,
-                      decoration: BoxDecoration(color: tint.withValues(alpha: .18), borderRadius: BorderRadius.circular(18)),
-                      child: Icon(admin ? Icons.admin_panel_settings_rounded : iconFor(app.iconKey), color: tint, size: 30),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(admin ? 'Workspace administration' : 'Your workspace',
-                      style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -.8)),
-                    const SizedBox(height: 8),
-                    Text(app.description.isEmpty ? 'A dedicated space for ${app.name}.' : app.description,
-                      style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.5)),
-                    const SizedBox(height: 18),
-                    const _StatusPill(label: 'Opened inside ControlDeck', icon: Icons.check_circle_rounded, color: accent),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text('Workspace overview', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 12),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Icon(Icons.widgets_rounded, color: tint, size: 26),
-                    const SizedBox(width: 14),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(admin ? 'Admin tools' : 'Workspace home', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 6),
-                      Text(
-                        admin
-                          ? 'This is the in-app administration area for ${app.name}. Management tools can be added here without sending you to a URL.'
-                          : 'This is the native in-app space for ${app.name}. Add its screens and features here as the workspace grows. Navigation stays inside ControlDeck.',
-                        style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.5),
-                      ),
-                    ])),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.grid_view_rounded),
-                label: const Text('Back to all workspaces'),
-              ),
-            ],
-          ),
-        ),
-      ),
+      appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
+        title: Text(widget.admin ? 'Portfolio Admin' : 'Portfolio', style: const TextStyle(fontWeight: FontWeight.w800)),
+        actions: [IconButton(tooltip: 'Refresh portfolio data', onPressed: load, icon: const Icon(Icons.refresh_rounded)), const SizedBox(width: 8)]),
+      body: loading ? const Center(child: CircularProgressIndicator()) : error != null
+        ? _ConnectionNotice(title: 'Portfolio data could not load', detail: error!, onRetry: load)
+        : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1050), child: ListView(padding: const EdgeInsets.all(20), children: [
+          _WorkspaceHero(title: name, subtitle: (profile['headline'] ?? profile['about'] ?? 'Full Stack Developer · Consultant & Data Analyst').toString(), icon: Icons.person_rounded),
+          const SizedBox(height: 16),
+          SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: sections.map((s) => Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(s), selected: section == s, onSelected: (_) => setState(() => section = s))).toList())),
+          const SizedBox(height: 18),
+          if (section == 'Overview') ...[
+            _DataSection(title: 'Technical skills', rows: (data['skills'] ?? []).where((e) => e['category'] == 'technical').take(8).map((e) => _dataText(e, ['name','description','percent'])).toList()),
+            _DataSection(title: 'Selected projects', rows: (data['projects'] ?? []).take(8).map((e) => _dataText(e, ['title','summary','tech_stack'])).toList()),
+          ] else if (section == 'Skills')
+            _DataSection(title: 'Skills and languages', rows: [...(data['skills'] ?? []), ...(data['languages'] ?? [])].map((e) => _dataText(e, ['name','category','description','level','percent'])).toList())
+          else if (section == 'Projects')
+            _DataSection(title: 'Projects', rows: (data['projects'] ?? []).map((e) => _dataText(e, ['title','summary','tech_stack'])).toList())
+          else if (section == 'Experience')
+            _DataSection(title: 'Work experience', rows: (data['experience'] ?? []).map((e) => _dataText(e, ['period','title','company','details'])).toList())
+          else if (section == 'Education')
+            _DataSection(title: 'Education', rows: (data['education'] ?? []).map((e) => _dataText(e, ['period','title','location','details'])).toList())
+          else
+            _DataSection(title: 'Social links', rows: (data['social'] ?? []).map((e) => _dataText(e, ['label','url'])).toList()),
+        ]))),
     );
   }
+  Map<String, dynamic> _dataText(Map<String, dynamic> row, List<String> keys) {
+    final out = <String, dynamic>{};
+    for (final k in keys) { final v = row[k]; if (v != null && v.toString().trim().isNotEmpty) out[k] = v; }
+    return out;
+  }
+}
+
+class NotesNativeScreen extends StatefulWidget {
+  const NotesNativeScreen({super.key});
+  @override State<NotesNativeScreen> createState() => _NotesNativeScreenState();
+}
+class _NotesNativeScreenState extends State<NotesNativeScreen> {
+  SupabaseClient? client;
+  bool loading = false;
+  String? error;
+  List<Map<String, dynamic>> languages = [], topics = [];
+  Map<String, dynamic>? selectedLanguage, selectedTopic;
+  List<dynamic> lesson = [];
+  @override void initState() { super.initState(); if (_notesUrl.isNotEmpty && _notesKey.isNotEmpty) { client = SupabaseClient(_notesUrl, _notesKey); loadLanguages(); } }
+  Future<void> loadLanguages() async {
+    if (client == null) return;
+    setState(() { loading = true; error = null; });
+    try {
+      final rows = await client!.schema('notes').from('languages').select('*').order('sort_order');
+      if (mounted) setState(() { languages = List<Map<String,dynamic>>.from(rows); loading = false; });
+    } catch (e) { if (mounted) setState(() { error = e.toString(); loading = false; }); }
+  }
+  Future<void> loadTopics(Map<String, dynamic> lang) async {
+    setState(() { selectedLanguage = lang; selectedTopic = null; lesson = []; loading = true; error = null; });
+    try {
+      final rows = await client!.schema('notes').from('topics').select('*').eq('language_id', lang['id']).order('sort_order');
+      if (mounted) setState(() { topics = List<Map<String,dynamic>>.from(rows); loading = false; });
+    } catch (e) { if (mounted) setState(() { error = e.toString(); loading = false; }); }
+  }
+  Future<void> loadLesson(Map<String, dynamic> topic) async {
+    setState(() { selectedTopic = topic; loading = true; error = null; });
+    try {
+      final row = await client!.schema('notes').from('topic_content').select('content').eq('topic_id', topic['id']).maybeSingle();
+      if (mounted) setState(() { lesson = List<dynamic>.from(row?['content'] as List? ?? []); loading = false; });
+    } catch (e) { if (mounted) setState(() { error = e.toString(); loading = false; }); }
+  }
+  @override Widget build(BuildContext context) {
+    return Scaffold(appBar: AppBar(leading: IconButton(onPressed: () { if (selectedTopic != null) setState(() => selectedTopic = null); else if (selectedLanguage != null) setState(() => selectedLanguage = null); else Navigator.of(context).maybePop(); }, icon: const Icon(Icons.arrow_back_rounded)), title: const Text('Notes')),
+      body: client == null ? _ConnectionNotice(title: 'Connect your Notes database', detail: 'The Notes main branch keeps its Supabase URL and anon key in local environment variables, not in GitHub. Run ControlDeck with --dart-define=NOTES_SUPABASE_URL=... and --dart-define=NOTES_SUPABASE_ANON_KEY=... to load your real curriculum.') :
+      loading ? const Center(child: CircularProgressIndicator()) : error != null ? _ConnectionNotice(title: 'Notes could not load', detail: error!, onRetry: selectedLanguage == null ? loadLanguages : () => selectedLanguage == null ? loadLanguages() : loadTopics(selectedLanguage!)) :
+      Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1000), child: ListView(padding: const EdgeInsets.all(20), children: [
+        if (selectedTopic != null) ...[
+          _WorkspaceHero(title: (selectedTopic!['title'] ?? 'Lesson').toString(), subtitle: (selectedLanguage?['name'] ?? '').toString(), icon: Icons.menu_book_rounded),
+          for (final block in lesson) _LessonBlock(block: Map<String,dynamic>.from(block as Map)),
+        ] else if (selectedLanguage != null) ...[
+          _WorkspaceHero(title: selectedLanguage!['name'].toString(), subtitle: selectedLanguage!['description']?.toString() ?? 'Choose a lesson to start learning.', icon: Icons.code_rounded),
+          for (final topic in topics) Card(child: ListTile(title: Text(topic['title'].toString()), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => loadLesson(topic))),
+        ] else ...[
+          _WorkspaceHero(title: 'Coding Notes', subtitle: 'Browse the database-driven programming curriculum.', icon: Icons.menu_book_rounded),
+          LayoutBuilder(builder: (context, box) { final cols = box.maxWidth > 700 ? 3 : box.maxWidth > 440 ? 2 : 1; return GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: cols, childAspectRatio: 2.3, crossAxisSpacing: 12, mainAxisSpacing: 12, children: languages.map((l) => Card(child: InkWell(onTap: () => loadTopics(l), child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Icon(Icons.code_rounded, color: accent), const Spacer(), Text(l['name'].toString(), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)), Text(l['description']?.toString() ?? '', maxLines: 2, overflow: TextOverflow.ellipsis)]))))).toList()); }),
+        ],
+      ])));
+  }
+}
+
+class _LessonBlock extends StatelessWidget {
+  const _LessonBlock({required this.block});
+  final Map<String,dynamic> block;
+  @override Widget build(BuildContext context) {
+    final type = (block['type'] ?? '').toString();
+    final text = (block['text'] ?? block['content'] ?? block['title'] ?? '').toString();
+    if (type == 'code') return Card(child: Padding(padding: const EdgeInsets.all(14), child: SelectableText((block['code'] ?? text).toString(), style: const TextStyle(fontFamily: 'monospace'))));
+    if (type == 'list') return Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: (block['items'] as List? ?? []).map((v) => Padding(padding: const EdgeInsets.only(bottom: 6), child: Text('• ${v.toString()}')).toList())));
+    if (type == 'heading') return Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(text, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)));
+    if (type == 'note') return Card(color: accent.withValues(alpha: .12), child: Padding(padding: const EdgeInsets.all(14), child: Text(text)));
+    return Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: SelectableText(text.isEmpty ? jsonEncode(block) : text, style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.55)));
+  }
+}
+
+class InterviewNativeScreen extends StatefulWidget {
+  const InterviewNativeScreen({super.key});
+  @override State<InterviewNativeScreen> createState() => _InterviewNativeScreenState();
+}
+class _InterviewNativeScreenState extends State<InterviewNativeScreen> {
+  SupabaseClient? client;
+  final email = TextEditingController(), password = TextEditingController();
+  bool busy = false;
+  String? error;
+  Map<String,dynamic>? profile;
+  List<Map<String,dynamic>> questions = [];
+  @override void initState() { super.initState(); if (_interviewUrl.isNotEmpty && _interviewKey.isNotEmpty) client = SupabaseClient(_interviewUrl, _interviewKey); }
+  @override void dispose() { email.dispose(); password.dispose(); super.dispose(); }
+  Future<void> login() async {
+    if (client == null) return;
+    setState(() { busy = true; error = null; });
+    try {
+      final rows = await client!.schema('interview').rpc('login_user', params: {'p_email': email.text.trim(), 'p_password': password.text});
+      if ((rows as List).isEmpty) throw Exception('Incorrect email or password.');
+      if (mounted) setState(() { profile = Map<String,dynamic>.from(rows.first as Map); busy = false; });
+      await loadQuestions();
+    } catch (e) { if (mounted) setState(() { error = e.toString().replaceFirst('Exception: ', ''); busy = false; }); }
+  }
+  Future<void> loadQuestions() async {
+    if (client == null) return;
+    try {
+      final rows = await client!.schema('interview').from('questions').select('id,assessment_type,question_text,option_a,option_b,option_c,option_d,marks').order('sort_order');
+      if (mounted) setState(() => questions = List<Map<String,dynamic>>.from(rows));
+    } catch (e) { if (mounted) setState(() => error = e.toString()); }
+  }
+  @override Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: const Text('Interview')),
+    body: client == null ? _ConnectionNotice(title: 'Connect your Interview database', detail: 'The Interview main branch reads VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY from local environment variables. Run ControlDeck with --dart-define=INTERVIEW_SUPABASE_URL=... and --dart-define=INTERVIEW_SUPABASE_ANON_KEY=... to connect it.') :
+    profile == null ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(22), children: [
+      const _WorkspaceHero(title: 'Assessment portal', subtitle: 'Sign in to continue to your interview workspace.', icon: Icons.quiz_rounded),
+      const SizedBox(height: 18), TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email')),
+      const SizedBox(height: 12), TextField(controller: password, obscureText: true, onSubmitted: (_) => login(), decoration: const InputDecoration(labelText: 'Password')),
+      if (error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+      const SizedBox(height: 16), FilledButton(onPressed: busy ? null : login, child: busy ? const CircularProgressIndicator() : const Text('Sign in')),
+    ]))) : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 960), child: ListView(padding: const EdgeInsets.all(20), children: [
+      _WorkspaceHero(title: 'Welcome, ${profile!['name'] ?? 'User'}', subtitle: 'Signed in · ${profile!['usertype'] ?? 'user'} account', icon: Icons.account_circle_rounded),
+      const SizedBox(height: 18),
+      _DataSection(title: 'Available assessment questions', rows: questions.map((q) => {'question':q['question_text'],'type':q['assessment_type'],'marks':q['marks']}).toList()),
+      if (error != null) Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+      OutlinedButton.icon(onPressed: () => setState(() { profile = null; questions = []; password.clear(); }), icon: const Icon(Icons.logout_rounded), label: const Text('Sign out')),
+    ]))),
+  );
+}
+
+class LifeHubNativeScreen extends StatefulWidget {
+  const LifeHubNativeScreen({super.key});
+  @override State<LifeHubNativeScreen> createState() => _LifeHubNativeScreenState();
+}
+class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
+  SupabaseClient client = SupabaseClient(_lifeHubUrl, _lifeHubKey);
+  final email = TextEditingController(), password = TextEditingController(), taskTitle = TextEditingController();
+  bool busy = false;
+  String? error;
+  Map<String,dynamic>? profile;
+  String? sessionId;
+  List<Map<String,dynamic>> tasks = [];
+  @override void dispose() { email.dispose(); password.dispose(); taskTitle.dispose(); super.dispose(); }
+  Future<void> login() async {
+    setState(() { busy = true; error = null; });
+    try {
+      final result = await client.functions.invoke('custom-auth', body: {'action':'login','app':'lifehub','email':email.text.trim().toLowerCase(),'password':password.text,'page':'/'});
+      final data = Map<String,dynamic>.from(result.data as Map);
+      if (data['error'] != null) throw Exception(data['error'].toString());
+      sessionId = data['sessionId']?.toString();
+      profile = Map<String,dynamic>.from(data['profile'] as Map);
+      if (sessionId != null && sessionId!.isNotEmpty) client = SupabaseClient(_lifeHubUrl, _lifeHubKey, headers: {'x-lifehub-session': sessionId!});
+      if (mounted) setState(() { busy = false; });
+      await loadTasks();
+    } catch (e) { if (mounted) setState(() { error = e.toString().replaceFirst('Exception: ', ''); busy = false; }); }
+  }
+  Future<void> loadTasks() async {
+    if (profile == null) return;
+    setState(() { busy = true; error = null; });
+    try {
+      final rows = await client.from('tasks').select('*').eq('user_id', profile!['id']).order('created_at', ascending: false);
+      if (mounted) setState(() { tasks = List<Map<String,dynamic>>.from(rows); busy = false; });
+    } catch (e) { if (mounted) setState(() { error = e.toString(); busy = false; }); }
+  }
+  Future<void> addTask() async {
+    if (taskTitle.text.trim().isEmpty || profile == null) return;
+    setState(() { busy = true; error = null; });
+    try {
+      await client.from('tasks').insert({'user_id':profile!['id'],'title':taskTitle.text.trim(),'priority':'medium','done':false});
+      taskTitle.clear(); await loadTasks();
+    } catch (e) { if (mounted) setState(() { error = e.toString(); busy = false; }); }
+  }
+  @override Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: const Text('LifeHub')),
+    body: profile == null ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(22), children: [
+      const _WorkspaceHero(title: 'LifeHub', subtitle: 'Sign in to open your personal command centre.', icon: Icons.home_work_rounded),
+      const SizedBox(height: 18), TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email')),
+      const SizedBox(height: 12), TextField(controller: password, obscureText: true, onSubmitted: (_) => login(), decoration: const InputDecoration(labelText: 'Password')),
+      if (error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+      const SizedBox(height: 16), FilledButton(onPressed: busy ? null : login, child: busy ? const CircularProgressIndicator() : const Text('Sign in')),
+    ]))) : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 980), child: ListView(padding: const EdgeInsets.all(20), children: [
+      _WorkspaceHero(title: 'Welcome, ${profile!['full_name'] ?? profile!['name'] ?? 'there'}', subtitle: 'LifeHub · Tasks and personal planning', icon: Icons.home_work_rounded),
+      const SizedBox(height: 18),
+      Row(children: [Expanded(child: TextField(controller: taskTitle, onSubmitted: (_) => addTask(), decoration: const InputDecoration(labelText: 'Add a task', prefixIcon: Icon(Icons.add_task_rounded)))), const SizedBox(width: 10), FilledButton(onPressed: busy ? null : addTask, child: const Text('Add'))]),
+      const SizedBox(height: 14),
+      _DataSection(title: 'Tasks', rows: tasks.map((t) => {'title':t['title'],'priority':t['priority'],'due date':t['due_date'],'status':t['done'] == true ? 'Done' : 'Pending'}).toList()),
+      if (busy) const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator())),
+      if (error != null) Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+      OutlinedButton.icon(onPressed: () => setState(() { profile = null; tasks = []; sessionId = null; client = SupabaseClient(_lifeHubUrl, _lifeHubKey); }), icon: const Icon(Icons.logout_rounded), label: const Text('Sign out')),
+    ]))),
+  );
+}
+
+class _ConnectionNotice extends StatelessWidget {
+  const _ConnectionNotice({required this.title, required this.detail, this.onRetry});
+  final String title, detail;
+  final Future<void> Function()? onRetry;
+  @override Widget build(BuildContext context) => Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 540), child: Padding(padding: const EdgeInsets.all(22), child: Card(child: Padding(padding: const EdgeInsets.all(22), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+    const Icon(Icons.cloud_off_rounded, color: accent, size: 34), const SizedBox(height: 12),
+    Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+    const SizedBox(height: 8), Text(detail, style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5)),
+    if (onRetry != null) ...[const SizedBox(height: 14), FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh_rounded), label: const Text('Retry'))],
+  ]))))));
+}
+
+class _DataSection extends StatelessWidget {
+  const _DataSection({required this.title, required this.rows});
+  final String title;
+  final List<Map<String, dynamic>> rows;
+  @override Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+    const SizedBox(height: 8),
+    if (rows.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('No records available yet.')),
+    for (final row in rows) Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text((row.values.firstOrNull ?? 'Item').toString(), style: const TextStyle(fontWeight: FontWeight.w700)),
+      const SizedBox(height: 3),
+      Text(row.entries.skip(1).map((e) => '${e.key}: ${e.value}').join(' · '), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+      const Divider(height: 16),
+    ])),
+  ])));
 }
 
 class _BrandMark extends StatelessWidget {
