@@ -781,7 +781,7 @@ class _NativeFeatureScreen extends StatelessWidget {
 class _WorkspaceHero extends StatelessWidget {
   const _WorkspaceHero({required this.title, required this.subtitle, required this.icon});
   final String title, subtitle;
-  final IconData icon;
+  final Widget icon;
 
   @override
   Widget build(BuildContext context) {
