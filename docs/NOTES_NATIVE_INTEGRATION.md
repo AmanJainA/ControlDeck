@@ -16,7 +16,7 @@ The Notes tile routes to `NotesFullNativeScreen` in `lib/notes_workspace.dart`. 
 - Reuse of the existing ControlDeck Supabase Auth session when Notes is configured to the same Supabase project; Notes data requests remain in the `notes` schema.
 - Per-user lesson completion backed by `notes.user_progress`.
 - Profile and learning-progress view, change-password flow, About screen, and Contact form backed by `notes.contact_messages`.
-- Admin-only UI for language/topic CRUD, lesson JSON editing, and profile viewing. Server-side RLS must also allow the admin actions.
+- Admin-only UI for language/topic CRUD, lesson JSON editing, profile viewing, and an activity monitor for online users, recent logins and page visits. Activity can be manually refreshed and copied as CSV text. Server-side RLS must also allow the admin actions.
 
 ## Configuration
 
@@ -40,6 +40,6 @@ Apply `docs/NOTES_ADMIN_POLICIES.sql` in the Supabase SQL Editor for the Notes p
 
 ## Feature-parity and verification status
 
-This is a native feature port of the primary workflows, not a verified pixel-perfect reproduction of the web app. Email verification and password reset-token actions are available as native dialogs; the full admin activity monitor (currently online, login activity, page visits) and native Excel/PDF export actions are not yet ported. The source web app's remaining legacy lesson files are still content in the database and are not automatically imported by this UI; all rows already in `notes.languages`, `notes.topics`, and `notes.topic_content` will appear dynamically.
+This is a native feature port of the primary workflows, not a verified pixel-perfect reproduction of the web app. Email verification and password reset-token actions are available as native dialogs. The admin activity monitor and CSV-to-clipboard export are ported in a basic form; automatic realtime updates and native Excel/PDF export actions are not yet ported. The source web app's remaining legacy lesson files are still content in the database and are not automatically imported by this UI; all rows already in `notes.languages`, `notes.topics`, and `notes.topic_content` will appear dynamically.
 
 The Flutter build and live Supabase operations have not been run in this environment. On the Mac, run `flutter pub get`, `flutter analyze`, and test sign-in, progress writes, contact submissions, and admin actions against a non-production test record before relying on it. Do not run destructive migrations or seed scripts over existing data.
