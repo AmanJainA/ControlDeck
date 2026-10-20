@@ -52,6 +52,7 @@ class _InterviewNativeScreenV2State extends State<InterviewNativeScreenV2>{
     finally{if(mounted)setState(()=>busy=false);}
   }
   Future<void> loadAdmin()async{final a=await db.schema('interview').from('assessment_attempts').select('*').order('submitted_at',ascending:false).limit(1000);if(mounted)setState(()=>attempts=List<Map<String,dynamic>>.from(a));}
+  Future<void> loadUsers() async { final u = await db.schema('interview').from('users').select('id,name,email,stream,location,usertype,created_date').order('created_date', ascending: false); if (mounted) setState(() => users = List<Map<String,dynamic>>.from(u)); }
   Future<void> resume(Map<String,dynamic> a)async{
     final rows=await db.schema('interview').from('user_answers').select('question_id,selected_option').eq('attempt_id',a['id']);
     answers..clear()..addEntries(List<Map<String,dynamic>>.from(rows).where((x)=>x['selected_option']!=null).map((x)=>MapEntry(x['question_id'].toString(),x['selected_option'].toString())));
@@ -96,7 +97,7 @@ class _InterviewNativeScreenV2State extends State<InterviewNativeScreenV2>{
     }catch(e){if(mounted)setState(()=>error=clean(e));}
   }
   @override Widget build(BuildContext context){
-    if(loading)return const Scaffold(appBar:AppBar(title:Text('Interview')),body:Center(child:Column(mainAxisSize:MainAxisSize.min,children:[CircularProgressIndicator(),SizedBox(height:12),Text('Opening Interview with your ControlDeck session…')])));
+    if (loading) return Scaffold(appBar: AppBar(title: const Text('Interview')), body: const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [CircularProgressIndicator(), SizedBox(height: 12), Text('Opening Interview with your ControlDeck session…')])));
     if(profile==null)return Scaffold(appBar:AppBar(title:const Text('Interview')),body:Center(child:Padding(padding:const EdgeInsets.all(20),child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('Interview could not connect to the existing session'),Text(error??'ControlDeck session unavailable'),FilledButton(onPressed:restore,child:const Text('Check session again')),TextButton(onPressed:()=>Navigator.of(context).maybePop(),child:const Text('Back to ControlDeck'))]))));
     final nav=admin?const ['Dashboard','Assessment','Results','Users','Tracking','Questions','Content']:const ['Dashboard','Assessment','Result'];
     return Scaffold(appBar:AppBar(leading:IconButton(onPressed:()=>Navigator.of(context).maybePop(),icon:const Icon(Icons.arrow_back)),title:const Text('Interview'),actions:[if(busy)const Padding(padding:EdgeInsets.all(14),child:SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2))),IconButton(onPressed:refreshData,icon:const Icon(Icons.refresh))]),body:Column(children:[
