@@ -262,9 +262,18 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   Future<void> openNRDashboard() async {
     setState(() { view = 'nr'; files = []; busy = true; error = null; });
     try {
-      final raw = await db.from('datacollection')
+      var query = db.from('datacollection')
           .select('id,name,links,type,status,remark,uploaded_by,uploaded_at,main_heading_id,menu_id,folder_id,menuname,folder,source_type')
-          .eq('status', 1).order('id', ascending: false);
+          .eq('status', 1);
+      if (!admin) {
+        final allowedHeadingIds = headings.map((h) => (h['id'] as num).toInt()).toList();
+        if (allowedHeadingIds.isEmpty) {
+          if (mounted) setState(() { files = []; busy = false; });
+          return;
+        }
+        query = query.inFilter('main_heading_id', allowedHeadingIds);
+      }
+      final raw = await query.order('id', ascending: false);
       if (mounted) setState(() { files = List<Map<String,dynamic>>.from(raw); });
     } catch (e) { if (mounted) setState(() => error = message(e)); }
     finally { if (mounted) setState(() => busy = false); }
