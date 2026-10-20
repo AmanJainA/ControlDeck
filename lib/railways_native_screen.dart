@@ -21,6 +21,8 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   Map<String,dynamic>? user, heading, menu;
   List<Map<String,dynamic>> headings=[], menus=[], folders=[], files=[], trackingRows=[];
   int? selectedFolderId;
+  int? dashboardHeadingId;
+  String? dashboardMenuFilter;
   String typeFilter='all', trackingTab='online';
   bool busy=true;
   String view='login';
@@ -113,9 +115,41 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         final ids=access.map((r)=>(r['menu_id'] as num).toInt()).toSet();
         result=result.where((m)=>ids.contains((m['id'] as num).toInt())).toList();
       }
-      if(mounted)setState(() { menus = result; });
+      if (!mounted) return;
+      setState(() { menus = result; });
+      // NR Data owns its dashboard. Keep its document summary and menu tabs
+      // inside that workspace rather than adding another top-level destination.
+      if ((h['headingname'] ?? '').toString().trim().toLowerCase() == 'nr data') {
+        await openNRDashboardForHeading(h, result);
+      }
     }catch(e){if(mounted)setState(()=>error=message(e));}
     finally{if(mounted)setState(()=>busy=false);}
+  }
+
+  Future<void> openNRDashboardForHeading(Map<String,dynamic> h, List<Map<String,dynamic>> headingMenus) async {
+    final id = (h['id'] as num).toInt();
+    setState(() {
+      heading = h;
+      dashboardHeadingId = id;
+      dashboardMenuFilter = null;
+      menu = null;
+      menus = headingMenus;
+      view = 'nr';
+      files = [];
+      search.clear();
+      busy = true;
+      error = null;
+    });
+    try {
+      final raw = await db.from('datacollection')
+          .select('id,name,links,type,status,remark,uploaded_by,uploaded_at,main_heading_id,menu_id,folder_id,menuname,folder,source_type')
+          .eq('status', 1).eq('main_heading_id', id).order('id', ascending: false);
+      if (mounted) setState(() { files = List<Map<String,dynamic>>.from(raw); });
+    } catch (e) {
+      if (mounted) setState(() => error = message(e));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
   Future<void> openMenu(Map<String,dynamic> m) async {
@@ -277,7 +311,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   }
 
   Future<void> openNRDashboard() async {
-    setState(() { view = 'nr'; files = []; busy = true; error = null; });
+    setState(() { view = 'nr'; dashboardHeadingId = null; dashboardMenuFilter = null; heading = null; menus = []; files = []; search.clear(); busy = true; error = null; });
     try {
       var query = db.from('datacollection')
           .select('id,name,links,type,status,remark,uploaded_by,uploaded_at,main_heading_id,menu_id,folder_id,menuname,folder,source_type')
@@ -406,7 +440,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         if(user!=null)IconButton(tooltip:'Refresh',onPressed:view=='files'?(heading==null?openMyData:()=>openMenu(menu!)):view=='menus'?()=>openHeading(heading!):view=='pending'?openPendingApprovals:view=='tracking'?()=>loadTracking(trackingTab):view=='nr'?openNRDashboard:loadHeadings,icon:const Icon(Icons.refresh_rounded)),
         if(user!=null)IconButton(tooltip:'Sign out',onPressed:signOut,icon:const Icon(Icons.logout_rounded)),
       ],
-    ),body:user==null?(busy?openingDashboardView():loginView()):workspaceView(),
+    ),body:user==null?openingDashboardView():workspaceView(),
       bottomNavigationBar:user==null?null:NavigationBar(
         selectedIndex: _selectedMainTab,
         onDestinationSelected: _selectMainTab,
@@ -436,9 +470,14 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     LayoutBuilder(builder:(ctx,c){final cols=c.maxWidth>700?3:c.maxWidth>460?2:1;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:cols,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:cols==1?4:2.3,children:[
       metric('Workspaces','—',Icons.account_tree_rounded),metric('Documents','—',Icons.description_outlined),metric('Access','—',Icons.verified_user_outlined)
     ]);}),
+    if(error!=null) Padding(padding:const EdgeInsets.only(top:12),child:Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Text(error!,style:TextStyle(color:Theme.of(context).colorScheme.error)),
+      const SizedBox(height:8),
+      Align(alignment:Alignment.centerLeft,child:FilledButton.icon(onPressed:busy?null:login,icon:const Icon(Icons.refresh_rounded),label:const Text('Retry connection'))),
+    ])))),
     const SizedBox(height:8),
     const Card(child:ListTile(leading:Icon(Icons.folder_copy_outlined),title:Text('My Data'),subtitle:Text('Your submitted railway documents'))),
-    const Card(child:ListTile(leading:Icon(Icons.dashboard_customize_outlined),title:Text('Northern Railway Dashboard'),subtitle:Text('Approved documents across workspaces'))),
+    const Card(child:ListTile(leading:Icon(Icons.dashboard_customize_outlined),title:Text('NR Data Dashboard'),subtitle:Text('Workspace dashboard and menu tabs load here after access is confirmed'))),
   ])));
 
   Widget loginView()=>Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:460),child:ListView(shrinkWrap:true,padding:const EdgeInsets.all(24),children:[
@@ -474,7 +513,6 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         if(headings.isEmpty)const EmptyRailway(title:'No workspaces assigned',detail:'Ask your administrator to grant access.'),
         for(final h in headings)Card(child:ListTile(leading:const CircleAvatar(child:Icon(Icons.account_tree_rounded)),title:Text((h['headingname']??'Workspace').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:const Text('Open menus and documents'),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>openHeading(h))),
         const SizedBox(height:20),
-        Card(child: ListTile(leading: const Icon(Icons.dashboard_customize_outlined), title: const Text('Northern Railway Dashboard'), subtitle: const Text('Browse approved railway documents across workspaces'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openNRDashboard)),
         Text('Railway tools', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height:8),
         Card(child: ListTile(leading: const Icon(Icons.cloud_upload_outlined), title: const Text('Upload Files'), subtitle: const Text('Submit a document or cloud link'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => uploadLink())),
@@ -494,14 +532,19 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
           Card(child: ListTile(leading: const Icon(Icons.monitor_heart_outlined), title: const Text('Manage Tracking'), subtitle: const Text('Currently Online, Login History and Page Activity'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => loadTracking('online'))),
         ],
       ]else if(view=='nr')...[
-        hero('Northern Railway Dashboard', 'Approved repository documents: ' + files.length.toString(), Icons.dashboard_customize_outlined),
+        hero(dashboardHeadingId==null?'Northern Railway Dashboard':(heading?['headingname']??'NR Data Dashboard').toString(), 'Approved documents: ' + files.length.toString(), Icons.dashboard_customize_outlined),
+        const SizedBox(height:10),
+        if (dashboardHeadingId != null && menus.isNotEmpty) SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[
+          Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:const Text('All menus'),selected:dashboardMenuFilter==null,onSelected:(_)=>setState(()=>dashboardMenuFilter=null))),
+          for(final m in menus) Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:Text((m['menuname']??'Menu').toString()),selected:dashboardMenuFilter==(m['menuname']??'').toString(),onSelected:(_)=>setState(()=>dashboardMenuFilter=(m['menuname']??'').toString()))),
+        ])),
         const SizedBox(height:10),
         LayoutBuilder(builder:(ctx,c){final counts=<String,int>{};for(final f in files){final key=(f['menuname']??'Uncategorised').toString();counts[key]=(counts[key]??0)+1;}final n=c.maxWidth>700?3:c.maxWidth>460?2:1;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:n,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:n==1?4:2.3,children:counts.entries.map((e)=>metric(e.key,e.value.toString(),Icons.folder_open_rounded)).toList());}),
         const SizedBox(height:12),
         TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search_rounded),labelText:'Search approved documents')),
         const SizedBox(height:8),
-        if(files.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).isEmpty)const EmptyRailway(title:'No documents found',detail:'No approved documents match this search.'),
-        if(files.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).isNotEmpty)Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columns:const [DataColumn(label:Text('Document')),DataColumn(label:Text('Menu')),DataColumn(label:Text('Folder')),DataColumn(label:Text('Uploaded by')),DataColumn(label:Text('Uploaded at')),DataColumn(label:Text('Open'))],rows:files.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).map((f)=>DataRow(onSelectChanged:(_)=>showFile(f),cells:[DataCell(SizedBox(width:220,child:Text((f['name']??'Document').toString(),maxLines:2,overflow:TextOverflow.ellipsis))),DataCell(Text((f['menuname']??'—').toString())),DataCell(Text((f['folder']??'—').toString())),DataCell(Text((f['uploaded_by']??'—').toString())),DataCell(Text((f['uploaded_at']??'—').toString())),DataCell(IconButton(tooltip:'Open details',onPressed:()=>showFile(f),icon:const Icon(Icons.open_in_new_rounded)))])).toList()))),
+        if(files.where((f)=>(dashboardMenuFilter==null||(f['menuname']??'').toString()==dashboardMenuFilter)&&'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).isEmpty)const EmptyRailway(title:'No documents found',detail:'No approved documents match this menu and search.'),
+        if(files.where((f)=>(dashboardMenuFilter==null||(f['menuname']??'').toString()==dashboardMenuFilter)&&'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).isNotEmpty)Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columns:const [DataColumn(label:Text('Document')),DataColumn(label:Text('Menu')),DataColumn(label:Text('Folder')),DataColumn(label:Text('Uploaded by')),DataColumn(label:Text('Uploaded at')),DataColumn(label:Text('Open'))],rows:files.where((f)=>(dashboardMenuFilter==null||(f['menuname']??'').toString()==dashboardMenuFilter)&&'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).map((f)=>DataRow(onSelectChanged:(_)=>showFile(f),cells:[DataCell(SizedBox(width:220,child:Text((f['name']??'Document').toString(),maxLines:2,overflow:TextOverflow.ellipsis))),DataCell(Text((f['menuname']??'—').toString())),DataCell(Text((f['folder']??'—').toString())),DataCell(Text((f['uploaded_by']??'—').toString())),DataCell(Text((f['uploaded_at']??'—').toString())),DataCell(IconButton(tooltip:'Open details',onPressed:()=>showFile(f),icon:const Icon(Icons.open_in_new_rounded)))])).toList()))),
       ]else if(view=='pending')...[
         hero('Pending Approvals', 'Approve or reject documents submitted by Railway users.', Icons.fact_check_outlined),
         if(files.isEmpty)const EmptyRailway(title:'No pending documents',detail:'There are no submissions waiting for approval.'),
