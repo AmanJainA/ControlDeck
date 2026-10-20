@@ -525,15 +525,25 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     });
   }
 
+  bool get _canPopNotes => topic == null && language == null && (page == 'Home' || page == 'Dashboard');
+
+  void _handleBack() {
+    if (topic != null) {
+      setState(() { topic = null; blocks = []; page = 'Lessons'; });
+    } else if (language != null) {
+      setState(() { language = null; topic = null; blocks = []; page = 'Dashboard'; });
+    } else if (page != 'Home' && page != 'Dashboard') {
+      setState(() { page = 'Dashboard'; });
+    } else {
+      Navigator.of(context).maybePop();
+    }
+  }
+
   @override Widget build(BuildContext context) {
     final ready=publicClient!=null; final theme=Theme.of(context);
-    return Scaffold(appBar:AppBar(
+    return PopScope(canPop: _canPopNotes, onPopInvokedWithResult: (didPop, result) { if (!didPop) _handleBack(); }, child: Scaffold(appBar:AppBar(
       leading: IconButton(
-        onPressed: () {
-          if (topic != null) setState(() { topic = null; blocks = []; page = 'Lessons'; });
-          else if (language != null) setState(() { language = null; page = 'Dashboard'; });
-          else Navigator.of(context).maybePop();
-        },
+        onPressed: _handleBack,
         icon: const Icon(Icons.arrow_back_rounded),
       ),
       title: const Text('Notes'),
@@ -594,7 +604,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
           NavigationDestination(icon: Icon(Icons.account_circle_outlined), label: 'Profile'),
         ],
       ),
-    );
+    ));
   }
   Widget authView(ThemeData theme)=>Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:470),child:ListView(shrinkWrap:true,padding:const EdgeInsets.all(22),children:[
     const _NotesHero(title:'Coding Notes',subtitle:'Programming lessons, learning progress and resources in one place.'),
