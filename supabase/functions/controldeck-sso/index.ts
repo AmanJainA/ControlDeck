@@ -51,7 +51,7 @@ Deno.serve(async (req: Request) => {
   const { data: profile, error: profileError } = await admin
     .schema(schema)
     .from("profiles")
-    .select("id, full_name, email, email_verified, is_active, account_status")
+    .select("id, full_name, email, email_verified, is_active, account_status, notes_enabled")
     .ilike("email", email)
     .maybeSingle();
 
@@ -60,8 +60,9 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Could not verify your access to this module." }, 500);
   }
   if (!profile || profile.email_verified !== true ||
-      profile.is_active === false || profile.account_status === "blocked") {
-    return json({ error: "This email does not have an active, verified profile for this module." }, 403);
+      profile.is_active === false || profile.account_status === "blocked" ||
+      (app === "notes" && profile.notes_enabled !== true)) {
+    return json({ error: "This email does not have an active, verified, enabled profile for this module. Existing module permissions were not changed." }, 403);
   }
 
   if (action === "logout") {
