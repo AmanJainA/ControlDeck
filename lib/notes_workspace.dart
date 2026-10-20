@@ -276,7 +276,12 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   }
   Future<void> loadActivity({bool withinAdmin = false}) async {
     if (!isAdmin) return;
-    setState(() => {loading=true,error=null,page=withinAdmin ? 'Admin' : 'Activity',if(withinAdmin) adminTab='Activity'});
+    setState(() {
+      loading = true;
+      error = null;
+      page = withinAdmin ? 'Admin' : 'Activity';
+      if (withinAdmin) adminTab = 'Activity';
+    });
     try { final rows=await client!.schema('notes').from('currently_online').select('*').order('last_seen_at',ascending:false).limit(100); if(mounted)onlineUsers=List<Map<String,dynamic>>.from(rows); } catch (_) { onlineUsers=[]; }
     try { final rows=await client!.schema('notes').from('login_activity').select('*').order('login_time',ascending:false).limit(100); if(mounted)loginActivity=List<Map<String,dynamic>>.from(rows); } catch (_) { loginActivity=[]; }
     try { final rows=await client!.schema('notes').from('page_visits').select('*').order('visit_time',ascending:false).limit(100); if(mounted)pageVisits=List<Map<String,dynamic>>.from(rows); } catch (_) { pageVisits=[]; }
@@ -298,7 +303,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         client!.schema('notes').from('topics').select('*').order('sort_order').order('title'),
         client!.schema('notes').from('topic_content').select('id,topic_id,content,updated_at').order('updated_at',ascending:false),
       ]);
-      if(mounted)setState(()=>{profiles=List<Map<String,dynamic>>.from(result[0]),topics=List<Map<String,dynamic>>.from(result[1]),allTopics=List<Map<String,dynamic>>.from(result[1]),contents=List<Map<String,dynamic>>.from(result[2]),page='Admin'});
+      if(mounted)setState(()=>{profiles=List<Map<String,dynamic>>.from(result[0]),allTopics=List<Map<String,dynamic>>.from(result[1]),contents=List<Map<String,dynamic>>.from(result[2]),page='Admin'});
     }catch(e){if(mounted)setState(()=>error=friendly(e));}
     finally{if(mounted)setState(()=>loading=false);}
   }
