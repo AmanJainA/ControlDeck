@@ -8,6 +8,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'railways_embed_stub.dart'
+    if (dart.library.io) 'railways_embed_mobile.dart'
+    if (dart.library.html) 'railways_embed_web.dart' as railways_embed;
 
 const accent = Color(0xFF8FA600);
 const supabaseUrl = SupabaseConfig.primaryUrl;
@@ -716,162 +719,9 @@ const _interviewKey = SupabaseConfig.primaryKey;
 
 class RailwaysNativeScreen extends StatelessWidget {
   const RailwaysNativeScreen({super.key});
-  static const portalUrl = 'https://amanjaina.github.io/Railways/';
-
-  static const modules = <Map<String, Object>>[
-    {'title': 'My Data', 'detail': 'Assigned files and records', 'icon': Icons.folder_open_rounded},
-    {'title': 'Nangia', 'detail': 'Project workspace and documents', 'icon': Icons.work_outline_rounded},
-    {'title': 'NR Dashboard', 'detail': 'Role-based headings and menus', 'icon': Icons.dashboard_rounded},
-    {'title': 'File Viewer', 'detail': 'Open approved documents', 'icon': Icons.description_outlined},
-    {'title': 'Approvals', 'detail': 'Pending uploads and review tasks', 'icon': Icons.fact_check_outlined},
-    {'title': 'Work Tracker', 'detail': 'Tasks, ownership and progress', 'icon': Icons.track_changes_rounded},
-    {'title': 'Administration', 'detail': 'Folders, menus, users and access', 'icon': Icons.admin_panel_settings_outlined},
-    {'title': 'Activity & History', 'detail': 'Page activity and login history', 'icon': Icons.history_rounded},
-  ];
-
-  Future<void> _openPortal(BuildContext context) async {
-    try {
-      final opened = await launchUrl(
-        Uri.parse(portalUrl),
-        mode: LaunchMode.externalApplication,
-      );
-      if (!opened && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open the Railway portal. Check your internet connection.')),
-        );
-      }
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open the Railway portal.')),
-        );
-      }
-    }
-  }
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
-        title: const Text('Railways'),
-        actions: [
-          IconButton(
-            tooltip: 'Open live Railway portal',
-            onPressed: () => _openPortal(context),
-            icon: const Icon(Icons.open_in_new_rounded),
-          ),
-        ],
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1000),
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              const _WorkspaceHero(
-                title: 'Railways workspace',
-                subtitle: 'Open the live Railway portal to access its actual records, files, menus and administration tools.',
-                icon: Icons.train_rounded,
-              ),
-              const SizedBox(height: 14),
-              const _Notice(
-                text: 'Choose any portal section to open the live Railway portal in your browser. Sign in with your existing Railway portal account; the portal’s own permissions remain in force.',
-                icon: Icons.open_in_new_rounded,
-              ),
-              const SizedBox(height: 18),
-              Text(
-                'Portal sections',
-                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 12),
-              LayoutBuilder(builder: (context, constraints) {
-                final columns = constraints.maxWidth > 700 ? 2 : 1;
-                return GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: columns,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: columns == 1 ? 4.1 : 3.2,
-                  children: modules.map((module) => Card(
-                    child: ListTile(
-                      onTap: () => _openPortal(context),
-                      leading: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: accent.withValues(alpha: .13),
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                        child: Icon(module['icon'] as IconData, color: accent),
-                      ),
-                      title: Text(
-                        module['title'] as String,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: Text(module['detail'] as String),
-                      trailing: const Icon(Icons.open_in_new_rounded),
-                    ),
-                  )).toList(),
-                );
-              }),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () => _openPortal(context),
-                icon: const Icon(Icons.launch_rounded),
-                label: const Text('Open Railway portal'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NativeFeatureScreen extends StatelessWidget {
-  const _NativeFeatureScreen({required this.title, required this.subtitle, required this.icon, required this.features});
-  final String title, subtitle;
-  final IconData icon;
-  final List<String> features;
-  @override Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: Text(title)),
-    body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 960), child: ListView(padding: const EdgeInsets.all(20), children: [
-      _WorkspaceHero(title: title, subtitle: subtitle, icon: icon),
-      const SizedBox(height: 20),
-      Text('Workspace modules', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-      const SizedBox(height: 12),
-      LayoutBuilder(builder: (context, box) {
-        final cols = box.maxWidth > 700 ? 2 : 1;
-        return GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: cols, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: cols == 1 ? 4.2 : 3.4,
-          children: features.map((f) => Card(child: ListTile(leading: const Icon(Icons.widgets_outlined), title: Text(f), subtitle: const Text('Native ControlDeck workspace')))).toList());
-      }),
-    ]))),
-  );
-}
-
-class _WorkspaceHero extends StatelessWidget {
-  const _WorkspaceHero({required this.title, required this.subtitle, required this.icon});
-  final String title, subtitle;
-  final IconData icon;
-  @override Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(width: double.infinity, padding: const EdgeInsets.all(22), decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(24),
-      gradient: LinearGradient(colors: [accent.withValues(alpha: .18), theme.colorScheme.surfaceContainerHighest]),
-    ), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(width: 54, height: 54, decoration: BoxDecoration(color: accent.withValues(alpha: .18), borderRadius: BorderRadius.circular(16)), child: Icon(icon, color: accent, size: 28)),
-      const SizedBox(height: 18),
-      Text(title, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
-      const SizedBox(height: 8),
-      Text(subtitle, style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-    ]));
-  }
+  Widget build(BuildContext context) => railways_embed.buildRailwaysEmbed(context);
 }
 
 class PortfolioNativeScreen extends StatefulWidget {
@@ -980,9 +830,9 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
     {'key':'skills','label':'Skills','resource':'skill','fields':[
       {'key':'category','label':'Category'},{'key':'name','label':'Name'},{'key':'description','label':'Description','multi':true},{'key':'percent','label':'Percent','number':true},{'key':'icon_class','label':'Icon class'},{'key':'icon_url','label':'Icon URL'},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
     {'key':'projects','label':'Projects','resource':'project','fields':[
-      {'key':'title','label':'Title'},{'key':'summary','label':'Summary','multi':true},{'key':'image_url','label':'Image URL'},{'key':'link','label':'Project URL'},{'key':'repo_url','label':'Repository URL'},{'key':'tech_stack','label':'Tech stack'},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
+      {'key':'title','label':'Title'},{'key':'summary','label':'Summary','multi':true},{'key':'image_url','label':'Image URL'},{'key':'link','label':'Project URL'},{'key':'repo_url','label':'Repository URL'},{'key':'tech_stack','label':'Tech stack','array':true},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
     {'key':'education','label':'Education','resource':'education','fields':[
-      {'key':'period','label':'Period'},{'key':'location','label':'Location'},{'key':'title','label':'Title'},{'key':'details','label':'Details','multi':true},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
+      {'key':'period','label':'Period'},{'key':'location','label':'Location'},{'key':'title','label':'Title'},{'key':'details','label':'Details','multi':true,'array':true},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
     {'key':'experience','label':'Work Experience','resource':'experience','fields':[
       {'key':'period','label':'Period'},{'key':'company','label':'Company'},{'key':'title','label':'Title'},{'key':'details','label':'Details','multi':true},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
     {'key':'social_links','label':'Social Platforms','resource':'social','fields':[
@@ -1026,6 +876,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
     try {
       final raw = await client.schema('portfolio').rpc('admin_get_all', params: {'p_token': token});
       if (raw is! Map) throw Exception('Unexpected response from the Portfolio admin API.');
+      if (raw['ok'] == false) throw Exception((raw['message'] ?? 'Could not load Portfolio data.').toString());
       if (mounted) setState(() { data = Map<String, dynamic>.from(raw); busy = false; message = null; });
     } catch (e) {
       await _secureStorage.delete(key: _portfolioAdminSessionStorageKey);
@@ -1071,14 +922,19 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
         if (field['bool'] == true) payload[key] = boolValues[key] ?? true;
         else {
           final value = controllers[key]!.text.trim();
-          payload[key] = field['number'] == true ? (num.tryParse(value) ?? 0) : value;
+          if (field['array'] == true) {
+            payload[key] = value.split(RegExp(r'[\\n,]')).map((part) => part.trim()).where((part) => part.isNotEmpty).toList();
+          } else {
+            payload[key] = field['number'] == true ? (num.tryParse(value) ?? 0) : value;
+          }
         }
       }
       setState(() { busy = true; message = null; });
       try {
-        await client.schema('portfolio').rpc('admin_upsert', params: {'p_token': token, 'p_resource': resource['resource'], 'p_data': payload});
+        final result = await client.schema('portfolio').rpc('admin_upsert', params: {'p_token': token, 'p_resource': resource['resource'], 'p_data': payload});
+        if (result is Map && result['ok'] != true) throw Exception((result['message'] ?? 'Portfolio record could not be saved.').toString());
         await loadData();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Portfolio record saved.')));
+        if (mounted && message == null) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Portfolio record saved.')));
       } catch (e) { if (mounted) setState(() { busy = false; message = e.toString().replaceFirst('Exception: ', ''); }); }
     }
     for (final controller in controllers.values) { controller.dispose(); }
@@ -1091,7 +947,8 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
     if (accepted != true || token == null) return;
     setState(() { busy = true; message = null; });
     try {
-      await client.schema('portfolio').rpc('admin_delete', params: {'p_token': token, 'p_resource': resource['resource'], 'p_id': row['id']});
+      final result = await client.schema('portfolio').rpc('admin_delete', params: {'p_token': token, 'p_resource': resource['resource'], 'p_id': row['id']});
+      if (result is Map && result['ok'] != true) throw Exception((result['message'] ?? 'Portfolio record could not be deleted.').toString());
       await loadData();
     } catch (e) { if (mounted) setState(() { busy = false; message = e.toString().replaceFirst('Exception: ', ''); }); }
   }
