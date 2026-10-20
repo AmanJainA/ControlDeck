@@ -1,4 +1,4 @@
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
 import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
 
@@ -9,7 +9,7 @@ bool _registered = false;
 Widget buildRailwaysEmbed(BuildContext context) {
   if (!_registered) {
     ui_web.platformViewRegistry.registerViewFactory(_viewType, (int viewId) {
-      final frame = html.IFrameElement()
+      final frame = web.HTMLIFrameElement()
         ..src = _railwaysUrl
         ..title = 'Railways workspace'
         ..allow = 'clipboard-read; clipboard-write; fullscreen'
