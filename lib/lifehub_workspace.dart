@@ -256,16 +256,30 @@ class _LifeHubFullNativeScreenState extends State<LifeHubFullNativeScreen> {
     current.dispose();next.dispose();
   }
 
+  void _handleBack() {
+    if (activeGroup != null) {
+      setState(() => activeGroup = null);
+      return;
+    }
+    if (section != 0) {
+      setState(() { section = 0; activeGroup = null; });
+      _loadCurrent();
+      return;
+    }
+    Navigator.of(context).maybePop();
+  }
+
   Future<void> _signOut() async {
-    // Only ControlDeck's main account menu ends the shared login.
-    if (mounted) Navigator.of(context).maybePop();
+    // The visible back action follows the same one-layer-at-a-time navigation
+    // as the system back gesture; it only exits LifeHub from its root.
+    if (mounted) _handleBack();
   }
 
   @override Widget build(BuildContext context) {
     if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator()));
     if(profile==null||client==null)return Scaffold(appBar:AppBar(title:const Text('LifeHub')),body:Center(child:Padding(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[const Icon(Icons.lock_outline_rounded,size:42),const SizedBox(height:12),Text(error??'Sign in to ControlDeck to access LifeHub.'),const SizedBox(height:12),FilledButton.icon(onPressed:_restoreSession,icon:const Icon(Icons.refresh),label:const Text('Retry shared sign-in'))]))));
     if(section==3&&activeGroup!=null)return PopScope(canPop:false,onPopInvokedWithResult:(didPop,result){if(!didPop&&mounted)setState(()=>activeGroup=null);},child:Scaffold(appBar:AppBar(leading:IconButton(onPressed:()=>setState(()=>activeGroup=null),icon:const Icon(Icons.arrow_back)),title:Text(activeGroup!['name'].toString()),actions:[IconButton(tooltip:'Add member',onPressed:_addGroupMember,icon:const Icon(Icons.person_add_alt_1)),IconButton(onPressed:_addExpense,icon:const Icon(Icons.add_card)),IconButton(onPressed:_settle,icon:const Icon(Icons.payments_outlined))]),body:busy?const Center(child:CircularProgressIndicator()):ListView(padding:const EdgeInsets.all(16),children:[_card(context,'Members',members.map((m)=>(m['avatar']??'🙂').toString()+' '+(m['name']??m['full_name']??m['email']??'Member').toString()).join('\n')),_card(context,'Balances',members.map((m){num net=0;for(final e in groupExpenses){if(e['paid_by']==m['id'])net+=num.tryParse(e['amount'].toString())??0;for(final sh in (e['sw_expense_shares'] as List? ?? const [])){if(sh['user_id']==m['id'])net-=num.tryParse(sh['share_amount'].toString())??0;}}for(final st in settlements){if(st['from_user']==m['id'])net+=num.tryParse(st['amount'].toString())??0;if(st['to_user']==m['id'])net-=num.tryParse(st['amount'].toString())??0;}final name=(m['name']??m['full_name']??m['email']??'Member').toString();return name+' · '+(net>=0?'is owed ':'owes ')+'₹'+net.abs().toStringAsFixed(2);}).join('\n')),_card(context,'Shared expenses',groupExpenses.isEmpty?'No expenses yet.':groupExpenses.map((e)=>(e['description']??'Expense').toString()+' · ₹'+e['amount'].toString()+' · '+e['date'].toString()).join('\n')),_card(context,'Settlements',settlements.isEmpty?'No settlements recorded.':settlements.map((e)=>'₹'+e['amount'].toString()+' · '+(e['note']??'Settlement').toString()).join('\n'))])));
-    return PopScope(canPop: section == 0, onPopInvokedWithResult: (didPop, result) { if (!didPop && mounted) setState(() { section = 0; activeGroup = null; }); }, child: Scaffold(
+    return PopScope(canPop: section == 0, onPopInvokedWithResult: (didPop, result) { if (!didPop && mounted) _handleBack(); }, child: Scaffold(
       appBar:AppBar(title:const Text('LifeHub',style:TextStyle(fontWeight:FontWeight.w800)),actions:[IconButton(tooltip:'Refresh',onPressed:_loadCurrent,icon:const Icon(Icons.refresh)),IconButton(tooltip:'Back to ControlDeck',onPressed:_signOut,icon:const Icon(Icons.arrow_back_rounded))]),
       body:Column(children:[
         if(error!=null)Padding(padding:const EdgeInsets.all(8),child:Text(error!,style:TextStyle(color:Theme.of(context).colorScheme.error))),
