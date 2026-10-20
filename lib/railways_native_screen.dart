@@ -207,7 +207,11 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
           'main_heading_id': headingId, 'menu_id': menuId, 'status': 0, 'uploaded_by': user?['username'],
           'uploaded_at': DateTime.now().toIso8601String(), 'source_type': sourceType,
         }).select('id').single();
-        await db.from('file_uploads').insert({'datacollection_id': inserted['id'], 'uploaded_by': user?['username'], 'upload_time': DateTime.now().toIso8601String()});
+        try {
+          await db.from('file_uploads').insert({'datacollection_id': inserted['id'], 'uploaded_by': user?['username'], 'upload_time': DateTime.now().toIso8601String()});
+        } catch (_) {
+          // The document submission remains valid even if the optional audit log is restricted by database policy.
+        }
         if (mounted) {
           setState(() => error = null);
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Document submitted for approval.')));
