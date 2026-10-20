@@ -41,7 +41,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     super.initState();
     if (notesWorkspaceUrl.isNotEmpty && notesWorkspaceKey.isNotEmpty) {
       publicClient = SupabaseClient(notesWorkspaceUrl, notesWorkspaceKey,
-        authOptions: const AuthClientOptions(autoRefreshToken: false, persistSession: false));
+        authOptions: const AuthClientOptions(autoRefreshToken: false));
       client = publicClient;
       if (notesWorkspaceUrl == controlDeckWorkspaceUrl && controlDeckWorkspaceUrl.isNotEmpty && controlDeckWorkspaceKey.isNotEmpty && Supabase.instance.client.auth.currentUser != null) {
         initializeSharedNotes();
@@ -83,7 +83,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   void applySession(String t, Map<String,dynamic> p) {
     token=t; profile=p;
     client=SupabaseClient(notesWorkspaceUrl,notesWorkspaceKey,headers:{'Authorization':'Bearer $t'},
-      authOptions: const AuthClientOptions(autoRefreshToken:false,persistSession:false));
+      authOptions: const AuthClientOptions(autoRefreshToken:false));
   }
   Future<Map<String,dynamic>> authCall(String action, Map<String,dynamic> payload) async {
     final response=await publicClient!.functions.invoke('custom-auth',body:{'action':action,'app':'notes',...payload});
@@ -298,7 +298,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         if(error!=null)message(error!,true),if(notice!=null)message(notice!,false),
         if(page=='Dashboard')...dashboard(theme),if(page=='Lessons')...lessonList(theme),if(page=='Lesson')...lessonView(theme),
         if(page=='About')...aboutView(),if(page=='Contact')...contactView(),if(page=='Profile')...profileView(theme),if(page=='Admin')...adminView(theme),if(page=='Activity')...activityView(theme),
-      ]);
+      ]));
   }
   Widget authView(ThemeData theme)=>Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:470),child:ListView(shrinkWrap:true,padding:const EdgeInsets.all(22),children:[
     const _NotesHero(title:'Coding Notes',subtitle:'Programming lessons, learning progress and resources in one place.'),
@@ -365,7 +365,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   List<Widget> lessonList(ThemeData theme)=>[
     _NotesHero(title:language?['name']?.toString()??'Lessons',subtitle:language?['description']?.toString()??'Select a lesson.'),
     Row(children:[Expanded(child:Text('${topics.length} lessons')),if(isAdmin)FilledButton.tonalIcon(onPressed:()=>editTopic(),icon:const Icon(Icons.add),label:const Text('Add topic'))]),
-    for(final t in topics)Card(child:ListTile(leading:Icon(completed(t['id'].toString())?Icons.check_circle:Icons.menu_book_rounded),title:Text(t['title'].toString()),subtitle:Text(completed(t['id'].toString())?'Completed':'Lesson'),trailing:Wrap(mainAxisSize:MainAxisSize.min,children:[
+    for(final t in topics)Card(child:ListTile(leading:Icon(completed(t['id'].toString())?Icons.check_circle:Icons.menu_book_rounded),title:Text(t['title'].toString()),subtitle:Text(completed(t['id'].toString())?'Completed':'Lesson'),trailing:Wrap(children:[
       if(isAdmin)IconButton(onPressed:()=>editTopic(t),icon:const Icon(Icons.edit_outlined)),if(isAdmin)IconButton(onPressed:()=>editContent(t),icon:const Icon(Icons.edit_note_rounded)),const Icon(Icons.chevron_right_rounded),
     ]),onTap:()=>loadLesson(t))),
   ];
