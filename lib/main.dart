@@ -944,7 +944,11 @@ class _PortfolioNativeScreenState extends State<PortfolioNativeScreen> {
     return Scaffold(
       appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
         title: Text(widget.admin ? 'Portfolio Admin' : 'Portfolio', style: const TextStyle(fontWeight: FontWeight.w800)),
-        actions: [IconButton(tooltip: 'Refresh portfolio data', onPressed: load, icon: const Icon(Icons.refresh_rounded)), const SizedBox(width: 8)]),
+        actions: [
+          IconButton(tooltip: 'Manage portfolio content', onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PortfolioAdminNativeScreen())), icon: const Icon(Icons.admin_panel_settings_outlined)),
+          IconButton(tooltip: 'Refresh portfolio data', onPressed: load, icon: const Icon(Icons.refresh_rounded)),
+          const SizedBox(width: 8),
+        ]),
       body: loading ? const Center(child: CircularProgressIndicator()) : error != null
         ? _ConnectionNotice(title: 'Portfolio data could not load', detail: error!, onRetry: load)
         : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1050), child: ListView(padding: const EdgeInsets.all(20), children: [
