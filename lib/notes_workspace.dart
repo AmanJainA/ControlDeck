@@ -790,66 +790,261 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         const _NotesNotice(title: 'Access and data safety', detail: 'Supabase Row Level Security (RLS) must allow admin changes. Deleting a language or topic can also remove related records.'),
       ],
       if (adminTab == 'Languages') ...[
-        sectionTitle('Languages', 'Manage programming tracks shown on the Notes home screen.', FilledButton.icon(onPressed: () => editLanguage(), icon: const Icon(Icons.add_rounded), label: const Text('Add'))),
-        if (languages.isEmpty) const _NotesNotice(title: 'No languages found', detail: 'Refresh the workspace or check the Notes database connection.'),
-        for (final l in languages) Card(child: ListTile(
-          leading: const Icon(Icons.code_rounded), title: Text(l['name']?.toString() ?? 'Unnamed language'),
-          subtitle: Text((l['slug'] ?? '').toString() + ' · Display order ' + (l['sort_order'] ?? 0).toString()),
-          trailing: Wrap(children: [
-            IconButton(tooltip: 'Edit language', onPressed: () => editLanguage(l), icon: const Icon(Icons.edit_outlined)),
-            IconButton(tooltip: 'Delete language', onPressed: () => deleteRow('languages', l), icon: const Icon(Icons.delete_outline_rounded)),
-          ]),
-        )),
+        sectionTitle(
+          'Languages',
+          'Manage programming tracks shown on the Notes home screen.',
+          FilledButton.icon(
+            onPressed: () => editLanguage(),
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Add language'),
+          ),
+        ),
+        Text('${languages.length} languages', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 8),
+        if (languages.isEmpty)
+          const _NotesNotice(
+            title: 'No languages found',
+            detail: 'Refresh the workspace or check the Notes database connection.',
+          )
+        else
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('LANGUAGE')),
+                  DataColumn(label: Text('SLUG')),
+                  DataColumn(label: Text('DISPLAY ORDER')),
+                  DataColumn(label: Text('ACTIONS')),
+                ],
+                rows: languages.map((l) => DataRow(cells: [
+                  DataCell(Text((l['name'] ?? 'Unnamed language').toString())),
+                  DataCell(Text((l['slug'] ?? '—').toString())),
+                  DataCell(Text((l['sort_order'] ?? 0).toString())),
+                  DataCell(Wrap(children: [
+                    IconButton(
+                      tooltip: 'Edit language',
+                      onPressed: () => editLanguage(l),
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                    IconButton(
+                      tooltip: 'Delete language',
+                      onPressed: () => deleteRow('languages', l),
+                      icon: const Icon(Icons.delete_outline_rounded),
+                    ),
+                  ])),
+                ])).toList(),
+              ),
+            ),
+          ),
       ],
       if (adminTab == 'Topics') ...[
-        sectionTitle('Topics', 'Each topic belongs to a language and can have its own lesson content.', FilledButton.icon(onPressed: () => editTopic(), icon: const Icon(Icons.add_rounded), label: const Text('Add topic'))),
-        if (adminTopics.isEmpty) const _NotesNotice(title: 'No topics found', detail: 'Add a topic or check the Notes database connection.'),
-        for (final t in adminTopics) Card(child: ListTile(
-          leading: const Icon(Icons.menu_book_rounded), title: Text(t['title']?.toString() ?? 'Untitled topic'),
-          subtitle: Text(languages.firstWhere((l) => l['id'].toString() == t['language_id'].toString(), orElse: () => <String,dynamic>{'name':'Language'})['name'].toString() + ' · ' + (t['slug'] ?? '').toString() + ' · Order ' + (t['sort_order'] ?? 0).toString()),
-          isThreeLine: true,
-          trailing: PopupMenuButton<String>(
-            tooltip: 'Topic actions',
-            onSelected: (action) {
-              if (action == 'edit') editTopic(t);
-              if (action == 'content') editContent(t);
-              if (action == 'delete') deleteRow('topics', t);
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'edit', child: Text('Edit topic')),
-              PopupMenuItem(value: 'content', child: Text('Edit lesson content')),
-              PopupMenuItem(value: 'delete', child: Text('Delete topic')),
-            ],
+        sectionTitle(
+          'Topics',
+          'Each topic belongs to a language and can have its own lesson content.',
+          FilledButton.icon(
+            onPressed: () => editTopic(),
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Add topic'),
           ),
-        )),
+        ),
+        Text('${adminTopics.length} topics', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 8),
+        if (adminTopics.isEmpty)
+          const _NotesNotice(
+            title: 'No topics found',
+            detail: 'Add a topic or check the Notes database connection.',
+          )
+        else
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('TOPIC')),
+                  DataColumn(label: Text('LANGUAGE')),
+                  DataColumn(label: Text('SLUG')),
+                  DataColumn(label: Text('ORDER')),
+                  DataColumn(label: Text('ACTIONS')),
+                ],
+                rows: adminTopics.map((t) {
+                  final languageName = languages.firstWhere(
+                    (l) => l['id'].toString() == t['language_id'].toString(),
+                    orElse: () => <String, dynamic>{'name': 'Unknown'},
+                  )['name'].toString();
+                  return DataRow(cells: [
+                    DataCell(ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 260),
+                      child: Text(
+                        (t['title'] ?? 'Untitled topic').toString(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    )),
+                    DataCell(Text(languageName)),
+                    DataCell(Text((t['slug'] ?? '—').toString())),
+                    DataCell(Text((t['sort_order'] ?? 0).toString())),
+                    DataCell(PopupMenuButton<String>(
+                      tooltip: 'Topic actions',
+                      onSelected: (action) {
+                        if (action == 'edit') editTopic(t);
+                        if (action == 'content') editContent(t);
+                        if (action == 'delete') deleteRow('topics', t);
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'edit', child: Text('Edit topic')),
+                        PopupMenuItem(value: 'content', child: Text('Edit lesson content')),
+                        PopupMenuItem(value: 'delete', child: Text('Delete topic')),
+                      ],
+                    )),
+                  ]);
+                }).toList(),
+              ),
+            ),
+          ),
       ],
       if (adminTab == 'Content') ...[
-        sectionTitle('Lesson content', 'Add or edit a topic’s JSON lesson blocks.', IconButton(tooltip: 'Refresh admin data', onPressed: loadAdmin, icon: const Icon(Icons.refresh_rounded))),
-        TextField(decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), labelText: 'Search topics by title'), onChanged: (value) => setState(() => adminTopicSearch = value)),
+        sectionTitle(
+          'Lesson content',
+          'Search topics and see which lessons have saved content blocks.',
+          IconButton(
+            tooltip: 'Refresh admin data',
+            onPressed: loadAdmin,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ),
+        TextField(
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.search_rounded),
+            labelText: 'Search topics by title',
+          ),
+          onChanged: (value) => setState(() => adminTopicSearch = value),
+        ),
         const SizedBox(height: 8),
-        for (final t in adminTopics.where((t) => (t['title'] ?? '').toString().toLowerCase().contains(adminTopicSearch.toLowerCase().trim())))
-          Builder(builder: (context) {
-            final found = contents.where((item) => item['topic_id'].toString() == t['id'].toString()).toList();
-            final hasContent = found.isNotEmpty;
-            final count = hasContent && found.first['content'] is List ? (found.first['content'] as List).length : 0;
-            return Card(child: ListTile(
-              leading: Icon(hasContent ? Icons.article_rounded : Icons.note_add_outlined, color: hasContent ? theme.colorScheme.primary : theme.colorScheme.error),
-              title: Text(t['title']?.toString() ?? 'Untitled topic'),
-              subtitle: Text(hasContent ? 'Content saved · ' + count.toString() + ' blocks' : 'No lesson content saved yet'),
-              trailing: FilledButton.tonalIcon(onPressed: () => editContent(t), icon: Icon(hasContent ? Icons.edit_note_rounded : Icons.add_rounded), label: Text(hasContent ? 'Edit' : 'Add')),
-            ));
-          }),
+        Text(
+          '${adminTopics.where((t) => (t['title'] ?? '').toString().toLowerCase().contains(adminTopicSearch.toLowerCase().trim())).length} matching topics',
+          style: theme.textTheme.labelLarge,
+        ),
+        const SizedBox(height: 8),
+        Builder(builder: (context) {
+          final filtered = adminTopics.where((t) =>
+            (t['title'] ?? '').toString().toLowerCase().contains(adminTopicSearch.toLowerCase().trim())
+          ).toList();
+          if (filtered.isEmpty) {
+            return const _NotesNotice(
+              title: 'No matching topics',
+              detail: 'Try a different search term or clear the search field.',
+            );
+          }
+          return Card(
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('TOPIC')),
+                  DataColumn(label: Text('CONTENT STATUS')),
+                  DataColumn(label: Text('BLOCKS')),
+                  DataColumn(label: Text('ACTION')),
+                ],
+                rows: filtered.map((t) {
+                  final found = contents.where((item) =>
+                    item['topic_id'].toString() == t['id'].toString()
+                  ).toList();
+                  final hasContent = found.isNotEmpty;
+                  final count = hasContent && found.first['content'] is List
+                      ? (found.first['content'] as List).length
+                      : 0;
+                  return DataRow(cells: [
+                    DataCell(ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 280),
+                      child: Text(
+                        (t['title'] ?? 'Untitled topic').toString(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    )),
+                    DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(
+                        hasContent ? Icons.check_circle_rounded : Icons.pending_outlined,
+                        size: 18,
+                        color: hasContent ? Colors.green : theme.colorScheme.error,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(hasContent ? 'Content saved' : 'Missing content'),
+                    ])),
+                    DataCell(Text(count.toString())),
+                    DataCell(FilledButton.tonal(
+                      onPressed: () => editContent(t),
+                      child: Text(hasContent ? 'Edit' : 'Add'),
+                    )),
+                  ]);
+                }).toList(),
+              ),
+            ),
+          );
+        }),
       ],
       if (adminTab == 'Profiles') ...[
-        sectionTitle('Profiles', 'Review profile records. Authentication credentials are not editable here.', IconButton(tooltip: 'Refresh admin data', onPressed: loadAdmin, icon: const Icon(Icons.refresh_rounded))),
-        if (profiles.isEmpty) const _NotesNotice(title: 'No profiles found', detail: 'No profile rows were returned, or this token cannot read them.'),
-        for (final p in profiles) Card(child: ListTile(
-          leading: const CircleAvatar(child: Icon(Icons.person_outline_rounded)),
-          title: Text((p['full_name'] ?? '').toString().trim().isEmpty ? 'Unnamed user' : p['full_name'].toString()),
-          subtitle: Text((p['email'] ?? 'No email').toString() + '\nProfile ID: ' + (p['id'] ?? '').toString()),
-          isThreeLine: true,
-          trailing: IconButton(tooltip: 'Copy profile ID', onPressed: () async { await Clipboard.setData(ClipboardData(text: p['id'].toString())); if (mounted) setState(() => notice = 'Profile ID copied.'); }, icon: const Icon(Icons.copy_rounded)),
-        )),
+        sectionTitle(
+          'Profiles',
+          'Read-only account overview. Authentication credentials are not editable here.',
+          IconButton(
+            tooltip: 'Refresh admin data',
+            onPressed: loadAdmin,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ),
+        Text('${profiles.length} profiles', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 8),
+        if (profiles.isEmpty)
+          const _NotesNotice(
+            title: 'No profiles found',
+            detail: 'No profile rows were returned, or this token cannot read them.',
+          )
+        else
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('NAME')),
+                  DataColumn(label: Text('EMAIL')),
+                  DataColumn(label: Text('CREATED')),
+                  DataColumn(label: Text('PROFILE ID')),
+                  DataColumn(label: Text('ACTION')),
+                ],
+                rows: profiles.map((p) => DataRow(cells: [
+                  DataCell(Text(
+                    (p['full_name'] ?? '').toString().trim().isEmpty
+                      ? 'Unnamed user'
+                      : p['full_name'].toString(),
+                  )),
+                  DataCell(Text((p['email'] ?? 'No email').toString())),
+                  DataCell(Text((p['created_at'] ?? '—').toString())),
+                  DataCell(ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 190),
+                    child: Text(
+                      (p['id'] ?? '—').toString(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  )),
+                  DataCell(IconButton(
+                    tooltip: 'Copy profile ID',
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: p['id'].toString()));
+                      if (mounted) setState(() => notice = 'Profile ID copied.');
+                    },
+                    icon: const Icon(Icons.copy_rounded),
+                  )),
+                ])).toList(),
+              ),
+            ),
+          ),
       ],
       if (adminTab == 'Activity') ...activityView(theme),
     ];
