@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const controlDeckWorkspaceUrl = String.fromEnvironment('SUPABASE_URL');
+const controlDeckWorkspaceKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 const notesWorkspaceUrl = String.fromEnvironment('NOTES_SUPABASE_URL', defaultValue: String.fromEnvironment('SUPABASE_URL'));
 const notesWorkspaceKey = String.fromEnvironment('NOTES_SUPABASE_ANON_KEY', defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY'));
 const _notesSessionKey = 'controldeck.notes.session.v1';
@@ -41,7 +42,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       publicClient = SupabaseClient(notesWorkspaceUrl, notesWorkspaceKey,
         authOptions: const AuthClientOptions(autoRefreshToken: false, persistSession: false));
       client = publicClient;
-      if (notesWorkspaceUrl == controlDeckWorkspaceUrl && Supabase.instance.client.auth.currentUser != null) {
+      if (notesWorkspaceUrl == controlDeckWorkspaceUrl && controlDeckWorkspaceUrl.isNotEmpty && controlDeckWorkspaceKey.isNotEmpty && Supabase.instance.client.auth.currentUser != null) {
         initializeSharedNotes();
       } else {
         restore();
@@ -166,7 +167,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   }
 
   Future<void> signOut() async {
-    if (notesWorkspaceUrl == controlDeckWorkspaceUrl && Supabase.instance.client.auth.currentUser != null) {
+    if (notesWorkspaceUrl == controlDeckWorkspaceUrl && controlDeckWorkspaceUrl.isNotEmpty && controlDeckWorkspaceKey.isNotEmpty && Supabase.instance.client.auth.currentUser != null) {
       Navigator.of(context).maybePop();
       return;
     }
