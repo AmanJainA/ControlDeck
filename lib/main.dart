@@ -602,7 +602,7 @@ class _PortfolioNativeScreenState extends State<PortfolioNativeScreen> {
         : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1050), child: ListView(padding: const EdgeInsets.all(20), children: [
           _WorkspaceHero(title: name, subtitle: (profile['headline'] ?? profile['about'] ?? 'Full Stack Developer · Consultant & Data Analyst').toString(), icon: Icons.person_rounded),
           const SizedBox(height: 16),
-          SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: sections.map((s) => Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(s), selected: section == s, onSelected: (_) => setState(() => section = s))).toList())),
+          SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: sections.map((s) => Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(s), selected: section == s, onSelected: (_) => setState(() => section = s)))).toList())),
           const SizedBox(height: 18),
           if (section == 'Overview') ...[
             _DataSection(title: 'Technical skills', rows: (data['skills'] ?? []).where((e) => e['category'] == 'technical').take(8).map((e) => _dataText(e, ['name','description','percent'])).toList()),
