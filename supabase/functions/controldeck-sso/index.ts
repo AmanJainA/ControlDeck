@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
 
   const action = String(body.action || "exchange").toLowerCase();
   const app = String(body.app || "").toLowerCase();
-  if (app !== "lifehub" && app !== "notes") {
+  if (app !== "lifehub" && app !== "notes" && app !== "railways") {
     return json({ error: "This module is not configured for shared sign-in yet." }, 400);
   }
 
@@ -45,6 +45,46 @@ Deno.serve(async (req: Request) => {
 
   if (authError || !user || !email || !user.email_confirmed_at) {
     return json({ error: "Your ControlDeck session is invalid or your email is not verified. Sign in again." }, 401);
+  }
+
+  if (app === "railways") {
+    const railwayUrl = Deno.env.get("RAILWAYS_SUPABASE_URL");
+    const railwayServiceRoleKey = Deno.env.get("RAILWAYS_SUPABASE_SERVICE_ROLE_KEY");
+    if (!railwayUrl || !railwayServiceRoleKey) {
+      console.error("[controldeck-sso] Railways server credentials are not configured");
+      return json({ error: "Railways shared sign-in is not configured on the server yet." }, 503);
+    }
+    // Explicit server-side mapping from verified ControlDeck email to the existing Railways account.
+    const railwayEmailByControlDeckEmail: Record<string, string> = {
+      "amanjain033@gmail.com": "aman.jain@nangia.co.in",
+    };
+    const railwayEmail = railwayEmailByControlDeckEmail[email];
+    if (!railwayEmail) return json({ error: "This ControlDeck account is not linked to an existing Railways account." }, 403);
+
+    const railwayAdmin = createClient(railwayUrl, railwayServiceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data: railwayUser, error: railwayLookupError } = await railwayAdmin
+      .from("users")
+      .select("id,username,email,role,dept,project")
+      .ilike("email", railwayEmail)
+      .maybeSingle();
+    if (railwayLookupError) {
+      console.error("[controldeck-sso] Railways account lookup failed", { code: railwayLookupError.code });
+      return json({ error: "Could not verify the existing Railways account." }, 500);
+    }
+    if (!railwayUser) return json({ error: "The mapped Railways account was not found. No Railway data or permissions were changed." }, 403);
+    if (action === "logout") return json({ ok: true, action: "logout" });
+    if (action !== "exchange") return json({ error: "Unknown action." }, 400);
+    return json({
+      ok: true,
+      app,
+      user: {
+        id: railwayUser.id, username: railwayUser.username, email: railwayUser.email,
+        role: railwayUser.role, dept: railwayUser.dept, project: railwayUser.project,
+      },
+      controlDeckUserId: user.id,
+    });
   }
 
   const profileQuery = app === "lifehub"
