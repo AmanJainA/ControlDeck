@@ -463,7 +463,7 @@ class _DeckHomeState extends State<DeckHome> {
             }),
             if (!wide) ...[const SizedBox(height: 24), OutlinedButton.icon(onPressed: () => editApp(), icon: const Icon(Icons.add_rounded), label: const Text('Add app shortcut'))],
             const SizedBox(height: 24),
-            _Notice(text: widget.cloudUserId != null ? 'Your shortcuts sync through Supabase. Each app keeps its own sign-in and permissions.' : 'Local mode is active. Configure Supabase to sync your workspace across devices.', icon: Icons.shield_outlined),
+            _Notice(text: widget.cloudUserId != null ? 'Your shortcuts sync through Supabase. One ControlDeck sign-in opens your modules; each module keeps its own data and permissions.' : 'Local mode is active. Configure Supabase to sync your workspace across devices.', icon: Icons.shield_outlined),
           ]))),
         ])),
       ]),
