@@ -703,7 +703,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         for (final l in languages) Card(child: ListTile(
           leading: const Icon(Icons.code_rounded), title: Text(l['name']?.toString() ?? 'Unnamed language'),
           subtitle: Text((l['slug'] ?? '').toString() + ' · Display order ' + (l['sort_order'] ?? 0).toString()),
-          trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+          trailing: Wrap(children: [
             IconButton(tooltip: 'Edit language', onPressed: () => editLanguage(l), icon: const Icon(Icons.edit_outlined)),
             IconButton(tooltip: 'Delete language', onPressed: () => deleteRow('languages', l), icon: const Icon(Icons.delete_outline_rounded)),
           ]),
