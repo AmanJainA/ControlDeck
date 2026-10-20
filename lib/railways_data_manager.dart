@@ -36,10 +36,10 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       {'key':'username','label':'Username'}, {'key':'password','label':'Password'}, {'key':'role','label':'Role: admin / subadmin / user'}, {'key':'email','label':'Email'}, {'key':'dept','label':'Department'}, {'key':'project','label':'Project'}
     ],
     'work_item_links': [
-      {'key':'work_item_id','label':'Work item ID'}, {'key':'datacollection_id','label':'Document ID'}, {'key':'relation_type','label':'Relation type'}, {'key':'created_by','label':'Created by'}
+      {'key':'work_item_id','label':'Work item ID'}, {'key':'datacollection_id','label':'Document ID'}, {'key':'relation_type','label':'Relation type'}, {'key':'created_by','label':'Created by user ID'}
     ],
     'work_items': [
-      {'key':'title','label':'Title'}, {'key':'description','label':'Description','multi':true}, {'key':'main_heading_id','label':'Main heading ID'}, {'key':'menu_id','label':'Menu ID'}, {'key':'folder_id','label':'Folder ID'}, {'key':'parent_id','label':'Parent task ID'}, {'key':'work_type','label':'Work type'}, {'key':'status','label':'Status: todo / in_progress / done / blocked'}, {'key':'priority','label':'Priority: low / medium / high / urgent'}, {'key':'assigned_to','label':'Assigned user ID'}, {'key':'due_date','label':'Due date YYYY-MM-DD'}, {'key':'sort_order','label':'Sort order'}
+      {'key':'title','label':'Title'}, {'key':'description','label':'Description','multi':true}, {'key':'main_heading_id','label':'Main heading ID'}, {'key':'menu_id','label':'Menu ID'}, {'key':'folder_id','label':'Folder ID'}, {'key':'parent_id','label':'Parent task ID'}, {'key':'work_type','label':'Work type'}, {'key':'status','label':'Status: todo / in_progress / done / blocked'}, {'key':'priority','label':'Priority: low / medium / high / urgent'}, {'key':'assigned_to','label':'Assigned user ID'}, {'key':'due_date','label':'Due date YYYY-MM-DD'}, {'key':'sort_order','label':'Sort order'}, {'key':'created_by','label':'Created by user ID'}
     ],
     'datacollection': [
       {'key':'name','label':'Document title'}, {'key':'links','label':'Storage path or URL','multi':true}, {'key':'type','label':'File type'}, {'key':'main_heading_id','label':'Main heading ID'}, {'key':'menu_id','label':'Menu ID'}, {'key':'folder_id','label':'Folder ID'}, {'key':'menuname','label':'Menu name'}, {'key':'folder','label':'Folder name'}, {'key':'status','label':'Status: 0 pending, 1 approved, 2 rejected'}, {'key':'remark','label':'Remark','multi':true}, {'key':'uploaded_by','label':'Uploaded by'}, {'key':'source_type','label':'Source type'}
@@ -81,13 +81,38 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save'))],
     ));
     if (accepted == true) {
+      final requiredKeys = <String, List<String>>{
+        'main_heading_master': ['headingname'],
+        'menu_master': ['menuname','main_heading_id'],
+        'folder_master': ['foldername','main_heading_id','menu_id'],
+        'users': ['username','role'],
+        'work_items': ['title','main_heading_id','menu_id'],
+        'work_item_links': ['work_item_id','datacollection_id'],
+        'datacollection': ['name','links'],
+        'user_main_heading_access': ['user_id','main_heading_id'],
+        'user_menu_access': ['user_id','menu_id'],
+      };
+      for (final key in requiredKeys[widget.table] ?? const <String>[]) {
+        if ((controllers[key]?.text.trim() ?? '').isEmpty) {
+          if (mounted) setState(() => error = 'Please fill the required field: $key.');
+          for (final c in controllers.values) { c.dispose(); }
+          return;
+        }
+      }
       final payload = <String,dynamic>{};
       for (final f in spec) {
         final key = f['key'].toString();
         final value = controllers[key]!.text.trim();
         if (value.isEmpty) { payload[key] = null; continue; }
-        if (['main_heading_id','menu_id','folder_id','parent_id','assigned_to','sort_order'].contains(key) || (key == 'status' && widget.table == 'datacollection')) {
+        final numericKeys = <String>{'main_heading_id','menu_id','folder_id','parent_id','assigned_to','sort_order'};
+        if (widget.table == 'work_items') numericKeys.add('created_by');
+        if (widget.table == 'work_item_links') numericKeys.addAll({'work_item_id','datacollection_id','created_by'});
+        if (widget.table == 'datacollection' && key == 'status') {
           payload[key] = num.tryParse(value);
+        } else if (numericKeys.contains(key)) {
+          final parsed = num.tryParse(value);
+          if (parsed == null) throw Exception('Enter a valid number for undefined.');
+          payload[key] = parsed;
         } else {
           payload[key] = value;
         }
