@@ -23,7 +23,7 @@ The requested single sign-in is the intended product experience, but **full cros
 
 ## Important feature-parity status
 
-This is a native Flutter migration in progress, not a claim that every React workflow has already been reproduced. LifeHub's core data workflows have now been ported to a native workspace; the original web chart/export presentation and email verification/reset screens are not pixel-for-pixel ports, and the native workflow still needs build and device testing. See [docs/LIFEHUB_NATIVE_INTEGRATION.md](docs/LIFEHUB_NATIVE_INTEGRATION.md). Notes has a native curriculum/auth/progress/contact/admin implementation, but its full admin activity-monitoring dashboard and native Excel/PDF export parity still need completion. Admin writes also require the server-enforced policies in `docs/NOTES_ADMIN_POLICIES.sql` to be applied in the Notes Supabase project. Build and device testing remains pending. Interview still needs registration, instructions, timed assessment, autosaved answers, submission/results, and admin reporting. The public Portfolio screen is read-only; its separate admin screen supports content management. Railways now has a native module map, but its source authentication and access model needs a server-side security migration before protected records can be exposed. These remaining workflows should be ported into Flutter screens and continue using each project's existing backend and access controls.
+This is a native Flutter migration in progress, not a claim that every React workflow has already been reproduced. LifeHub's core data workflows have now been ported to a native workspace; the original web chart/export presentation and email verification/reset screens are not pixel-for-pixel ports, and the native workflow still needs build and device testing. See [docs/LIFEHUB_NATIVE_INTEGRATION.md](docs/LIFEHUB_NATIVE_INTEGRATION.md). Notes has a native curriculum/auth/progress/contact/admin implementation, but its activity monitor currently supports online users, recent logins and page visits with manual refresh and CSV-to-clipboard export; realtime updates and native Excel/PDF export parity still need completion. Admin writes also require the server-enforced policies in `docs/NOTES_ADMIN_POLICIES.sql` to be applied in the Notes Supabase project. Build and device testing remains pending. Interview still needs registration, instructions, timed assessment, autosaved answers, submission/results, and admin reporting. The public Portfolio screen is read-only; its separate admin screen supports content management. Railways now has a native module map, but its source authentication and access model needs a server-side security migration before protected records can be exposed. These remaining workflows should be ported into Flutter screens and continue using each project's existing backend and access controls.
 
 ## Configuration
 
@@ -36,7 +36,7 @@ flutter run \
   --dart-define=SUPABASE_ANON_KEY=YOUR_CONTROLDECK_PUBLISHABLE_OR_ANON_KEY
 ```
 
-The project-specific data connections are separate from ControlDeck's own shortcut sync.
+The project-specific data connections are separate from ControlDeck's own shortcut sync. Notes configuration and policy steps are documented in [docs/NOTES_NATIVE_INTEGRATION.md](docs/NOTES_NATIVE_INTEGRATION.md) and [docs/NOTES_ADMIN_POLICIES.sql](docs/NOTES_ADMIN_POLICIES.sql).
 
 ### LifeHub
 
