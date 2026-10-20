@@ -17,18 +17,18 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   static const _storage = FlutterSecureStorage();
   static const _sessionKey = 'controldeck.railways.session.v1';
   late final SupabaseClient db;
-  final username = TextEditingController(), password = TextEditingController(), search = TextEditingController();
+  final search = TextEditingController();
   Map<String,dynamic>? user, heading, menu;
   List<Map<String,dynamic>> headings=[], menus=[], folders=[], files=[];
   int? selectedFolderId;
-  bool busy=false, reveal=false;
+  bool busy=false;
   String view='login';
   String? error;
   bool get admin => (user?['role']??'').toString().toLowerCase()=='admin';
   bool get canApprove => admin || (user?['role'] ?? '').toString().toLowerCase() == 'subadmin';
 
   @override void initState(){super.initState();db=SupabaseClient(SupabaseConfig.professionalUrl,SupabaseConfig.professionalKey);_restoreSession();}
-  @override void dispose(){username.dispose();password.dispose();search.dispose();db.dispose();super.dispose();}
+  @override void dispose(){search.dispose();db.dispose();super.dispose();}
 
   String message(Object e){
     final s=e.toString().replaceFirst('Exception: ','');
