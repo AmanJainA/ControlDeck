@@ -513,7 +513,8 @@ class _PortfolioNativeScreenState extends State<PortfolioNativeScreen> {
     } catch (e) { if (mounted) setState(() { error = e.toString(); loading = false; }); }
   }
   @override Widget build(BuildContext context) {
-    final profile = data['profile']?.firstOrNull ?? {};
+    final profileRows = data['profile'] ?? <Map<String, dynamic>>[];
+    final profile = profileRows.isNotEmpty ? profileRows.first : <String, dynamic>{};
     final name = (profile['full_name'] ?? 'Aman Jain').toString();
     return Scaffold(
       appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
@@ -749,7 +750,7 @@ class _DataSection extends StatelessWidget {
     const SizedBox(height: 8),
     if (rows.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('No records available yet.')),
     for (final row in rows) Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text((row.values.firstOrNull ?? 'Item').toString(), style: const TextStyle(fontWeight: FontWeight.w700)),
+      Text((row.values.isNotEmpty ? row.values.first : 'Item').toString(), style: const TextStyle(fontWeight: FontWeight.w700)),
       const SizedBox(height: 3),
       Text(row.entries.skip(1).map((e) => '${e.key}: ${e.value}').join(' · '), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
       const Divider(height: 16),
