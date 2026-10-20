@@ -486,6 +486,189 @@ class _DeckHomeState extends State<DeckHome> {
   }
 }
 
+class AccountProfileScreen extends StatefulWidget {
+  const AccountProfileScreen({super.key});
+  @override
+  State<AccountProfileScreen> createState() => _AccountProfileScreenState();
+}
+
+class _AccountProfileScreenState extends State<AccountProfileScreen> {
+  final name = TextEditingController();
+  final password = TextEditingController();
+  final confirmPassword = TextEditingController();
+  bool savingProfile = false, changingPassword = false, showPassword = false;
+  String? notice, error;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = Supabase.instance.client.auth.currentUser;
+    name.text = (user?.userMetadata?['full_name'] ?? user?.userMetadata?['name'] ?? '').toString();
+  }
+
+  @override
+  void dispose() {
+    name.dispose();
+    password.dispose();
+    confirmPassword.dispose();
+    super.dispose();
+  }
+
+  Future<void> saveProfile() async {
+    setState(() { savingProfile = true; notice = null; error = null; });
+    try {
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(data: {'full_name': name.text.trim()}),
+      );
+      if (mounted) setState(() => notice = 'Profile updated.');
+    } on AuthException catch (e) {
+      if (mounted) setState(() => error = e.message);
+    } catch (e) {
+      if (mounted) setState(() => error = 'Could not update profile: $e');
+    } finally {
+      if (mounted) setState(() => savingProfile = false);
+    }
+  }
+
+  Future<void> changePassword() async {
+    if (password.text.length < 8) {
+      setState(() => error = 'Use a password with at least 8 characters.');
+      return;
+    }
+    if (password.text != confirmPassword.text) {
+      setState(() => error = 'The passwords do not match.');
+      return;
+    }
+    setState(() { changingPassword = true; notice = null; error = null; });
+    try {
+      await Supabase.instance.client.auth.updateUser(UserAttributes(password: password.text));
+      password.clear();
+      confirmPassword.clear();
+      if (mounted) setState(() => notice = 'Password changed successfully.');
+    } on AuthException catch (e) {
+      if (mounted) setState(() => error = e.message);
+    } catch (e) {
+      if (mounted) setState(() => error = 'Could not change password: $e');
+    } finally {
+      if (mounted) setState(() => changingPassword = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = Supabase.instance.client.auth.currentUser;
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
+        title: const Text('Profile & security'),
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              const _WorkspaceHero(title: 'Your account', subtitle: 'Manage the profile and password used to sign in to ControlDeck.', icon: Icons.account_circle_rounded),
+              const SizedBox(height: 16),
+              Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Profile details', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 12),
+                  TextFormField(initialValue: user?.email ?? '', readOnly: true, decoration: const InputDecoration(labelText: 'Email address', prefixIcon: Icon(Icons.mail_outline_rounded))),
+                  const SizedBox(height: 12),
+                  TextField(controller: name, decoration: const InputDecoration(labelText: 'Display name', prefixIcon: Icon(Icons.person_outline_rounded))),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(onPressed: savingProfile ? null : saveProfile, icon: const Icon(Icons.save_outlined), label: Text(savingProfile ? 'Saving…' : 'Save profile')),
+                ],
+              ))),
+              const SizedBox(height: 14),
+              Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Change password', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 8),
+                  const Text('Choose a new password. It is handled by Supabase Auth and is not stored in this app.'),
+                  const SizedBox(height: 12),
+                  TextField(controller: password, obscureText: !showPassword, decoration: InputDecoration(labelText: 'New password', prefixIcon: const Icon(Icons.lock_outline_rounded), suffixIcon: IconButton(onPressed: () => setState(() => showPassword = !showPassword), icon: Icon(showPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded)))),
+                  const SizedBox(height: 12),
+                  TextField(controller: confirmPassword, obscureText: !showPassword, onSubmitted: (_) => changePassword(), decoration: const InputDecoration(labelText: 'Confirm new password', prefixIcon: Icon(Icons.lock_reset_rounded))),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(onPressed: changingPassword ? null : changePassword, icon: const Icon(Icons.password_rounded), label: Text(changingPassword ? 'Updating…' : 'Update password')),
+                ],
+              ))),
+              if (notice != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(notice!, style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.w600))),
+              if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: TextStyle(color: theme.colorScheme.error))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class AccountSettingsScreen extends StatelessWidget {
+  const AccountSettingsScreen({super.key, required this.dark, required this.onTheme});
+  final bool dark;
+  final ValueChanged<bool> onTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
+        title: const Text('Settings'),
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: ListView(padding: const EdgeInsets.all(20), children: [
+            const _WorkspaceHero(title: 'ControlDeck settings', subtitle: 'Manage your app appearance and sign-in session.', icon: Icons.tune_rounded),
+            const SizedBox(height: 16),
+            Card(child: SwitchListTile(
+              value: dark,
+              onChanged: onTheme,
+              secondary: Icon(dark ? Icons.dark_mode_rounded : Icons.light_mode_rounded),
+              title: const Text('Dark appearance'),
+              subtitle: const Text('Switch between dark and light mode.'),
+            )),
+            const SizedBox(height: 12),
+            Card(child: ListTile(
+              leading: const Icon(Icons.security_rounded),
+              title: const Text('Profile & password'),
+              subtitle: const Text('Update your display name or change your password.'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AccountProfileScreen())),
+            )),
+            const SizedBox(height: 12),
+            Card(child: ListTile(
+              leading: Icon(Icons.logout_rounded, color: theme.colorScheme.error),
+              title: const Text('Sign out'),
+              subtitle: const Text('Sign out of ControlDeck and its connected sessions.'),
+              onTap: () async {
+                final accepted = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+                  title: const Text('Sign out?'),
+                  content: const Text('You can sign in again with your ControlDeck account.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                    FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sign out')),
+                  ],
+                ));
+                if (accepted == true) {
+                  await signOutControlDeck();
+                  if (context.mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+                }
+              },
+            )),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
 class AppWorkspaceScreen extends StatelessWidget {
   const AppWorkspaceScreen({super.key, required this.app, this.admin = false});
   final DeckApp app;
