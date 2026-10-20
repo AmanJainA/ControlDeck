@@ -50,19 +50,50 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       }
     }
   }
+  bool get usesSharedControlDeckAuth =>
+      notesWorkspaceUrl == controlDeckWorkspaceUrl &&
+      controlDeckWorkspaceUrl.isNotEmpty &&
+      controlDeckWorkspaceKey.isNotEmpty;
+
   Future<void> initializeSharedNotes() async {
-    final session = Supabase.instance.client.auth.currentSession;
-    if (session == null) { await restore(); return; }
-    setState(() => {loading=true,error=null});
+    final auth = Supabase.instance.client.auth;
+    var session = auth.currentSession;
+    if (session == null) {
+      await restore();
+      return;
+    }
+    setState(() => {loading=true,error=null,notice=null});
     try {
-      final response = await Supabase.instance.client.functions.invoke('controldeck-sso',
+      var response = await Supabase.instance.client.functions.invoke(
+        'controldeck-sso',
         headers: {'Authorization':'Bearer ${session.accessToken}'},
-        body: {'app':'notes','page':'/'});
+        body: {'app':'notes','page':'/'},
+      );
+
+      // If the access token is stale, refresh the existing ControlDeck session
+      // and retry once instead of showing the separate Notes login form.
+      if (response.status == 401) {
+        final refreshed = await auth.refreshSession();
+        session = refreshed.session ?? auth.currentSession;
+        if (session != null) {
+          response = await Supabase.instance.client.functions.invoke(
+            'controldeck-sso',
+            headers: {'Authorization':'Bearer ${session.accessToken}'},
+            body: {'app':'notes','page':'/'},
+          );
+        }
+      }
+
       if (response.status >= 400 || response.data is! Map || response.data['error'] != null) {
-        throw Exception(response.data is Map ? (response.data['error'] ?? 'Notes access is not enabled for this account.').toString() : 'Notes access is not enabled for this account.');
+        throw Exception(response.data is Map
+            ? (response.data['error'] ?? 'Notes access could not be verified.').toString()
+            : 'Notes access could not be verified.');
       }
       final data = Map<String,dynamic>.from(response.data as Map);
-      final user = Supabase.instance.client.auth.currentUser!;
+      final user = auth.currentUser;
+      if (user == null || session == null) {
+        throw Exception('Your ControlDeck session has expired. Sign in to ControlDeck again.');
+      }
       client = Supabase.instance.client;
       token = session.accessToken;
       profile = Map<String,dynamic>.from(data['profile'] as Map);
@@ -294,8 +325,10 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       if(profile!=null)IconButton(tooltip:'Profile',onPressed:()=>setState(()=>page='Profile'),icon:const Icon(Icons.account_circle_outlined)),
       if(profile!=null)IconButton(tooltip:'Sign out',onPressed:signOut,icon:const Icon(Icons.logout_rounded)),const SizedBox(width:8)]),
       body:!ready?const Center(child:Padding(padding:EdgeInsets.all(24),child:Text('Configure NOTES_SUPABASE_URL and NOTES_SUPABASE_ANON_KEY to connect your Notes Supabase project.'))):
-      profile==null?authView(theme):loading?const Center(child:CircularProgressIndicator()):ListView(padding:const EdgeInsets.all(18),children:[
-        if(error!=null)message(error!,true),if(notice!=null)message(notice!,false),
+      profile==null && !usesSharedControlDeckAuth?authView(theme):loading?const Center(child:CircularProgressIndicator()):ListView(padding:const EdgeInsets.all(18),children:[
+        if(error!=null)message(error!,true),
+        if(profile==null && usesSharedControlDeckAuth)Align(alignment:Alignment.centerLeft,child:FilledButton.icon(onPressed:initializeSharedNotes,icon:const Icon(Icons.refresh_rounded),label:const Text('Retry ControlDeck sign-in'))),
+        if(notice!=null)message(notice!,false),
         if(page=='Dashboard')...dashboard(theme),if(page=='Lessons')...lessonList(theme),if(page=='Lesson')...lessonView(theme),
         if(page=='About')...aboutView(),if(page=='Contact')...contactView(),if(page=='Profile')...profileView(theme),if(page=='Admin')...adminView(theme),if(page=='Activity')...activityView(theme),
       ]));
@@ -459,7 +492,7 @@ class _NotesLanguageIcon extends StatelessWidget {
     final name = (language['name'] ?? '').toString().trim().toLowerCase();
     final slug = (language['slug'] ?? '').toString().trim().toLowerCase();
     final key = '$name $slug';
-    IconData? icon;
+    FaIconData? icon;
     String? mark;
     Color color = const Color(0xFF64748B);
 
