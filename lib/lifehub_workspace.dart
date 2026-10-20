@@ -31,36 +31,59 @@ class _LifeHubFullNativeScreenState extends State<LifeHubFullNativeScreen> {
   @override void initState() { super.initState(); _restoreSession(); }
   @override void dispose() { search.dispose(); super.dispose(); }
 
+  Future<Map<String, dynamic>> _exchangeLifeHubSession(String accessToken) async {
+    final response = await Supabase.instance.client.functions.invoke(
+      'controldeck-sso',
+      headers: {'Authorization': 'Bearer $accessToken'},
+      body: {'action': 'exchange', 'app': 'lifehub'},
+    );
+    if (response.data is! Map) throw Exception('LifeHub returned an invalid shared-session response.');
+    final data = Map<String, dynamic>.from(response.data as Map);
+    if (response.status >= 400 || data['error'] != null) {
+      throw Exception((data['error'] ?? 'Could not open LifeHub with your ControlDeck session.').toString());
+    }
+    return data;
+  }
+
   Future<void> _restoreSession() async {
     try {
-      final auth = Supabase.instance.client.auth.currentSession;
-      if (auth == null) throw Exception('Sign in to ControlDeck first.');
-      final raw = await _lhStorage.read(key: _lhSessionKey);
-      Map<String,dynamic>? saved;
-      if (raw != null && raw.isNotEmpty) saved = Map<String,dynamic>.from(jsonDecode(raw) as Map);
-      final expiry = DateTime.tryParse((saved?['expiresAt'] ?? '').toString());
-      if (saved == null || saved['sessionId'] == null || expiry == null || expiry.isBefore(DateTime.now())) {
-        final response = await Supabase.instance.client.functions.invoke('controldeck-sso',
-          headers: {'Authorization': 'Bearer ' + auth.accessToken},
-          body: {'action':'exchange','app':'lifehub'});
-        final data = Map<String,dynamic>.from(response.data as Map);
-        if (data['error'] != null) throw Exception(data['error'].toString());
-        saved = data;
-        await _lhStorage.write(key:_lhSessionKey,value:jsonEncode(data));
+      final auth = Supabase.instance.client.auth;
+      var sharedSession = auth.currentSession;
+      if (sharedSession == null) {
+        try {
+          final refreshed = await auth.refreshSession();
+          sharedSession = refreshed.session ?? auth.currentSession;
+        } catch (_) {
+          sharedSession = auth.currentSession;
+        }
       }
+      if (sharedSession == null) {
+        throw Exception('Your ControlDeck session is not available. Return to ControlDeck and sign in once; LifeHub will reuse that session.');
+      }
+      Map<String, dynamic> saved;
+      try {
+        saved = await _exchangeLifeHubSession(sharedSession.accessToken);
+      } catch (e) {
+        if (!e.toString().contains('401')) rethrow;
+        final refreshed = await auth.refreshSession();
+        sharedSession = refreshed.session ?? auth.currentSession;
+        if (sharedSession == null) rethrow;
+        saved = await _exchangeLifeHubSession(sharedSession.accessToken);
+      }
+      await _lhStorage.write(key: _lhSessionKey, value: jsonEncode(saved));
       final id = (saved['sessionId'] ?? '').toString();
       final p = Map<String,dynamic>.from(saved['profile'] as Map);
-      if (id.isEmpty || p['id'] == null) throw Exception('LifeHub session response was incomplete.');
-      client = SupabaseClient(_lhUrl,_lhKey,headers:{'x-lifehub-session':id});
+      if (id.isEmpty || p['id'] == null) throw Exception('LifeHub shared-session response was incomplete.');
+      client = SupabaseClient(_lhUrl, _lhKey, headers: {'x-lifehub-session': id});
       try {
-        final fullProfile = await client!.from('profiles').select('id,email,full_name,name,avatar,is_admin').eq('id',p['id']).maybeSingle();
+        final fullProfile = await client!.from('profiles').select('id,email,full_name,name,avatar,is_admin').eq('id', p['id']).maybeSingle();
         if (fullProfile != null) p.addAll(Map<String,dynamic>.from(fullProfile));
       } catch (_) {}
       if (!mounted) return;
-      setState(() {sessionId=id;profile=p;loading=false;error=null;});
+      setState(() { sessionId = id; profile = p; loading = false; error = null; });
       await _loadCurrent();
-    } catch(e) {
-      if(mounted) setState((){error=e.toString().replaceFirst('Exception: ','');loading=false;});
+    } catch (e) {
+      if (mounted) setState(() { error = e.toString().replaceFirst('Exception: ', ''); loading = false; });
     }
   }
 
@@ -234,8 +257,8 @@ class _LifeHubFullNativeScreenState extends State<LifeHubFullNativeScreen> {
   }
 
   Future<void> _signOut() async {
-    try{final auth=Supabase.instance.client.auth.currentSession;if(auth!=null&&sessionId!=null)await Supabase.instance.client.functions.invoke('controldeck-sso',headers:{'Authorization':'Bearer '+auth.accessToken},body:{'action':'logout','app':'lifehub','sessionId':sessionId});}catch(_){}
-    await _lhStorage.delete(key:_lhSessionKey);await Supabase.instance.client.auth.signOut();if(mounted)Navigator.of(context).pop();
+    // Only ControlDeck's main account menu ends the shared login.
+    if (mounted) Navigator.of(context).maybePop();
   }
 
   @override Widget build(BuildContext context) {
@@ -243,7 +266,7 @@ class _LifeHubFullNativeScreenState extends State<LifeHubFullNativeScreen> {
     if(profile==null||client==null)return Scaffold(appBar:AppBar(title:const Text('LifeHub')),body:Center(child:Padding(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[const Icon(Icons.lock_outline_rounded,size:42),const SizedBox(height:12),Text(error??'Sign in to ControlDeck to access LifeHub.'),const SizedBox(height:12),FilledButton.icon(onPressed:_restoreSession,icon:const Icon(Icons.refresh),label:const Text('Retry shared sign-in'))]))));
     if(section==3&&activeGroup!=null)return Scaffold(appBar:AppBar(leading:IconButton(onPressed:()=>setState(()=>activeGroup=null),icon:const Icon(Icons.arrow_back)),title:Text(activeGroup!['name'].toString()),actions:[IconButton(tooltip:'Add member',onPressed:_addGroupMember,icon:const Icon(Icons.person_add_alt_1)),IconButton(onPressed:_addExpense,icon:const Icon(Icons.add_card)),IconButton(onPressed:_settle,icon:const Icon(Icons.payments_outlined))]),body:busy?const Center(child:CircularProgressIndicator()):ListView(padding:const EdgeInsets.all(16),children:[_card(context,'Members',members.map((m)=>(m['avatar']??'🙂').toString()+' '+(m['name']??m['full_name']??m['email']??'Member').toString()).join('\n')),_card(context,'Balances',members.map((m){num net=0;for(final e in groupExpenses){if(e['paid_by']==m['id'])net+=num.tryParse(e['amount'].toString())??0;for(final sh in (e['sw_expense_shares'] as List? ?? const [])){if(sh['user_id']==m['id'])net-=num.tryParse(sh['share_amount'].toString())??0;}}for(final st in settlements){if(st['from_user']==m['id'])net+=num.tryParse(st['amount'].toString())??0;if(st['to_user']==m['id'])net-=num.tryParse(st['amount'].toString())??0;}final name=(m['name']??m['full_name']??m['email']??'Member').toString();return name+' · '+(net>=0?'is owed ':'owes ')+'₹'+net.abs().toStringAsFixed(2);}).join('\n')),_card(context,'Shared expenses',groupExpenses.isEmpty?'No expenses yet.':groupExpenses.map((e)=>(e['description']??'Expense').toString()+' · ₹'+e['amount'].toString()+' · '+e['date'].toString()).join('\n')),_card(context,'Settlements',settlements.isEmpty?'No settlements recorded.':settlements.map((e)=>'₹'+e['amount'].toString()+' · '+(e['note']??'Settlement').toString()).join('\n'))]));
     return Scaffold(
-      appBar:AppBar(title:const Text('LifeHub',style:TextStyle(fontWeight:FontWeight.w800)),actions:[IconButton(tooltip:'Refresh',onPressed:_loadCurrent,icon:const Icon(Icons.refresh)),IconButton(tooltip:'Sign out',onPressed:_signOut,icon:const Icon(Icons.logout))]),
+      appBar:AppBar(title:const Text('LifeHub',style:TextStyle(fontWeight:FontWeight.w800)),actions:[IconButton(tooltip:'Refresh',onPressed:_loadCurrent,icon:const Icon(Icons.refresh)),IconButton(tooltip:'Back to ControlDeck',onPressed:_signOut,icon:const Icon(Icons.arrow_back_rounded))]),
       body:Column(children:[
         if(error!=null)Padding(padding:const EdgeInsets.all(8),child:Text(error!,style:TextStyle(color:Theme.of(context).colorScheme.error))),
         SingleChildScrollView(scrollDirection:Axis.horizontal,padding:const EdgeInsets.symmetric(horizontal:10,vertical:8),child:Row(children:[for(var i=0;i<sections.length;i++)if(i!=5||isAdmin)Padding(padding:const EdgeInsets.only(right:6),child:ChoiceChip(label:Text(sections[i]),selected:section==i,onSelected:(_){setState((){section=i;activeGroup=null;});_loadCurrent();}))])),
@@ -257,7 +280,7 @@ class _LifeHubFullNativeScreenState extends State<LifeHubFullNativeScreen> {
 
   Widget _body(BuildContext context){
     if(section==0){final income=rows.where((r)=>r['kind']=='Transactions').fold<num>(0,(s,r)=>s+(num.tryParse((r['count']??0).toString())??0));return ListView(padding:const EdgeInsets.all(16),children:[_hero(context,'Your life, organised.','Tasks, notes, goals, reminders, ideas, finance and shared expenses.',Icons.home_work_rounded),const SizedBox(height:14),LayoutBuilder(builder:(context,c)=>GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:c.maxWidth>700?3:2,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:2.2,children:rows.map((r)=>_metric(context,r['kind'].toString(),r['count'].toString())).toList())),const SizedBox(height:14),_card(context,'Welcome back',(profile?['full_name']??profile?['name']??'LifeHub member').toString()+'\n'+(profile?['email']??'').toString())]);}
-    if(section==4)return ListView(padding:const EdgeInsets.all(16),children:[_hero(context,'Your profile','Manage your LifeHub account details.',Icons.person),_card(context,'Name',(profile?['full_name']??profile?['name']??'').toString()),_card(context,'Email',(profile?['email']??'').toString()),const SizedBox(height:10),FilledButton.icon(onPressed:_editProfile,icon:const Icon(Icons.edit),label:const Text('Edit name and avatar')),const SizedBox(height:8),OutlinedButton.icon(onPressed:_changePassword,icon:const Icon(Icons.lock_reset_rounded),label:const Text('Change shared password')),OutlinedButton.icon(onPressed:_signOut,icon:const Icon(Icons.logout),label:const Text('Sign out of ControlDeck'))]);
+    if(section==4)return ListView(padding:const EdgeInsets.all(16),children:[_hero(context,'Your profile','Manage your LifeHub account details.',Icons.person),_card(context,'Name',(profile?['full_name']??profile?['name']??'').toString()),_card(context,'Email',(profile?['email']??'').toString()),const SizedBox(height:10),FilledButton.icon(onPressed:_editProfile,icon:const Icon(Icons.edit),label:const Text('Edit name and avatar')),const SizedBox(height:8),OutlinedButton.icon(onPressed:_changePassword,icon:const Icon(Icons.lock_reset_rounded),label:const Text('Change shared password')),OutlinedButton.icon(onPressed:_signOut,icon:const Icon(Icons.arrow_back_rounded),label:const Text('Back to ControlDeck'))]);
     if(section==3)return ListView(padding:const EdgeInsets.all(16),children:[_hero(context,'Splitwise','Create groups, split bills and record settlements.',Icons.people_alt),if(groups.isEmpty)const Padding(padding:EdgeInsets.all(20),child:Text('No groups yet. Create one to start.')),for(final g in groups)Card(child:ListTile(leading:const Icon(Icons.groups),title:Text(g['name'].toString()),subtitle:const Text('Open shared expenses and settlements'),trailing:const Icon(Icons.chevron_right),onTap:()=>_openGroup(g)))]);
     if(section==5&&isAdmin)return ListView(padding:const EdgeInsets.all(16),children:[_hero(context,'Admin categories','Manage income and expense categories.',Icons.admin_panel_settings),for(final c in categories)Card(child:ListTile(title:Text(c['name'].toString()),subtitle:Text(c['kind'].toString()),trailing:Wrap(children:[IconButton(onPressed:()=>_showForm('expense_types',old:c),icon:const Icon(Icons.edit)),IconButton(onPressed:()=>_delete('expense_types',c),icon:const Icon(Icons.delete_outline))])))]);
     final table=section==1?_lifeTable():(financeTab=='Budgets'?'budgets':'expenses');
