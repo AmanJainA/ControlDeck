@@ -26,6 +26,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   Map<String,dynamic>? profile, language, topic;
   List<Map<String,dynamic>> languages = [], topics = [], allTopics = [], progress = [], profiles = [], contents = [], onlineUsers = [], loginActivity = [], pageVisits = [];
   String activityTab = 'Online';
+  final Map<String, String> activityErrors = {};
   String adminTab = 'Overview';
   String adminTopicSearch = '';
   List<dynamic> blocks = [];
@@ -282,9 +283,9 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       page = withinAdmin ? 'Admin' : 'Activity';
       if (withinAdmin) adminTab = 'Activity';
     });
-    try { final rows=await client!.schema('notes').from('currently_online').select('*').order('last_seen_at',ascending:false).limit(100); if(mounted)onlineUsers=List<Map<String,dynamic>>.from(rows); } catch (_) { onlineUsers=[]; }
-    try { final rows=await client!.schema('notes').from('login_activity').select('*').order('login_time',ascending:false).limit(100); if(mounted)loginActivity=List<Map<String,dynamic>>.from(rows); } catch (_) { loginActivity=[]; }
-    try { final rows=await client!.schema('notes').from('page_visits').select('*').order('visit_time',ascending:false).limit(100); if(mounted)pageVisits=List<Map<String,dynamic>>.from(rows); } catch (_) { pageVisits=[]; }
+    try { final rows=await client!.schema('notes').from('currently_online').select('*').order('last_seen_at',ascending:false).limit(100); if(mounted){onlineUsers=List<Map<String,dynamic>>.from(rows);activityErrors.remove('Online');} } catch (e) { onlineUsers=[]; activityErrors['Online']=friendly(e); }
+    try { final rows=await client!.schema('notes').from('login_activity').select('*').order('login_time',ascending:false).limit(100); if(mounted){loginActivity=List<Map<String,dynamic>>.from(rows);activityErrors.remove('Logins');} } catch (e) { loginActivity=[]; activityErrors['Logins']=friendly(e); }
+    try { final rows=await client!.schema('notes').from('page_visits').select('*').order('visit_time',ascending:false).limit(100); if(mounted){pageVisits=List<Map<String,dynamic>>.from(rows);activityErrors.remove('Visits');} } catch (e) { pageVisits=[]; activityErrors['Visits']=friendly(e); }
     if(mounted)setState(()=>loading=false);
   }
   Future<void> copyActivity() async {
@@ -678,8 +679,8 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       const SizedBox(height: 8),
       if (rows.isEmpty)
         const _NotesNotice(
-          title: 'No activity rows available',
-          detail: 'No records were returned. Check that the Notes activity tables exist and that the current admin session has permission to read them.',
+          title: activityErrors[activityTab] == null ? 'No activity rows available' : 'Could not load activity data',
+          detail: activityErrors[activityTab] ?? 'No records were returned for this tab. Check whether there are records to display.',
         )
       else
         Card(
