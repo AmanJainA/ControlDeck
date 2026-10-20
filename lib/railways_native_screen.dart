@@ -307,8 +307,12 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
           Card(child: ListTile(leading: const Icon(Icons.menu_open_rounded), title: const Text('Manage Menus'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('menu_master', 'Manage Menus'))),
           Card(child: ListTile(leading: const Icon(Icons.folder_outlined), title: const Text('Manage Folders'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('folder_master', 'Manage Folders'))),
           Card(child: ListTile(leading: const Icon(Icons.manage_accounts_outlined), title: const Text('Users & Access'), subtitle: const Text('Manage Railway accounts'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('users', 'Users & Access'))),
+          Card(child: ListTile(leading: const Icon(Icons.key_outlined), title: const Text('Heading Access'), subtitle: const Text('Assign users to workspaces'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('user_main_heading_access', 'Heading Access'))),
+          Card(child: ListTile(leading: const Icon(Icons.admin_panel_settings_outlined), title: const Text('Menu Access'), subtitle: const Text('Assign users to menus'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('user_menu_access', 'Menu Access'))),
           Card(child: ListTile(leading: const Icon(Icons.task_alt_rounded), title: const Text('Work Tracker'), subtitle: const Text('Manage tasks, reports and due dates'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('work_items', 'Work Tracker'))),
           Card(child: ListTile(leading: const Icon(Icons.monitor_heart_outlined), title: const Text('User Presence'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('user_presence', 'User Presence'))),
+          Card(child: ListTile(leading: const Icon(Icons.history_rounded), title: const Text('Login History'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('login_history', 'Login History'))),
+          Card(child: ListTile(leading: const Icon(Icons.timeline_rounded), title: const Text('Page Activity'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('page_activity', 'Page Activity'))),
         ],
       ]else if(view=='pending')...[
         hero('Pending Approvals', 'Approve or reject documents submitted by Railway users.', Icons.fact_check_outlined),
