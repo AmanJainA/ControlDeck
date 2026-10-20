@@ -1332,27 +1332,48 @@ class _InterviewNativeScreenState extends State<InterviewNativeScreen> {
       title: const Text('Interview'),
     ),
     body: client == null
-        ? _ConnectionNotice(title: 'Interview connection unavailable', detail: error ?? 'Check the Interview database configuration.')
+        ? _ConnectionNotice(title: 'Interview workspace unavailable', detail: error ?? 'The Interview data connection is not configured.')
         : profile == null
-            ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 480), child: ListView(
-                shrinkWrap: true,
-                padding: const EdgeInsets.all(22),
+            ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 960), child: ListView(
+                padding: const EdgeInsets.all(20),
                 children: [
-                  const _WorkspaceHero(title: 'Interview workspace', subtitle: 'Using your ControlDeck account for secure sign-in.', icon: Icons.verified_user_rounded),
-                  if (busy) const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
-                  if (error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: busy ? null : _restoreInterviewSession,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Retry secure sign-in'),
-                  ),
+                  const _WorkspaceHero(title: 'Interview Dashboard', subtitle: 'Your ControlDeck session is used automatically. No separate Interview login is required.', icon: Icons.quiz_rounded),
+                  const SizedBox(height: 18),
+                  if (busy)
+                    const Card(child: Padding(
+                      padding: EdgeInsets.all(28),
+                      child: Row(children: [
+                        SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
+                        SizedBox(width: 16),
+                        Expanded(child: Text('Opening your Interview dashboard and loading your account…')),
+                      ]),
+                    ))
+                  else if (error != null)
+                    Card(child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Dashboard connection needs attention', style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 8),
+                        Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                        const SizedBox(height: 14),
+                        FilledButton.icon(
+                          onPressed: _restoreInterviewSession,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Reload dashboard'),
+                        ),
+                      ]),
+                    ))
+                  else
+                    const Card(child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text('Preparing your Interview dashboard…'),
+                    )),
                 ],
               )))
             : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 960), child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  _WorkspaceHero(title: 'Welcome, ${profile!['name'] ?? 'User'}', subtitle: 'Signed in · ${profile!['usertype'] ?? 'user'} account', icon: Icons.account_circle_rounded),
+                  _WorkspaceHero(title: 'Welcome, ${profile!['name'] ?? 'User'}', subtitle: 'ControlDeck session active · ${profile!['usertype'] ?? 'user'} account', icon: Icons.account_circle_rounded),
                   const SizedBox(height: 18),
                   _DataSection(title: 'Available assessment questions', rows: questions.map((q) => {'question':q['question_text'],'type':q['assessment_type'],'marks':q['marks']}).toList()),
                   if (error != null) Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
