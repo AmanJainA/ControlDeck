@@ -493,8 +493,8 @@ const _portfolioUrl = 'https://ixjdjvkktlzgiyojnsto.supabase.co';
 const _portfolioKey = 'sb_publishable_Qb66X-cvzAckaQev2ku1VA__CoLmIB1';
 const _lifeHubUrl = 'https://wrssvnvagpnvlwhnqqta.supabase.co';
 const _lifeHubKey = 'sb_publishable_AEu-JBRYrCLYrVq3VjAtyA_ya5ApyM';
-const _notesUrl = String.fromEnvironment('NOTES_SUPABASE_URL');
-const _notesKey = String.fromEnvironment('NOTES_SUPABASE_ANON_KEY');
+const _notesUrl = String.fromEnvironment('NOTES_SUPABASE_URL', defaultValue: supabaseUrl);
+const _notesKey = String.fromEnvironment('NOTES_SUPABASE_ANON_KEY', defaultValue: supabaseAnonKey);
 const _interviewUrl = String.fromEnvironment('INTERVIEW_SUPABASE_URL');
 const _interviewKey = String.fromEnvironment('INTERVIEW_SUPABASE_ANON_KEY');
 
@@ -843,7 +843,7 @@ class _NotesNativeScreenState extends State<NotesNativeScreen> {
   List<Map<String, dynamic>> languages = [], topics = [];
   Map<String, dynamic>? selectedLanguage, selectedTopic;
   List<dynamic> lesson = [];
-  @override void initState() { super.initState(); if (_notesUrl.isNotEmpty && _notesKey.isNotEmpty) { client = SupabaseClient(_notesUrl, _notesKey); loadLanguages(); } }
+  @override void initState() { super.initState(); if (_notesUrl.isNotEmpty && _notesKey.isNotEmpty) { client = _notesUrl == supabaseUrl ? Supabase.instance.client : SupabaseClient(_notesUrl, _notesKey); loadLanguages(); } }
   Future<void> loadLanguages() async {
     if (client == null) return;
     setState(() { loading = true; error = null; });
