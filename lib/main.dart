@@ -16,6 +16,7 @@ const cloudEnabled = true;
 const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 const String _lifeHubSessionStorageKey = 'controldeck.lifehub.session.v1';
 const String _notesSessionStorageKey = 'controldeck.notes.session.v1';
+const String _railwaysSessionStorageKey = 'controldeck.railways.session.v1';
 const String _portfolioAdminSessionStorageKey = 'controldeck.portfolio.admin.session.v1';
 
 Future<void> main() async {
@@ -50,6 +51,7 @@ Future<void> signOutControlDeck() async {
   } catch (_) {}
   await _secureStorage.delete(key: _lifeHubSessionStorageKey);
   await _secureStorage.delete(key: _notesSessionStorageKey);
+  await _secureStorage.delete(key: _railwaysSessionStorageKey);
   await _secureStorage.delete(key: _portfolioAdminSessionStorageKey);
   await supabase.auth.signOut();
 }
