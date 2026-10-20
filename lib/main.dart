@@ -807,7 +807,7 @@ class _WorkspaceHero extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
             child: icon is IconData
-                ? Icon(icon, color: accent, size: 28)
+                ? Icon(icon as IconData, color: accent, size: 28)
                 : IconTheme(data: const IconThemeData(color: accent, size: 28), child: icon as Widget),
           ),
           const SizedBox(height: 18),
