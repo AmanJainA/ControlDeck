@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,6 +14,8 @@ class RailwaysNativeScreen extends StatefulWidget {
 }
 
 class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
+  static const _storage = FlutterSecureStorage();
+  static const _sessionKey = 'controldeck.railways.session.v1';
   late final SupabaseClient db;
   final username = TextEditingController(), password = TextEditingController(), search = TextEditingController();
   Map<String,dynamic>? user, heading, menu;
@@ -22,7 +26,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   bool get admin => (user?['role']??'').toString().toLowerCase()=='admin';
   bool get canApprove => admin || (user?['role'] ?? '').toString().toLowerCase() == 'subadmin';
 
-  @override void initState(){super.initState();db=SupabaseClient(SupabaseConfig.professionalUrl,SupabaseConfig.professionalKey);}
+  @override void initState(){super.initState();db=SupabaseClient(SupabaseConfig.professionalUrl,SupabaseConfig.professionalKey);_restoreSession();}
   @override void dispose(){username.dispose();password.dispose();search.dispose();db.dispose();super.dispose();}
 
   String message(Object e){
@@ -30,6 +34,28 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     if(s.contains('Failed to fetch')||s.contains('SocketException'))return 'Cannot connect. Check your internet connection.';
     if(s.contains('permission denied')||s.contains('row-level security'))return 'Access denied by the Railway database policy.';
     return s;
+  }
+
+
+  Future<void> _restoreSession() async {
+    try {
+      final raw = await _storage.read(key: _sessionKey);
+      if (raw == null || raw.isEmpty) return;
+      final saved = Map<String,dynamic>.from(jsonDecode(raw) as Map);
+      if (!mounted) return;
+      setState(() { user = saved; view = 'home'; busy = true; });
+      await loadHeadings();
+    } catch (_) {
+      await _storage.delete(key: _sessionKey);
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> signOut() async {
+    await _storage.delete(key: _sessionKey);
+    if (!mounted) return;
+    setState(() { user = null; headings = []; menus = []; files = []; heading = null; menu = null; view = 'login'; error = null; });
   }
 
   Future<void> login() async {
@@ -41,6 +67,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       if(row==null)throw Exception('Invalid username or password.');
       if(!mounted)return;
       setState(() { user = Map<String,dynamic>.from(row); password.clear(); view = 'home'; });
+      await _storage.write(key: _sessionKey, value: jsonEncode(user));
       await loadHeadings();
     }catch(e){if(mounted)setState(()=>error=message(e));}
     finally{if(mounted)setState(()=>busy=false);}
