@@ -52,6 +52,10 @@ class _LifeHubFullNativeScreenState extends State<LifeHubFullNativeScreen> {
       final p = Map<String,dynamic>.from(saved['profile'] as Map);
       if (id.isEmpty || p['id'] == null) throw Exception('LifeHub session response was incomplete.');
       client = SupabaseClient(_lhUrl,_lhKey,headers:{'x-lifehub-session':id});
+      try {
+        final fullProfile = await client!.from('profiles').select('id,email,full_name,name,avatar,is_admin').eq('id',p['id']).maybeSingle();
+        if (fullProfile != null) p.addAll(Map<String,dynamic>.from(fullProfile));
+      } catch (_) {}
       if (!mounted) return;
       setState(() {sessionId=id;profile=p;loading=false;error=null;});
       await _loadCurrent();
@@ -174,6 +178,20 @@ class _LifeHubFullNativeScreenState extends State<LifeHubFullNativeScreen> {
     await _loadCurrent();
   }
 
+  Future<void> _addGroupMember() async {
+    if(activeGroup==null)return;
+    final email=TextEditingController();
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:const Text('Add member by email'),content:TextField(controller:email,keyboardType:TextInputType.emailAddress,decoration:const InputDecoration(labelText:'LifeHub account email')),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Add member'))]));
+    if(ok!=true||email.text.trim().isEmpty)return;
+    final found=await client!.from('profiles').select('id').ilike('email',email.text.trim()).maybeSingle();
+    if(found==null){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('No LifeHub profile found for that email.')));return;}
+    if(found['id']==uid){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('You are already in this group.')));return;}
+    final existing=await client!.from('sw_group_members').select('id').eq('group_id',activeGroup!['id']).eq('user_id',found['id']).maybeSingle();
+    if(existing!=null){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('That member is already in the group.')));return;}
+    await client!.from('sw_group_members').insert({'group_id':activeGroup!['id'],'user_id':found['id']});
+    await _openGroup(activeGroup!);
+  }
+
   Future<void> _addExpense() async {
     if(activeGroup==null||members.isEmpty)return;
     final desc=TextEditingController(),amount=TextEditingController();
@@ -209,7 +227,7 @@ class _LifeHubFullNativeScreenState extends State<LifeHubFullNativeScreen> {
   @override Widget build(BuildContext context) {
     if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator()));
     if(profile==null||client==null)return Scaffold(appBar:AppBar(title:const Text('LifeHub')),body:Center(child:Padding(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[const Icon(Icons.lock_outline_rounded,size:42),const SizedBox(height:12),Text(error??'Sign in to ControlDeck to access LifeHub.'),const SizedBox(height:12),FilledButton.icon(onPressed:_restoreSession,icon:const Icon(Icons.refresh),label:const Text('Retry shared sign-in'))])));
-    if(section==3&&activeGroup!=null)return Scaffold(appBar:AppBar(leading:IconButton(onPressed:()=>setState(()=>activeGroup=null),icon:const Icon(Icons.arrow_back)),title:Text(activeGroup!['name'].toString()),actions:[IconButton(onPressed:_addExpense,icon:const Icon(Icons.add_card)),IconButton(onPressed:_settle,icon:const Icon(Icons.payments_outlined))]),body:busy?const Center(child:CircularProgressIndicator()):ListView(padding:const EdgeInsets.all(16),children:[_card(context,'Members',members.map((m)=>(m['avatar']??'🙂').toString()+' '+(m['name']??m['full_name']??m['email']??'Member').toString()).join('\n')),_card(context,'Shared expenses',groupExpenses.isEmpty?'No expenses yet.':groupExpenses.map((e)=>(e['description']??'Expense').toString()+' · ₹'+e['amount'].toString()+' · '+e['date'].toString()).join('\n')),_card(context,'Settlements',settlements.isEmpty?'No settlements recorded.':settlements.map((e)=>'₹'+e['amount'].toString()+' · '+(e['note']??'Settlement').toString()).join('\n'))]));
+    if(section==3&&activeGroup!=null)return Scaffold(appBar:AppBar(leading:IconButton(onPressed:()=>setState(()=>activeGroup=null),icon:const Icon(Icons.arrow_back)),title:Text(activeGroup!['name'].toString()),actions:[IconButton(tooltip:'Add member',onPressed:_addGroupMember,icon:const Icon(Icons.person_add_alt_1)),IconButton(onPressed:_addExpense,icon:const Icon(Icons.add_card)),IconButton(onPressed:_settle,icon:const Icon(Icons.payments_outlined))]),body:busy?const Center(child:CircularProgressIndicator()):ListView(padding:const EdgeInsets.all(16),children:[_card(context,'Members',members.map((m)=>(m['avatar']??'🙂').toString()+' '+(m['name']??m['full_name']??m['email']??'Member').toString()).join('\n')),_card(context,'Shared expenses',groupExpenses.isEmpty?'No expenses yet.':groupExpenses.map((e)=>(e['description']??'Expense').toString()+' · ₹'+e['amount'].toString()+' · '+e['date'].toString()).join('\n')),_card(context,'Settlements',settlements.isEmpty?'No settlements recorded.':settlements.map((e)=>'₹'+e['amount'].toString()+' · '+(e['note']??'Settlement').toString()).join('\n'))]));
     return Scaffold(
       appBar:AppBar(title:const Text('LifeHub',style:TextStyle(fontWeight:FontWeight.w800)),actions:[IconButton(tooltip:'Refresh',onPressed:_loadCurrent,icon:const Icon(Icons.refresh)),IconButton(tooltip:'Sign out',onPressed:_signOut,icon:const Icon(Icons.logout))]),
       body:Column(children:[
