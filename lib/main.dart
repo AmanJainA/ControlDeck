@@ -19,6 +19,35 @@ Future<void> main() async {
   runApp(const ControlDeckApp());
 }
 
+Future<void> signOutControlDeck() async {
+  final supabase = Supabase.instance.client;
+  final session = supabase.auth.currentSession;
+  try {
+    final raw = await _secureStorage.read(key: _lifeHubSessionStorageKey);
+    if (session != null && raw != null && raw.isNotEmpty) {
+      final saved = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      final sessionId = saved['sessionId']?.toString();
+      if (sessionId != null && sessionId.isNotEmpty) {
+        await supabase.functions.invoke(
+          'controldeck-sso',
+          headers: {'Authorization': 'Bearer ${session.accessToken}'},
+          body: {'action': 'logout', 'app': 'lifehub', 'sessionId': sessionId},
+        );
+      }
+    }
+    final adminToken = await _secureStorage.read(key: _portfolioAdminSessionStorageKey);
+    if (adminToken != null && adminToken.isNotEmpty) {
+      try {
+        await SupabaseClient(_portfolioUrl, _portfolioKey)
+            .schema('portfolio').rpc('admin_logout', params: {'p_token': adminToken});
+      } catch (_) {}
+    }
+  } catch (_) {}
+  await _secureStorage.delete(key: _lifeHubSessionStorageKey);
+  await _secureStorage.delete(key: _portfolioAdminSessionStorageKey);
+  await supabase.auth.signOut();
+}
+
 class DeckApp {
   DeckApp({required this.id, required this.name, required this.description, required this.category,
     required this.url, this.adminUrl = '', this.iconKey = 'apps', this.accentHex = 0xFF64748B,
@@ -380,8 +409,8 @@ class _DeckHomeState extends State<DeckHome> {
         ),
         if (widget.cloudUserId != null && screenWidth >= 520) const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Center(child: _StatusPill(label: 'Cloud synced', icon: Icons.cloud_done_rounded, color: accent))),
         IconButton(tooltip: 'Toggle theme', onPressed: () => widget.onTheme(!widget.dark), icon: Icon(widget.dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded)),
-        if (widget.cloudUserId != null && screenWidth >= 520) IconButton(tooltip: 'Sign out', onPressed: () => Supabase.instance.client.auth.signOut(), icon: const Icon(Icons.logout_rounded)),
-        if (widget.cloudUserId != null && screenWidth < 520) PopupMenuButton<String>(tooltip: 'Account options', onSelected: (value) { if (value == 'signout') Supabase.instance.client.auth.signOut(); }, itemBuilder: (_) => const [PopupMenuItem(value: 'signout', child: Row(children: [Icon(Icons.logout_rounded), SizedBox(width: 10), Text('Sign out')]))]),
+        if (widget.cloudUserId != null && screenWidth >= 520) IconButton(tooltip: 'Sign out', onPressed: signOutControlDeck, icon: const Icon(Icons.logout_rounded)),
+        if (widget.cloudUserId != null && screenWidth < 520) PopupMenuButton<String>(tooltip: 'Account options', onSelected: (value) { if (value == 'signout') signOutControlDeck(); }, itemBuilder: (_) => const [PopupMenuItem(value: 'signout', child: Row(children: [Icon(Icons.logout_rounded), SizedBox(width: 10), Text('Sign out')]))]),
         const SizedBox(width: 8),
       ]),
       body: Row(children: [
@@ -1021,61 +1050,63 @@ class LifeHubNativeScreen extends StatefulWidget {
 }
 class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
   SupabaseClient client = SupabaseClient(_lifeHubUrl, _lifeHubKey);
-  final email = TextEditingController(), password = TextEditingController(), taskTitle = TextEditingController();
+  final taskTitle = TextEditingController();
   bool busy = false;
   String? error;
   Map<String,dynamic>? profile;
   String? sessionId;
   List<Map<String,dynamic>> tasks = [];
+
   @override void initState() { super.initState(); _restoreSession(); }
-  @override void dispose() { email.dispose(); password.dispose(); taskTitle.dispose(); super.dispose(); }
+  @override void dispose() { taskTitle.dispose(); super.dispose(); }
 
   Future<void> _restoreSession() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      if (mounted) setState(() { error = 'Sign in to ControlDeck first, then reopen LifeHub.'; busy = false; });
+      return;
+    }
+    if (mounted) setState(() { busy = true; error = null; });
     try {
-      final raw = await _secureStorage.read(key: _lifeHubSessionStorageKey);
-      if (!mounted || raw == null || raw.isEmpty) return;
-      final saved = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-      final savedSessionId = saved['sessionId']?.toString();
-      final savedProfile = saved['profile'];
-      if (savedSessionId == null || savedSessionId.isEmpty || savedProfile is! Map) {
-        await _secureStorage.delete(key: _lifeHubSessionStorageKey);
-        return;
+      final result = await Supabase.instance.client.functions.invoke(
+        'controldeck-sso',
+        headers: {'Authorization': 'Bearer ${session.accessToken}'},
+        body: {'app': 'lifehub', 'page': '/'},
+      );
+      final data = Map<String, dynamic>.from(result.data as Map);
+      if (result.status >= 400 || data['error'] != null) {
+        throw Exception((data['error'] ?? 'Shared sign-in failed.').toString());
       }
-      sessionId = savedSessionId;
-      profile = Map<String, dynamic>.from(savedProfile);
-      client = SupabaseClient(_lifeHubUrl, _lifeHubKey, headers: {'x-lifehub-session': savedSessionId});
-      if (mounted) setState(() {});
+      sessionId = data['sessionId']?.toString();
+      profile = Map<String, dynamic>.from(data['profile'] as Map);
+      if (sessionId == null || sessionId!.isEmpty) throw Exception('LifeHub did not return a valid session.');
+      client = SupabaseClient(_lifeHubUrl, _lifeHubKey, headers: {'x-lifehub-session': sessionId!});
+      await _secureStorage.write(key: _lifeHubSessionStorageKey, value: jsonEncode({
+        'sessionId': sessionId, 'profile': profile, 'expiresAt': data['expiresAt'],
+      }));
+      if (mounted) setState(() { busy = false; });
       await loadTasks();
-    } catch (_) {
+    } catch (e) {
       await _secureStorage.delete(key: _lifeHubSessionStorageKey);
-      if (mounted) setState(() { profile = null; sessionId = null; tasks = []; });
+      if (mounted) setState(() {
+        profile = null; sessionId = null; tasks = [];
+        error = e.toString().replaceFirst('Exception: ', '');
+        busy = false;
+      });
     }
   }
 
-  Future<void> login() async {
-    setState(() { busy = true; error = null; });
-    try {
-      final result = await client.functions.invoke('custom-auth', body: {'action':'login','app':'lifehub','email':email.text.trim().toLowerCase(),'password':password.text,'page':'/'});
-      final data = Map<String,dynamic>.from(result.data as Map);
-      if (data['error'] != null) throw Exception(data['error'].toString());
-      sessionId = data['sessionId']?.toString();
-      profile = Map<String,dynamic>.from(data['profile'] as Map);
-      if (sessionId != null && sessionId!.isNotEmpty) {
-        client = SupabaseClient(_lifeHubUrl, _lifeHubKey, headers: {'x-lifehub-session': sessionId!});
-        await _secureStorage.write(key: _lifeHubSessionStorageKey, value: jsonEncode({'sessionId': sessionId, 'profile': profile}));
-      }
-      if (mounted) setState(() { busy = false; });
-      await loadTasks();
-    } catch (e) { if (mounted) setState(() { error = e.toString().replaceFirst('Exception: ', ''); busy = false; }); }
-  }
   Future<void> loadTasks() async {
     if (profile == null) return;
-    setState(() { busy = true; error = null; });
+    if (mounted) setState(() { busy = true; error = null; });
     try {
       final rows = await client.from('tasks').select('*').eq('user_id', profile!['id']).order('created_at', ascending: false);
       if (mounted) setState(() { tasks = List<Map<String,dynamic>>.from(rows); busy = false; });
-    } catch (e) { if (mounted) setState(() { error = e.toString(); busy = false; }); }
+    } catch (e) {
+      if (mounted) setState(() { error = e.toString(); busy = false; });
+    }
   }
+
   Future<void> toggleTask(Map<String, dynamic> task, bool done) async {
     if (profile == null) return;
     setState(() { busy = true; error = null; });
@@ -1092,8 +1123,7 @@ class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
     if (profile == null) return;
     setState(() { busy = true; error = null; });
     try {
-      await client.from('tasks').delete()
-        .eq('id', task['id']).eq('user_id', profile!['id']);
+      await client.from('tasks').delete().eq('id', task['id']).eq('user_id', profile!['id']);
       await loadTasks();
     } catch (e) {
       if (mounted) setState(() { error = e.toString(); busy = false; });
@@ -1104,59 +1134,52 @@ class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
     if (taskTitle.text.trim().isEmpty || profile == null) return;
     setState(() { busy = true; error = null; });
     try {
-      await client.from('tasks').insert({'user_id':profile!['id'],'title':taskTitle.text.trim(),'priority':'medium','status':'pending'});
-      taskTitle.clear(); await loadTasks();
-    } catch (e) { if (mounted) setState(() { error = e.toString(); busy = false; }); }
+      await client.from('tasks').insert({'user_id': profile!['id'], 'title': taskTitle.text.trim(), 'priority': 'medium', 'status': 'pending'});
+      taskTitle.clear();
+      await loadTasks();
+    } catch (e) {
+      if (mounted) setState(() { error = e.toString(); busy = false; });
+    }
   }
+
   @override Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: const Text('LifeHub')),
-    body: profile == null ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(22), children: [
-      const _WorkspaceHero(title: 'LifeHub', subtitle: 'Sign in to open your personal command centre.', icon: Icons.home_work_rounded),
-      const SizedBox(height: 18), TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email')),
-      const SizedBox(height: 12), TextField(controller: password, obscureText: true, onSubmitted: (_) => login(), decoration: const InputDecoration(labelText: 'Password')),
-      if (error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-      const SizedBox(height: 16), FilledButton(onPressed: busy ? null : login, child: busy ? const CircularProgressIndicator() : const Text('Sign in')),
-    ]))) : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 980), child: ListView(padding: const EdgeInsets.all(20), children: [
-      _WorkspaceHero(title: 'Welcome, ${profile!['full_name'] ?? profile!['name'] ?? 'there'}', subtitle: 'LifeHub · Tasks and personal planning', icon: Icons.home_work_rounded),
-      const SizedBox(height: 18),
-      Row(children: [Expanded(child: TextField(controller: taskTitle, onSubmitted: (_) => addTask(), decoration: const InputDecoration(labelText: 'Add a task', prefixIcon: Icon(Icons.add_task_rounded)))), const SizedBox(width: 10), FilledButton(onPressed: busy ? null : addTask, child: const Text('Add'))]),
-      const SizedBox(height: 14),
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    body: profile == null
+      ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(22), children: [
+          const _WorkspaceHero(title: 'LifeHub', subtitle: 'Uses your ControlDeck sign-in automatically.', icon: Icons.home_work_rounded),
+          if (busy) const Padding(padding: EdgeInsets.all(18), child: Center(child: CircularProgressIndicator())),
+          if (error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(onPressed: busy ? null : _restoreSession, icon: const Icon(Icons.refresh_rounded), label: const Text('Try shared sign-in again')),
+          TextButton(onPressed: () => Navigator.of(context).maybePop(), child: const Text('Back to ControlDeck')),
+        ])))
+      : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 980), child: ListView(padding: const EdgeInsets.all(20), children: [
+          _WorkspaceHero(title: 'Welcome, ${profile!['full_name'] ?? profile!['name'] ?? 'there'}', subtitle: 'LifeHub · Tasks and personal planning', icon: Icons.home_work_rounded),
+          const SizedBox(height: 18),
+          Row(children: [Expanded(child: TextField(controller: taskTitle, onSubmitted: (_) => addTask(), decoration: const InputDecoration(labelText: 'Add a task', prefixIcon: Icon(Icons.add_task_rounded)))), const SizedBox(width: 10), FilledButton(onPressed: busy ? null : addTask, child: const Text('Add'))]),
+          const SizedBox(height: 14),
+          Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Tasks', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
-            if (tasks.isEmpty)
-              const Padding(padding: EdgeInsets.symmetric(vertical: 18), child: Text('No tasks yet. Add your first task above.')),
+            if (tasks.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 18), child: Text('No tasks yet. Add your first task above.')),
             for (final task in tasks)
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: task['status'] == 'done',
                 onChanged: busy ? null : (value) => toggleTask(task, value ?? false),
-                title: Text((task['title'] ?? 'Untitled task').toString(),
-                  style: TextStyle(decoration: task['status'] == 'done' ? TextDecoration.lineThrough : null)),
+                title: Text((task['title'] ?? 'Untitled task').toString(), style: TextStyle(decoration: task['status'] == 'done' ? TextDecoration.lineThrough : null)),
                 subtitle: Text([
                   if ((task['priority'] ?? '').toString().isNotEmpty) 'Priority: ${task['priority']}',
                   if ((task['due_date'] ?? '').toString().isNotEmpty) 'Due: ${task['due_date']}',
                   task['status'] == 'done' ? 'Completed' : 'Pending',
                 ].join(' · ')),
-                secondary: IconButton(
-                  tooltip: 'Delete task',
-                  onPressed: busy ? null : () => deleteTask(task),
-                  icon: const Icon(Icons.delete_outline_rounded),
-                ),
+                secondary: IconButton(tooltip: 'Delete task', onPressed: busy ? null : () => deleteTask(task), icon: const Icon(Icons.delete_outline_rounded)),
               ),
-          ]),
-        ),
-      ),
-      if (busy) const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator())),
-      if (error != null) Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-      OutlinedButton.icon(onPressed: () async {
-        await _secureStorage.delete(key: _lifeHubSessionStorageKey);
-        if (mounted) setState(() { profile = null; tasks = []; sessionId = null; client = SupabaseClient(_lifeHubUrl, _lifeHubKey); password.clear(); });
-      }, icon: const Icon(Icons.logout_rounded), label: const Text('Sign out')),
-    ]))),
+          ]))),
+          if (busy) const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator())),
+          if (error != null) Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          OutlinedButton.icon(onPressed: signOutControlDeck, icon: const Icon(Icons.logout_rounded), label: const Text('Sign out of ControlDeck')),
+        ]))),
   );
 }
 
