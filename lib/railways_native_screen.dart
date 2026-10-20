@@ -39,39 +39,49 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
 
 
   Future<void> _restoreSession() async {
-    try {
-      final raw = await _storage.read(key: _sessionKey);
-      if (raw == null || raw.isEmpty) return;
-      final saved = Map<String,dynamic>.from(jsonDecode(raw) as Map);
-      if (!mounted) return;
-      setState(() { user = saved; view = 'home'; busy = true; });
-      await loadHeadings();
-    } catch (_) {
-      await _storage.delete(key: _sessionKey);
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
+    // A cached Railway row is display data, not an authentication credential.
+    // Always resolve the current ControlDeck Auth session through the SSO function.
+    await _storage.delete(key: _sessionKey);
+    await login();
   }
 
   Future<void> signOut() async {
     await _storage.delete(key: _sessionKey);
+    try { await Supabase.instance.client.auth.signOut(); } catch (_) {}
     if (!mounted) return;
     setState(() { user = null; headings = []; menus = []; files = []; heading = null; menu = null; view = 'login'; error = null; });
+    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
   }
 
   Future<void> login() async {
-    if(username.text.trim().isEmpty||password.text.isEmpty){setState(()=>error='Enter your Railway username and password.');return;}
+    final auth = Supabase.instance.client.auth;
+    final session = auth.currentSession;
+    if (session == null || auth.currentUser == null) {
+      if (mounted) setState(() => error = 'Sign in to ControlDeck first. Railways uses the same account and does not have a separate password.');
+      return;
+    }
     setState(() { busy = true; error = null; });
-    try{
-      final row=await db.from('users').select('id,username,email,role,dept,project')
-        .eq('username',username.text.trim()).eq('password',password.text).maybeSingle();
-      if(row==null)throw Exception('Invalid username or password.');
-      if(!mounted)return;
-      setState(() { user = Map<String,dynamic>.from(row); password.clear(); view = 'home'; });
-      await _storage.write(key: _sessionKey, value: jsonEncode(user));
+    try {
+      final response = await Supabase.instance.client.functions.invoke(
+        'controldeck-sso',
+        headers: {'Authorization': 'Bearer ${session.accessToken}'},
+        body: {'action': 'exchange', 'app': 'railways'},
+      );
+      final payload = Map<String, dynamic>.from(response.data as Map);
+      if (response.status < 200 || response.status >= 300 || payload['ok'] != true) {
+        throw Exception((payload['error'] ?? 'Could not verify your Railways access.').toString());
+      }
+      final row = Map<String, dynamic>.from(payload['user'] as Map);
+      if (!mounted) return;
+      setState(() { user = row; view = 'home'; });
+      // Keep the existing Railways schema and access tables unchanged.
+      await _storage.write(key: _sessionKey, value: jsonEncode(row));
       await loadHeadings();
-    }catch(e){if(mounted)setState(()=>error=message(e));}
-    finally{if(mounted)setState(()=>busy=false);}
+    } catch (e) {
+      if (mounted) setState(() { user = null; view = 'login'; error = message(e); });
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
   Future<void> loadHeadings() async {
@@ -386,16 +396,13 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     Container(padding:const EdgeInsets.all(22),decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),gradient:const LinearGradient(colors:[Color(0xFF102D4D),Color(0xFF176B87)])),child:const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       Icon(Icons.train_rounded,size:42,color:Colors.white),SizedBox(height:14),
       Text('Railway workspace',style:TextStyle(fontSize:25,color:Colors.white,fontWeight:FontWeight.w800)),
-      SizedBox(height:6),Text('Native Flutter access to railway workspaces and documents.',style:TextStyle(color:Colors.white70)),
+      SizedBox(height:6),Text('Your ControlDeck account is used for Railways too.',style:TextStyle(color:Colors.white70)),
     ])),
     const SizedBox(height:22),
-    TextField(controller:username,textInputAction:TextInputAction.next,decoration:const InputDecoration(labelText:'Railway username',prefixIcon:Icon(Icons.person_outline_rounded))),
-    const SizedBox(height:12),
-    TextField(controller:password,obscureText:!reveal,onSubmitted:(_)=>login(),decoration:InputDecoration(labelText:'Password',prefixIcon:const Icon(Icons.lock_outline_rounded),suffixIcon:IconButton(onPressed:()=>setState(()=>reveal=!reveal),icon:Icon(reveal?Icons.visibility_off_rounded:Icons.visibility_rounded)))),
+    const ListTile(contentPadding:EdgeInsets.zero,leading:Icon(Icons.verified_user_outlined),title:Text('Single sign-on'),subtitle:Text('No separate Railway username or password is required. Your access is matched to your existing Railway account by the verified server-side identity mapping.')),
     if(error!=null)Padding(padding:const EdgeInsets.only(top:12),child:Text(error!,style:TextStyle(color:Theme.of(context).colorScheme.error))),
     const SizedBox(height:18),
-    FilledButton.icon(onPressed:busy?null:login,icon:busy?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.login_rounded),label:Text(busy?'Signing in…':'Sign in to Railways')),
-    const SizedBox(height:10),Text('Uses your existing Railway portal credentials. Password is not saved in ControlDeck.',textAlign:TextAlign.center,style:Theme.of(context).textTheme.bodySmall),
+    FilledButton.icon(onPressed:busy?null:login,icon:busy?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.login_rounded),label:Text(busy?'Checking access…':'Continue with ControlDeck')),
   ])));
 
   Widget workspaceView(){
