@@ -9,6 +9,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'railways_native_screen.dart';
+import 'interview_native_screen.dart';
 
 const accent = Color(0xFF8FA600);
 const supabaseUrl = SupabaseConfig.primaryUrl;
@@ -702,7 +703,7 @@ class AppWorkspaceScreen extends StatelessWidget {
     switch (app.id.toLowerCase()) {
       case 'portfolio': return admin ? const PortfolioAdminNativeScreen() : const PortfolioNativeScreen();
       case 'notes': return const NotesFullNativeScreen();
-      case 'interview': return const InterviewNativeScreen();
+      case 'interview': return const InterviewNativeScreenV2();
       case 'lifehub': return const LifeHubFullNativeScreen();
       case 'railways': return const RailwaysNativeScreen();
       default: return _NativeFeatureScreen(title: app.name, subtitle: app.description, icon: iconFor(app.iconKey), features: ['Overview', 'Recent activity', 'Workspace settings']);
