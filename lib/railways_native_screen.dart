@@ -22,7 +22,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   List<Map<String,dynamic>> headings=[], menus=[], folders=[], files=[], trackingRows=[];
   int? selectedFolderId;
   int? dashboardHeadingId;
-  String? dashboardMenuFilter;
+  int? dashboardMenuFilterId;
   String typeFilter='all', trackingTab='online';
   bool busy=true;
   String view='login';
@@ -131,7 +131,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     setState(() {
       heading = h;
       dashboardHeadingId = id;
-      dashboardMenuFilter = null;
+      dashboardMenuFilterId = null;
       menu = null;
       menus = headingMenus;
       view = 'nr';
@@ -311,7 +311,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   }
 
   Future<void> openNRDashboard() async {
-    setState(() { view = 'nr'; dashboardHeadingId = null; dashboardMenuFilter = null; heading = null; menus = []; files = []; search.clear(); busy = true; error = null; });
+    setState(() { view = 'nr'; dashboardHeadingId = null; dashboardMenuFilterId = null; heading = null; menus = []; files = []; search.clear(); busy = true; error = null; });
     try {
       var query = db.from('datacollection')
           .select('id,name,links,type,status,remark,uploaded_by,uploaded_at,main_heading_id,menu_id,folder_id,menuname,folder,source_type')
@@ -499,6 +499,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       final typeMatch=typeFilter=='all'||(typeFilter=='img'?['png','jpg','jpeg','gif','svg','webp'].any(type.contains):typeFilter=='pdf'?type.contains('pdf'):typeFilter=='doc'?type.contains('doc'):typeFilter=='xls'?type.contains('xls')||type.contains('csv'):true);
       return (selectedFolderId==null||(f['folder_id'] as num?)?.toInt()==selectedFolderId)&&typeMatch&&'${f['name']??''} ${f['type']??''} ${f['folder']??''} ${f['uploaded_by']??''}'.toLowerCase().contains(search.text.toLowerCase());
     }).toList();
+    final nrVisibleFiles = files.where((f) => dashboardMenuFilterId == null || (f['menu_id'] as num?)?.toInt() == dashboardMenuFilterId).toList();
     return Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:1100),child:ListView(padding:const EdgeInsets.all(20),children:[
       if(error!=null)Card(color:Theme.of(context).colorScheme.errorContainer,child:Padding(padding:const EdgeInsets.all(14),child:Text(error!))),
       if(busy)const LinearProgressIndicator(),
@@ -532,19 +533,52 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
           Card(child: ListTile(leading: const Icon(Icons.monitor_heart_outlined), title: const Text('Manage Tracking'), subtitle: const Text('Currently Online, Login History and Page Activity'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => loadTracking('online'))),
         ],
       ]else if(view=='nr')...[
-        hero(dashboardHeadingId==null?'Northern Railway Dashboard':(heading?['headingname']??'NR Data Dashboard').toString(), 'Approved documents: ' + files.length.toString(), Icons.dashboard_customize_outlined),
+        hero(dashboardHeadingId==null?'Northern Railway Dashboard':(heading?['headingname']??'NR Data Dashboard').toString(), dashboardMenuFilterId == null ? 'Approved documents: ' + files.length.toString() : 'Selected menu documents: ' + nrVisibleFiles.length.toString(), Icons.dashboard_customize_outlined),
         const SizedBox(height:10),
-        if (dashboardHeadingId != null && menus.isNotEmpty) SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[
-          Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:const Text('All menus'),selected:dashboardMenuFilter==null,onSelected:(_)=>setState(()=>dashboardMenuFilter=null))),
-          for(final m in menus) Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:Text((m['menuname']??'Menu').toString()),selected:dashboardMenuFilter==(m['menuname']??'').toString(),onSelected:(_)=>setState(()=>dashboardMenuFilter=(m['menuname']??'').toString()))),
-        ])),
+        if (dashboardHeadingId != null && menus.isNotEmpty) Card(
+          margin: EdgeInsets.zero,
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text('Overview · ${files.length}'),
+                    selected: dashboardMenuFilterId == null,
+                    onSelected: (_) => setState(() {
+                      dashboardMenuFilterId = null;
+                      search.clear();
+                    }),
+                  ),
+                ),
+                for (final m in menus)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(
+                        '${(m['menuname'] ?? 'Menu').toString()} · ${files.where((f) => (f['menu_id'] as num?)?.toInt() == (m['id'] as num).toInt()).length}',
+                      ),
+                      selected: dashboardMenuFilterId == (m['id'] as num).toInt(),
+                      onSelected: (_) => setState(() {
+                        dashboardMenuFilterId = (m['id'] as num).toInt();
+                        search.clear();
+                      }),
+                    ),
+                  ),
+              ]),
+            ),
+          ),
+        ),
         const SizedBox(height:10),
         LayoutBuilder(builder:(ctx,c){final counts=<String,int>{};for(final f in files){final key=(f['menuname']??'Uncategorised').toString();counts[key]=(counts[key]??0)+1;}final n=c.maxWidth>700?3:c.maxWidth>460?2:1;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:n,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:n==1?4:2.3,children:counts.entries.map((e)=>metric(e.key,e.value.toString(),Icons.folder_open_rounded)).toList());}),
         const SizedBox(height:12),
         TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search_rounded),labelText:'Search approved documents')),
         const SizedBox(height:8),
-        if(files.where((f)=>(dashboardMenuFilter==null||(f['menuname']??'').toString()==dashboardMenuFilter)&&'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).isEmpty)const EmptyRailway(title:'No documents found',detail:'No approved documents match this menu and search.'),
-        if(files.where((f)=>(dashboardMenuFilter==null||(f['menuname']??'').toString()==dashboardMenuFilter)&&'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).isNotEmpty)Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columns:const [DataColumn(label:Text('Document')),DataColumn(label:Text('Menu')),DataColumn(label:Text('Folder')),DataColumn(label:Text('Uploaded by')),DataColumn(label:Text('Uploaded at')),DataColumn(label:Text('Open'))],rows:files.where((f)=>(dashboardMenuFilter==null||(f['menuname']??'').toString()==dashboardMenuFilter)&&'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).map((f)=>DataRow(onSelectChanged:(_)=>showFile(f),cells:[DataCell(SizedBox(width:220,child:Text((f['name']??'Document').toString(),maxLines:2,overflow:TextOverflow.ellipsis))),DataCell(Text((f['menuname']??'—').toString())),DataCell(Text((f['folder']??'—').toString())),DataCell(Text((f['uploaded_by']??'—').toString())),DataCell(Text((f['uploaded_at']??'—').toString())),DataCell(IconButton(tooltip:'Open details',onPressed:()=>showFile(f),icon:const Icon(Icons.open_in_new_rounded)))])).toList()))),
+        if(nrVisibleFiles.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).isEmpty)const EmptyRailway(title:'No documents found',detail:'No approved documents match this menu and search.'),
+        if(nrVisibleFiles.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).isNotEmpty)Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columns:const [DataColumn(label:Text('Document')),DataColumn(label:Text('Menu')),DataColumn(label:Text('Folder')),DataColumn(label:Text('Uploaded by')),DataColumn(label:Text('Uploaded at')),DataColumn(label:Text('Open'))],rows:nrVisibleFiles.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).map((f)=>DataRow(onSelectChanged:(_)=>showFile(f),cells:[DataCell(SizedBox(width:220,child:Text((f['name']??'Document').toString(),maxLines:2,overflow:TextOverflow.ellipsis))),DataCell(Text((f['menuname']??'—').toString())),DataCell(Text((f['folder']??'—').toString())),DataCell(Text((f['uploaded_by']??'—').toString())),DataCell(Text((f['uploaded_at']??'—').toString())),DataCell(IconButton(tooltip:'Open details',onPressed:()=>showFile(f),icon:const Icon(Icons.open_in_new_rounded)))])).toList()))),
       ]else if(view=='pending')...[
         hero('Pending Approvals', 'Approve or reject documents submitted by Railway users.', Icons.fact_check_outlined),
         if(files.isEmpty)const EmptyRailway(title:'No pending documents',detail:'There are no submissions waiting for approval.'),
