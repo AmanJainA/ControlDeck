@@ -113,6 +113,38 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     catch(e){if(mounted)setState(()=>error=friendly(e));}
     finally{if(mounted)setState(()=>busy=false);}
   }
+  Future<void> tokenAction() async {
+    String action = 'verify_email';
+    final verificationToken = TextEditingController();
+    final newPassword = TextEditingController();
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
+      title: const Text('Verify email or reset password'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        DropdownButtonFormField<String>(value: action, decoration: const InputDecoration(labelText: 'Action'),
+          items: const [DropdownMenuItem(value: 'verify_email', child: Text('Verify email')), DropdownMenuItem(value: 'reset_password', child: Text('Reset password'))],
+          onChanged: (v) => setDialog(() => action = v ?? action)),
+        TextField(controller: verificationToken, decoration: const InputDecoration(labelText: 'Token from email')),
+        if (action == 'reset_password') TextField(controller: newPassword, obscureText: true, decoration: const InputDecoration(labelText: 'New password (8+ characters)')),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Continue'))],
+    )));
+    if (ok == true) {
+      try {
+        if (action == 'reset_password' && newPassword.text.length < 8) throw Exception('New password must be at least 8 characters.');
+        await authCall(action, {'token': verificationToken.text.trim(), if (action == 'reset_password') 'newPassword': newPassword.text});
+        if (mounted) setState(() => notice = action == 'verify_email' ? 'Email verified. You can sign in now.' : 'Password reset successfully. You can sign in with the new password.');
+      } catch (e) { if (mounted) setState(() => error = friendly(e)); }
+    }
+    verificationToken.dispose(); newPassword.dispose();
+  }
+  Future<void> resendVerification() async {
+    if (email.text.trim().isEmpty) { setState(() => error = 'Enter your email first.'); return; }
+    try {
+      await authCall('resend_verification', {'email': email.text.trim().toLowerCase()});
+      if (mounted) setState(() => notice = 'If the account needs verification, a new email has been requested.');
+    } catch (e) { if (mounted) setState(() => error = friendly(e)); }
+  }
+
   Future<void> signOut() async {
     if (notesWorkspaceUrl == controlDeckWorkspaceUrl && Supabase.instance.client.auth.currentUser != null) {
       Navigator.of(context).maybePop();
@@ -239,6 +271,8 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     if(error!=null)message(error!,true),if(notice!=null)message(notice!,false),
     const SizedBox(height:14),FilledButton(onPressed:busy?null:submitAuth,child:busy?const CircularProgressIndicator():Text(signUpMode?'Create Notes account':'Sign in')),
     if(!signUpMode)TextButton(onPressed:forgotPassword,child:const Text('Forgot password?')),
+    if(!signUpMode)TextButton(onPressed:tokenAction,child:const Text('Enter verification/reset token')),
+    if(!signUpMode)TextButton(onPressed:resendVerification,child:const Text('Resend verification email')),
     TextButton(onPressed:()=>setState(()=>{signUpMode=!signUpMode,error=null,notice=null}),child:Text(signUpMode?'Already registered? Sign in':'Create account')),
   ])));
   List<Widget> dashboard(ThemeData theme){
@@ -274,7 +308,16 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   Future<void> changePassword() async {
     final current=TextEditingController(),next=TextEditingController();
     final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:const Text('Change password'),content:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:current,obscureText:true,decoration:const InputDecoration(labelText:'Current password')),TextField(controller:next,obscureText:true,decoration:const InputDecoration(labelText:'New password'))]),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Update'))]));
-    if(ok==true)try{await authCall('change_password',{'currentPassword':current.text,'newPassword':next.text});if(mounted)setState(()=>notice='Password updated.');}catch(e){if(mounted)setState(()=>error=friendly(e));}
+    if(ok==true)try{
+      if(notesWorkspaceUrl == controlDeckWorkspaceUrl && Supabase.instance.client.auth.currentUser != null) {
+        final auth = Supabase.instance.client.auth;
+        await auth.signInWithPassword(email: auth.currentUser!.email!, password: current.text);
+        await auth.updateUser(UserAttributes(password: next.text));
+      } else {
+        await authCall('change_password',{'currentPassword':current.text,'newPassword':next.text});
+      }
+      if(mounted)setState(()=>notice='Password updated.');
+    }catch(e){if(mounted)setState(()=>error=friendly(e));}
     current.dispose();next.dispose();
   }
   List<Widget> adminView(ThemeData theme)=>[
