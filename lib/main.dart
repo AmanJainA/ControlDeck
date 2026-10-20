@@ -1020,7 +1020,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
       }
       setState(() { busy = true; message = null; });
       try {
-        final result = await client.schema('portfolio').rpc(resource['key'] == 'contact' ? 'admin_contact_upsert' : 'admin_upsert', params: {'p_token': token, if (resource['key'] != 'contact') 'p_resource': resource['resource'], 'p_data': payload});
+        final result = await client.schema('portfolio').rpc(resource['key'] == 'contact' ? 'admin_contact_upsert' : resource['key'] == 'profile' ? 'admin_profile_upsert' : 'admin_upsert', params: {'p_token': token, if (resource['key'] != 'contact' && resource['key'] != 'profile') 'p_resource': resource['resource'], 'p_data': payload});
         if (result is Map && result['ok'] != true) throw Exception((result['message'] ?? 'Portfolio record could not be saved.').toString());
         await loadData();
         if (mounted && message == null) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Portfolio record saved.')));
