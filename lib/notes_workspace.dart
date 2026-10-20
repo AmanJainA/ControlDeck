@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+const notesWorkspaceUrl = String.fromEnvironment('NOTES_SUPABASE_URL', defaultValue: String.fromEnvironment('SUPABASE_URL'));
+const notesWorkspaceKey = String.fromEnvironment('NOTES_SUPABASE_ANON_KEY', defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY'));
 const _notesSessionKey = 'controldeck.notes.session.v1';
 const _notesAdminEmail = 'amanjain033@gmail.com';
 
@@ -32,8 +34,8 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   bool get isAdmin => profile?['email']?.toString().toLowerCase() == _notesAdminEmail;
   @override void initState() {
     super.initState();
-    if (_notesUrl.isNotEmpty && _notesKey.isNotEmpty) {
-      publicClient = SupabaseClient(_notesUrl, _notesKey,
+    if (notesWorkspaceUrl.isNotEmpty && notesWorkspaceKey.isNotEmpty) {
+      publicClient = SupabaseClient(notesWorkspaceUrl, notesWorkspaceKey,
         authOptions: const AuthClientOptions(autoRefreshToken: false, persistSession: false));
       client = publicClient;
       restore();
@@ -46,7 +48,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   String friendly(Object e) => e.toString().replaceFirst('Exception: ', '');
   void applySession(String t, Map<String,dynamic> p) {
     token=t; profile=p;
-    client=SupabaseClient(_notesUrl,_notesKey,headers:{'Authorization':'Bearer $t'},
+    client=SupabaseClient(notesWorkspaceUrl,notesWorkspaceKey,headers:{'Authorization':'Bearer $t'},
       authOptions: const AuthClientOptions(autoRefreshToken:false,persistSession:false));
   }
   Future<Map<String,dynamic>> authCall(String action, Map<String,dynamic> payload) async {
