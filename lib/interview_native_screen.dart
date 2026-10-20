@@ -15,6 +15,22 @@ class _InterviewNativeScreenV2State extends State<InterviewNativeScreenV2>{
   List<Map<String,dynamic>> questions=[],attempts=[],users=[],activity=[];
   final Map<String,String> answers={};
   String page='Dashboard';
+  final List<String> _pageHistory = [];
+
+  void _navigateTo(String nextPage) {
+    if (nextPage == page) return;
+    _pageHistory.add(page);
+    setState(() => page = nextPage);
+  }
+
+  void _handleBack() {
+    if (_pageHistory.isNotEmpty) {
+      final previous = _pageHistory.removeLast();
+      setState(() { page = previous; error = null; });
+    } else {
+      Navigator.of(context).maybePop();
+    }
+  }
   int seconds=0;
   Timer? timer;
   bool get admin=>(profile?['usertype']??'').toString()=='admin';
@@ -68,7 +84,7 @@ class _InterviewNativeScreenV2State extends State<InterviewNativeScreenV2>{
       if((done as List).isNotEmpty){note('Assessment already submitted. Retakes are disabled.');await refreshData();return;}
       final old=await s.from('assessment_attempts').select('*').eq('user_id',profile!['id']).eq('assessment_type','general').eq('status','in_progress').maybeSingle();
       if(old!=null)await resume(Map<String,dynamic>.from(old));else{final duration=(company?['duration_minutes'] as num?)?.toInt()??30;final max=questions.fold<double>(0,(sum,q)=>sum+n(q['marks']));final a=await s.from('assessment_attempts').insert({'user_id':profile!['id'],'assessment_type':'general','total_questions':questions.length,'max_score':max,'duration_minutes':duration>0?duration:30}).select().single();await resume(Map<String,dynamic>.from(a));}
-      if(mounted)setState(()=>page='Assessment');
+      if(mounted)_navigateTo('Assessment');
     }catch(e){if(mounted)setState(()=>error=clean(e));}finally{if(mounted)setState(()=>busy=false);}
   }
   Future<void> save(Map<String,dynamic> q,String option)async{
@@ -84,11 +100,12 @@ class _InterviewNativeScreenV2State extends State<InterviewNativeScreenV2>{
       final score=list.where((x)=>x['is_correct']==true).fold<double>(0,(sum,a){final q=questions.where((q)=>q['id'].toString()==a['question_id'].toString()).firstOrNull;return sum+(q==null?0:n(q['marks']));});
       final max=questions.fold<double>(0,(sum,q)=>sum+n(q['marks']));
       await db.schema('interview').from('assessment_attempts').update({'status':'submitted','submitted_at':DateTime.now().toUtc().toIso8601String(),'correct_count':correct,'score':score,'max_score':max,'total_questions':questions.length,'percentage':max<=0?0:double.parse((score/max*100).toStringAsFixed(2))}).eq('id',attempt!['id']).eq('user_id',profile!['id']).eq('status','in_progress');
-      if(!mounted)return;setState(() { attempt = {...attempt!, 'status':'submitted', 'correct_count':correct, 'score':score, 'max_score':max, 'percentage':max<=0?0:score/max*100}; page = 'Result'; });note(auto?'Time ended; assessment submitted automatically.':'Assessment submitted.');await refreshData();if(mounted)setState(()=>page='Result');
+      if(!mounted)return;setState(() { attempt = {...attempt!, 'status':'submitted', 'correct_count':correct, 'score':score, 'max_score':max, 'percentage':max<=0?0:score/max*100}; });_navigateTo('Result');note(auto?'Time ended; assessment submitted automatically.':'Assessment submitted.');await refreshData();if(mounted && page!='Result')_navigateTo('Result');
     }catch(e){if(mounted)setState(()=>error='Submission failed: '+clean(e));}finally{submitting=false;if(mounted)setState(()=>busy=false);}
   }
   Future<void> open(String p)async{
-    setState(() { page = p; error = null; });
+    _navigateTo(p);
+    setState(() { error = null; });
     try{
       if(p=='Results'||(p=='Dashboard'&&admin)){await loadAdmin();final u=await db.schema('interview').from('users').select('id,name,email,stream,location,usertype,created_date').order('created_date',ascending:false);if(mounted)setState(()=>users=List<Map<String,dynamic>>.from(u));}
       if(p=='Questions'){final q=await db.schema('interview').from('questions').select('*').order('sort_order');if(mounted)setState(()=>questions=List<Map<String,dynamic>>.from(q));}
@@ -100,12 +117,12 @@ class _InterviewNativeScreenV2State extends State<InterviewNativeScreenV2>{
     if (loading) return Scaffold(appBar: AppBar(title: const Text('Interview')), body: const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [CircularProgressIndicator(), SizedBox(height: 12), Text('Opening Interview with your ControlDeck session…')])));
     if(profile==null)return Scaffold(appBar:AppBar(title:const Text('Interview')),body:Center(child:Padding(padding:const EdgeInsets.all(20),child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('Interview could not connect to the existing session'),Text(error??'ControlDeck session unavailable'),FilledButton(onPressed:restore,child:const Text('Check session again')),TextButton(onPressed:()=>Navigator.of(context).maybePop(),child:const Text('Back to ControlDeck'))]))));
     final nav=admin?const ['Dashboard','Assessment','Results','Users','Tracking','Questions','Content']:const ['Dashboard','Assessment','Result'];
-    return Scaffold(appBar:AppBar(leading:IconButton(onPressed:()=>Navigator.of(context).maybePop(),icon:const Icon(Icons.arrow_back)),title:const Text('Interview'),actions:[if(busy)const Padding(padding:EdgeInsets.all(14),child:SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2))),IconButton(onPressed:refreshData,icon:const Icon(Icons.refresh))]),body:Column(children:[
+    return PopScope(canPop: _pageHistory.isEmpty, onPopInvokedWithResult: (didPop, result) { if (!didPop) _handleBack(); }, child: Scaffold(appBar:AppBar(leading:IconButton(onPressed:_handleBack,icon:const Icon(Icons.arrow_back)),title:const Text('Interview'),actions:[if(busy)const Padding(padding:EdgeInsets.all(14),child:SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2))),IconButton(onPressed:refreshData,icon:const Icon(Icons.refresh))]),body:Column(children:[
       ListTile(leading:const CircleAvatar(child:Icon(Icons.verified_user)),title:Text('Welcome, $who'),subtitle:Text((profile!['email']??'').toString()+' · '+(admin?'Administrator':'Candidate')),trailing:const Icon(Icons.cloud_done,color:Color(0xFF8FA600))),
       if(error!=null)Container(width:double.infinity,padding:const EdgeInsets.all(8),color:Theme.of(context).colorScheme.errorContainer,child:Text(error!)),
       if(page!='Assessment')SizedBox(height:50,child:ListView(scrollDirection:Axis.horizontal,children:[for(final p in nav)Padding(padding:const EdgeInsets.all(4),child:ChoiceChip(label:Text(p),selected:page==p,onSelected:(_)=>open(p)))])),
       Expanded(child:content()),
-    ]));
+    ])));
   }
   Widget content(){if(page=='Assessment')return assessment();if(page=='Result')return result();if(page=='Results')return results();if(page=='Users')return usersPage();if(page=='Tracking')return trackingPage();if(page=='Questions')return questionsPage();if(page=='Content')return contentPage();return admin?adminHome():userHome();}
   Widget info(String title,String body,IconData icon)=>Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Row(children:[Icon(icon,color:const Color(0xFF8FA600)),const SizedBox(width:8),Text(title,style:const TextStyle(fontWeight:FontWeight.w800,fontSize:17))]),const SizedBox(height:10),SelectableText(body,style:const TextStyle(height:1.5))])));
