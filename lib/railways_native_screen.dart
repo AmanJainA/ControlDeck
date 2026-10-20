@@ -19,7 +19,8 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   late final SupabaseClient db;
   final username = TextEditingController(), password = TextEditingController(), search = TextEditingController();
   Map<String,dynamic>? user, heading, menu;
-  List<Map<String,dynamic>> headings=[], menus=[], files=[];
+  List<Map<String,dynamic>> headings=[], menus=[], folders=[], files=[];
+  int? selectedFolderId;
   bool busy=false, reveal=false;
   String view='login';
   String? error;
@@ -105,11 +106,12 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   }
 
   Future<void> openMenu(Map<String,dynamic> m) async {
-    setState(() { menu = m; view = 'files'; files = []; search.clear(); busy = true; error = null; });
+    setState(() { menu = m; view = 'files'; files = []; folders = []; selectedFolderId = null; search.clear(); busy = true; error = null; });
     try{
+      final folderRows = await db.from('folder_master').select('id,foldername,menu_id,main_heading_id,status').eq('menu_id', m['id']).eq('status', '1').order('id');
       final rows=await db.from('datacollection').select('id,name,type,links,menuname,folder,folder_id,menu_id,status,remark,uploaded_by,uploaded_at')
         .eq('menu_id',m['id']).eq('status',1).order('id',ascending:false);
-      if(mounted)setState(() { files = List<Map<String,dynamic>>.from(rows); });
+      if(mounted)setState(() { folders = List<Map<String,dynamic>>.from(folderRows); files = List<Map<String,dynamic>>.from(rows); });
     }catch(e){if(mounted)setState(()=>error=message(e));}
     finally{if(mounted)setState(()=>busy=false);}
   }
@@ -199,12 +201,13 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         }
         final selectedMenu = availableMenus.firstWhere((m) => (m['id'] as num).toInt() == menuId);
         final selectedFolder = availableFolders.where((f) => (f['id'] as num).toInt() == folderId).firstOrNull;
-        await db.from('datacollection').insert({
+        final inserted = await db.from('datacollection').insert({
           'name': title.text.trim(), 'links': storedLink, 'type': type, 'menuname': selectedMenu['menuname'],
           'folder': selectedFolder?['foldername'], 'folder_id': folderId,
           'main_heading_id': headingId, 'menu_id': menuId, 'status': 0, 'uploaded_by': user?['username'],
           'uploaded_at': DateTime.now().toIso8601String(), 'source_type': sourceType,
-        });
+        }).select('id').single();
+        await db.from('file_uploads').insert({'datacollection_id': inserted['id'], 'uploaded_by': user?['username'], 'upload_time': DateTime.now().toIso8601String()});
         if (mounted) {
           setState(() => error = null);
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Document submitted for approval.')));
@@ -217,7 +220,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   }
 
   Future<void> openMyData() async {
-    setState(() { menu = {'menuname':'My Data'}; heading = null; view = 'files'; files = []; search.clear(); busy = true; error = null; });
+    setState(() { menu = {'menuname':'My Data'}; heading = null; view = 'files'; files = []; folders = []; selectedFolderId = null; search.clear(); busy = true; error = null; });
     try{
       final rows=await db.from('datacollection').select('id,name,type,links,menuname,folder,folder_id,menu_id,status,remark,uploaded_by,uploaded_at')
         .eq('menuname','mydata').order('id',ascending:false);
@@ -384,7 +387,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
 
   Widget workspaceView(){
     if(busy)return const Center(child:CircularProgressIndicator());
-    final filtered=files.where((f)=>'${f['name']??''} ${f['type']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).toList();
+    final filtered=files.where((f)=>(selectedFolderId == null || (f['folder_id'] as num?)?.toInt() == selectedFolderId) && '${f['name']??''} ${f['type']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).toList();
     return Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:1100),child:ListView(padding:const EdgeInsets.all(20),children:[
       if(error!=null)Card(color:Theme.of(context).colorScheme.errorContainer,child:Padding(padding:const EdgeInsets.all(14),child:Text(error!))),
       if(view=='home')...[
@@ -447,6 +450,8 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         for(final m in menus)Card(child:ListTile(leading:const Icon(Icons.folder_copy_outlined),title:Text((m['menuname']??'Menu').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>openMenu(m))),
       ]else...[
         hero((menu?['menuname']??'Files').toString(),'${filtered.length} records · native Flutter list',Icons.description_outlined),const SizedBox(height:14),
+        if (folders.isNotEmpty) Wrap(spacing:8,runSpacing:8,children:[ChoiceChip(label:const Text('All folders'),selected:selectedFolderId==null,onSelected:(_)=>setState(()=>selectedFolderId=null)),for(final folder in folders)ChoiceChip(label:Text((folder['foldername']??'Folder').toString()),selected:selectedFolderId==(folder['id'] as num).toInt(),onSelected:(_)=>setState(()=>selectedFolderId=(folder['id'] as num).toInt()))]),
+        if (folders.isNotEmpty) const SizedBox(height:10),
         TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search_rounded),labelText:'Search documents')),const SizedBox(height:10),
         if(filtered.isEmpty)const EmptyRailway(title:'No files found',detail:'No active documents match this menu and search.'),
         for(final f in filtered)Card(child:ListTile(leading:fileIcon((f['type']??'').toString()),title:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text('${(f['type']??'FILE').toString().toUpperCase()} · ${(f['folder']??'No folder').toString()}\\n${(f['uploaded_by']??'Uploader unknown').toString()}',maxLines:2,overflow:TextOverflow.ellipsis),isThreeLine:true,trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>showFile(f))),
