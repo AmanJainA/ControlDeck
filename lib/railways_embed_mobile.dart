@@ -13,6 +13,7 @@ class _RailwaysMobileEmbed extends StatefulWidget {
 class _RailwaysMobileEmbedState extends State<_RailwaysMobileEmbed> {
   late final WebViewController _controller;
   bool _loading = true;
+  bool _canGoBack = false;
   String? _error;
 
   @override
@@ -25,8 +26,9 @@ class _RailwaysMobileEmbedState extends State<_RailwaysMobileEmbed> {
         onPageStarted: (_) {
           if (mounted) setState(() { _loading = true; _error = null; });
         },
-        onPageFinished: (_) {
-          if (mounted) setState(() => _loading = false);
+        onPageFinished: (_) async {
+          final canGoBack = await _controller.canGoBack();
+          if (mounted) setState(() { _loading = false; _canGoBack = canGoBack; });
         },
         onWebResourceError: (error) {
           if (error.isForMainFrame == true && mounted) {
@@ -47,12 +49,9 @@ class _RailwaysMobileEmbedState extends State<_RailwaysMobileEmbed> {
 
   @override
   Widget build(BuildContext context) => PopScope(
-    canPop: false,
-    onPopInvokedWithResult: (didPop, result) async {
-      if (!didPop) {
-        final shouldPop = await _handleBack();
-        if (shouldPop && context.mounted) Navigator.of(context).maybePop();
-      }
+    canPop: !_canGoBack,
+    onPopInvokedWithResult: (didPop, result) {
+      if (!didPop && _canGoBack) _controller.goBack();
     },
     child: Scaffold(
       appBar: AppBar(
