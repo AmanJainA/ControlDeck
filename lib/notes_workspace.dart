@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+const controlDeckWorkspaceUrl = String.fromEnvironment('SUPABASE_URL');
 const notesWorkspaceUrl = String.fromEnvironment('NOTES_SUPABASE_URL', defaultValue: String.fromEnvironment('SUPABASE_URL'));
 const notesWorkspaceKey = String.fromEnvironment('NOTES_SUPABASE_ANON_KEY', defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY'));
 const _notesSessionKey = 'controldeck.notes.session.v1';
@@ -38,7 +39,18 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       publicClient = SupabaseClient(notesWorkspaceUrl, notesWorkspaceKey,
         authOptions: const AuthClientOptions(autoRefreshToken: false, persistSession: false));
       client = publicClient;
-      restore();
+      if (notesWorkspaceUrl == controlDeckWorkspaceUrl && Supabase.instance.client.auth.currentUser != null) {
+        final session = Supabase.instance.client.auth.currentSession!;
+        final user = Supabase.instance.client.auth.currentUser!;
+        client = Supabase.instance.client;
+        token = session.accessToken;
+        profile = {'id': user.id, 'email': user.email, 'full_name': user.userMetadata?['full_name'] ?? user.userMetadata?['name']};
+        contactEmail.text = user.email ?? _notesAdminEmail;
+        loadLanguages();
+        loadProgress();
+      } else {
+        restore();
+      }
     }
   }
   @override void dispose() {
@@ -102,6 +114,10 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     finally{if(mounted)setState(()=>busy=false);}
   }
   Future<void> signOut() async {
+    if (notesWorkspaceUrl == controlDeckWorkspaceUrl && Supabase.instance.client.auth.currentUser != null) {
+      Navigator.of(context).maybePop();
+      return;
+    }
     await storage.delete(key:_notesSessionKey);
     if(mounted)setState(()=>{token=null,profile=null,client=publicClient,language=null,topic=null,blocks=[],progress=[],page='Dashboard',notice='Signed out of Notes.'});
   }
