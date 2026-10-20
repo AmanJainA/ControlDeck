@@ -142,7 +142,7 @@ class _LifeHubFullNativeScreenState extends State<LifeHubFullNativeScreen> {
       final payload=<String,dynamic>{};
       for(final f in fields){final key=f[0],value=controllers[key]!.text.trim(); if(f[2]=='number'||f[2]=='number0')payload[key]=num.tryParse(value)??0;else payload[key]=value.isEmpty?null:value;}
       if(table=='tasks')payload['status']=old?['status']??'pending';
-      if(table=='notes'){payload['pinned']=old?['pinned']??false;payload['color']=payload['color']??'#f5a623';}
+      if(table=='notes'){payload['pinned']=old?['pinned']??false;payload['color']=payload['color']??'#f5a623';payload['updated_at']=DateTime.now().toUtc().toIso8601String();}
       if(table=='goals')payload['status']=old?['status']??'active';
       if(table=='reminders'){payload['done']=old?['done']??false;final v=payload['remind_at'];payload['remind_at']=v==null?null:(DateTime.tryParse(v.toString())?.toUtc().toIso8601String()??v);}
       if(table=='ideas')payload['status']=old?['status']??'new';
@@ -219,6 +219,20 @@ class _LifeHubFullNativeScreenState extends State<LifeHubFullNativeScreen> {
     if(ok==true){await client!.from('profiles').update({'full_name':name.text.trim(),'name':name.text.trim(),'username':name.text.trim(),'avatar':avatar}).eq('id',uid);setState(()=>profile={...profile!,'full_name':name.text.trim(),'name':name.text.trim(),'avatar':avatar});}
   }
 
+  Future<void> _changePassword() async {
+    final current=TextEditingController(), next=TextEditingController();
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:const Text('Change shared password'),content:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:current,obscureText:true,decoration:const InputDecoration(labelText:'Current password')),TextField(controller:next,obscureText:true,decoration:const InputDecoration(labelText:'New password (at least 6 characters)'))]),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Update password'))]));
+    if(ok!=true)return;
+    try {
+      final auth=Supabase.instance.client.auth; final email=auth.currentUser?.email;
+      if(email==null||next.text.length<6)throw Exception('Enter a new password with at least 6 characters.');
+      await auth.signInWithPassword(email:email,password:current.text);
+      await auth.updateUser(UserAttributes(password:next.text));
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Shared ControlDeck password updated.')));
+    } catch(e) { if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ','')))); }
+    current.dispose();next.dispose();
+  }
+
   Future<void> _signOut() async {
     try{final auth=Supabase.instance.client.auth.currentSession;if(auth!=null&&sessionId!=null)await Supabase.instance.client.functions.invoke('controldeck-sso',headers:{'Authorization':'Bearer '+auth.accessToken},body:{'action':'logout','app':'lifehub','sessionId':sessionId});}catch(_){}
     await _lhStorage.delete(key:_lhSessionKey);await Supabase.instance.client.auth.signOut();if(mounted)Navigator.of(context).pop();
@@ -243,7 +257,7 @@ class _LifeHubFullNativeScreenState extends State<LifeHubFullNativeScreen> {
 
   Widget _body(BuildContext context){
     if(section==0){final income=rows.where((r)=>r['kind']=='Transactions').fold<num>(0,(s,r)=>s+(num.tryParse((r['count']??0).toString())??0));return ListView(padding:const EdgeInsets.all(16),children:[_hero(context,'Your life, organised.','Tasks, notes, goals, reminders, ideas, finance and shared expenses.',Icons.home_work_rounded),const SizedBox(height:14),LayoutBuilder(builder:(context,c)=>GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:c.maxWidth>700?3:2,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:2.2,children:rows.map((r)=>_metric(context,r['kind'].toString(),r['count'].toString())).toList())),const SizedBox(height:14),_card(context,'Welcome back',(profile?['full_name']??profile?['name']??'LifeHub member').toString()+'\n'+(profile?['email']??'').toString())]);}
-    if(section==4)return ListView(padding:const EdgeInsets.all(16),children:[_hero(context,'Your profile','Manage your LifeHub account details.',Icons.person),_card(context,'Name',(profile?['full_name']??profile?['name']??'').toString()),_card(context,'Email',(profile?['email']??'').toString()),const SizedBox(height:10),FilledButton.icon(onPressed:_editProfile,icon:const Icon(Icons.edit),label:const Text('Edit name and avatar')),OutlinedButton.icon(onPressed:_signOut,icon:const Icon(Icons.logout),label:const Text('Sign out of ControlDeck'))]);
+    if(section==4)return ListView(padding:const EdgeInsets.all(16),children:[_hero(context,'Your profile','Manage your LifeHub account details.',Icons.person),_card(context,'Name',(profile?['full_name']??profile?['name']??'').toString()),_card(context,'Email',(profile?['email']??'').toString()),const SizedBox(height:10),FilledButton.icon(onPressed:_editProfile,icon:const Icon(Icons.edit),label:const Text('Edit name and avatar')),const SizedBox(height:8),OutlinedButton.icon(onPressed:_changePassword,icon:const Icon(Icons.lock_reset_rounded),label:const Text('Change shared password')),OutlinedButton.icon(onPressed:_signOut,icon:const Icon(Icons.logout),label:const Text('Sign out of ControlDeck'))]);
     if(section==3)return ListView(padding:const EdgeInsets.all(16),children:[_hero(context,'Splitwise','Create groups, split bills and record settlements.',Icons.people_alt),if(groups.isEmpty)const Padding(padding:EdgeInsets.all(20),child:Text('No groups yet. Create one to start.')),for(final g in groups)Card(child:ListTile(leading:const Icon(Icons.groups),title:Text(g['name'].toString()),subtitle:const Text('Open shared expenses and settlements'),trailing:const Icon(Icons.chevron_right),onTap:()=>_openGroup(g)))]);
     if(section==5&&isAdmin)return ListView(padding:const EdgeInsets.all(16),children:[_hero(context,'Admin categories','Manage income and expense categories.',Icons.admin_panel_settings),for(final c in categories)Card(child:ListTile(title:Text(c['name'].toString()),subtitle:Text(c['kind'].toString()),trailing:Wrap(children:[IconButton(onPressed:()=>_showForm('expense_types',old:c),icon:const Icon(Icons.edit)),IconButton(onPressed:()=>_delete('expense_types',c),icon:const Icon(Icons.delete_outline))])))]);
     final table=section==1?_lifeTable():(financeTab=='Budgets'?'budgets':'expenses');
