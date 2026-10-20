@@ -248,8 +248,6 @@ class _DeckHomeState extends State<DeckHome> {
   Future<void> editApp([DeckApp? old]) async {
     final name = TextEditingController(text: old?.name ?? '');
     final description = TextEditingController(text: old?.description ?? '');
-    final url = TextEditingController(text: old?.url ?? '');
-    final adminUrl = TextEditingController(text: old?.adminUrl ?? '');
     String cat = old?.category ?? 'Personal', icon = old?.iconKey ?? 'apps';
     final formKey = GlobalKey<FormState>();
     final ok = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
@@ -283,7 +281,7 @@ class _DeckHomeState extends State<DeckHome> {
       try { await _persist(item, insert: isNew); }
       catch (_) { message('Could not save to the cloud. Check the ControlDeck SQL setup.'); }
     }
-    name.dispose(); description.dispose(); url.dispose(); adminUrl.dispose();
+    name.dispose(); description.dispose();
   }
 
   Future<void> toggleFavorite(DeckApp app) async {
@@ -306,7 +304,6 @@ class _DeckHomeState extends State<DeckHome> {
     final theme = Theme.of(context);
     final wide = MediaQuery.sizeOf(context).width >= 850;
     final items = shown;
-    final connectedCount = apps.where((a) => a.isConnected).length;
     final personal = apps.where((a) => a.category == 'Personal').length;
     final professional = apps.where((a) => a.category == 'Professional').length;
     return Scaffold(
@@ -575,7 +572,7 @@ class _AppCard extends StatelessWidget {
         ]),
         const SizedBox(height: 14), Text(app.name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height: 7),
-        _StatusPill(label: app.isConnected ? 'Connected' : 'Not connected', icon: app.isConnected ? Icons.link_rounded : Icons.link_off_rounded, color: app.isConnected ? accent : theme.colorScheme.onSurfaceVariant),
+        _StatusPill(label: 'Native workspace', icon: Icons.dashboard_rounded, color: accent),
         const SizedBox(height: 5), Expanded(child: Text(app.description.isEmpty ? 'Open this workspace inside ControlDeck.' : app.description,
           maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.4))),
         Row(children: [
