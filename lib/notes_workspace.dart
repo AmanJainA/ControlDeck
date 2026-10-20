@@ -274,9 +274,9 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       contactSubject.clear();contactMessage.clear();if(mounted)setState(()=>notice='Message sent. Thanks for reaching out.');
     }catch(e){if(mounted)setState(()=>error=friendly(e));}
   }
-  Future<void> loadActivity() async {
+  Future<void> loadActivity({bool withinAdmin = false}) async {
     if (!isAdmin) return;
-    setState(() => {loading=true,error=null,page='Activity'});
+    setState(() => {loading=true,error=null,page=withinAdmin ? 'Admin' : 'Activity',if(withinAdmin) adminTab='Activity'});
     try { final rows=await client!.schema('notes').from('currently_online').select('*').order('last_seen_at',ascending:false).limit(100); if(mounted)onlineUsers=List<Map<String,dynamic>>.from(rows); } catch (_) { onlineUsers=[]; }
     try { final rows=await client!.schema('notes').from('login_activity').select('*').order('login_time',ascending:false).limit(100); if(mounted)loginActivity=List<Map<String,dynamic>>.from(rows); } catch (_) { loginActivity=[]; }
     try { final rows=await client!.schema('notes').from('page_visits').select('*').order('visit_time',ascending:false).limit(100); if(mounted)pageVisits=List<Map<String,dynamic>>.from(rows); } catch (_) { pageVisits=[]; }
@@ -319,6 +319,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   }
   Future<void> editTopic([Map<String,dynamic>? old]) async {
     if(!isAdmin || languages.isEmpty)return;
+    final returnToAdmin = page == 'Admin';
     String languageId=old?['language_id']?.toString()??languages.first['id'].toString();
     final t=TextEditingController(text:old?['title']?.toString()??'');final s=TextEditingController(text:old?['slug']?.toString()??'');final o=TextEditingController(text:old?['sort_order']?.toString()??'0');
     final ok=await showDialog<bool>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setDialog)=>AlertDialog(title:Text(old==null?'Add topic':'Edit topic'),content:Column(mainAxisSize:MainAxisSize.min,children:[
@@ -328,7 +329,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     if(ok==true)try{
       final row={'language_id':languageId,'title':t.text.trim(),'slug':s.text.trim().toLowerCase(),'sort_order':int.tryParse(o.text)??0};
       if(old==null)await client!.schema('notes').from('topics').insert(row);else await client!.schema('notes').from('topics').update(row).eq('id',old['id']);
-      await loadTopics(language??languages.first);
+      if(returnToAdmin) { await loadAdmin(); } else { await loadTopics(language??languages.first); }
     }catch(e){if(mounted)setState(()=>error=friendly(e));}
     for(final c in [t,s,o]){c.dispose();}
   }
@@ -615,7 +616,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         ChoiceChip(label:Text('Logins (${loginActivity.length})'),selected:activityTab=='Logins',onSelected:(_){setState(()=>activityTab='Logins');}),
         ChoiceChip(label:Text('Page visits (${pageVisits.length})'),selected:activityTab=='Visits',onSelected:(_){setState(()=>activityTab='Visits');}),
         OutlinedButton.icon(onPressed:copyActivity,icon:const Icon(Icons.copy_rounded),label:const Text('Copy CSV')),
-        OutlinedButton.icon(onPressed:loadActivity,icon:const Icon(Icons.refresh_rounded),label:const Text('Refresh')),
+        OutlinedButton.icon(onPressed:() => loadActivity(withinAdmin: page == 'Admin'),icon:const Icon(Icons.refresh_rounded),label:const Text('Refresh')),
       ]),
       const SizedBox(height:10),
       if(rows.isEmpty)const _NotesNotice(title:'No activity rows available',detail:'The source Notes activity tables may not be installed or may not allow this admin token to read them.'),
@@ -680,7 +681,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
           const Divider(height: 1),
           ListTile(leading: const Icon(Icons.edit_note_rounded), title: const Text('Manage lesson content'), subtitle: const Text('Add or edit lesson blocks for a topic.'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => setState(() => adminTab = 'Content')),
           const Divider(height: 1),
-          ListTile(leading: const Icon(Icons.query_stats_rounded), title: const Text('Review activity'), subtitle: const Text('Inspect online users, sign-ins and page visits.'), trailing: const Icon(Icons.chevron_right_rounded), onTap: loadActivity),
+          ListTile(leading: const Icon(Icons.query_stats_rounded), title: const Text('Review activity'), subtitle: const Text('Inspect online users, sign-ins and page visits.'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () { setState(() => adminTab = 'Activity'); loadActivity(withinAdmin: true); }),
         ])),
         const SizedBox(height: 8),
         const _NotesNotice(title: 'Access and data safety', detail: 'Supabase Row Level Security (RLS) must allow admin changes. Deleting a language or topic can also remove related records.'),
