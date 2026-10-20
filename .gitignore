@@ -1,0 +1,26 @@
+# Dart / Flutter
+.dart_tool/
+.packages
+.pub/
+.pub-cache/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# macOS
+.DS_Store
+
+# Android build outputs
+/android/local.properties
+/android/key.properties
+/android/**/GeneratedPluginRegistrant.java
+
+# iOS build outputs and signing
+/ios/Flutter/.last_build_id
+/ios/Runner/GeneratedPluginRegistrant.*
