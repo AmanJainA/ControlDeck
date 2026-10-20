@@ -15,14 +15,14 @@ Sign in once in ControlDeck, keep the session securely across app restarts, and 
 - Global ControlDeck sign-out attempts to revoke the current LifeHub session, ends the Portfolio Admin token through its existing logout RPC, clears locally stored module tokens, and signs out of Supabase Auth.
 - Portfolio Admin token persistence remains a compatibility measure; it is not yet authenticated by the shared identity.
 
-This is the first SSO phase, **not** complete single sign-on across all five projects. No existing profile, permission flag, password hash, or business record was migrated or deleted.
+This is an incremental SSO and native-workspace integration, **not** complete single sign-on across all five projects. No existing profile, permission flag, password hash, or business record was migrated or deleted.
 
 ## What is still required for true one-login SSO
 
 | Module | Current authentication | Work required |
 |---|---|---|
 | ControlDeck | Supabase Auth; its session persistence is managed by `supabase_flutter` | Canonical identity is the ControlDeck Auth user. The account must be email-verified. |
-| LifeHub | `custom-auth` Edge Function and server-issued session ID | **Implemented in this phase** via `controldeck-sso`, preserving LifeHub profile and session validation. |
+| LifeHub | `custom-auth` Edge Function and server-issued session ID | Shared-session exchange is implemented. The native ControlDeck workspace now includes Life, Finance, Splitwise, Profile, and admin-category screens; see `docs/LIFEHUB_NATIVE_INTEGRATION.md`. Runtime/build verification remains pending. |
 | Notes | `notes.profiles` plus Supabase Auth | Shared Auth session is available when Notes uses the same Supabase project. SSO still respects `notes_enabled`; existing access flags are not automatically changed. |
 | Interview | `interview.login_user` RPC | Replace profile-only client state with a backend-issued session or verified canonical identity. |
 | Portfolio Admin | Separate `admin_login`/admin token RPCs | Add an explicit, server-validated SSO exchange while retaining admin-role checks. |
