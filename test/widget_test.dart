@@ -2,11 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:controldeck/main.dart';
 
 void main() {
-  testWidgets('shows secure setup guidance when ControlDeck auth is not configured',
-      (tester) async {
+  testWidgets('shows the ControlDeck sign-in screen when signed out', (tester) async {
     await tester.pumpWidget(const ControlDeckApp());
+    await tester.pump();
 
-    expect(find.text('Set up secure sign-in'), findsOneWidget);
-    expect(find.textContaining('Run with SUPABASE_URL'), findsOneWidget);
+    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.text('Sign in'), findsOneWidget);
+    expect(find.text('Sign in to sync your app hub across devices.'), findsOneWidget);
   });
 }
