@@ -164,7 +164,7 @@ class _SignInScreenState extends State<SignInScreen> {
             child: Text(creating ? 'Already have an account? Sign in' : 'New to ControlDeck? Create account')),
           Align(alignment: Alignment.centerRight, child: IconButton(onPressed: () => widget.onTheme(!widget.dark),
             tooltip: 'Toggle theme', icon: Icon(widget.dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded))),
-        ]))))));
+        ])))))));
   }
 }
 
@@ -406,7 +406,7 @@ class _SideNav extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(width: 220, decoration: BoxDecoration(border: Border(right: BorderSide(color: theme.dividerColor.withValues(alpha: .35)))),
       padding: const EdgeInsets.fromLTRB(16, 20, 12, 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(padding: const EdgeInsets.only(left: 12, bottom: 10), child: Text('WORKSPACE', style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 1.4, color: theme.colorScheme.onSurfaceVariant)),
+        Padding(padding: const EdgeInsets.only(left: 12, bottom: 10), child: Text('WORKSPACE', style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 1.4, color: theme.colorScheme.onSurfaceVariant))),
         _NavItem(icon: Icons.dashboard_rounded, label: 'Overview', selected: page == 'Overview', onTap: () => onSelect('Overview')),
         _NavItem(icon: Icons.star_rounded, label: 'Favourites', selected: page == 'Favourites', onTap: () => onSelect('Favourites')),
         _NavItem(icon: Icons.apps_rounded, label: 'All apps', selected: page == 'All apps', onTap: () => onSelect('All apps')),
