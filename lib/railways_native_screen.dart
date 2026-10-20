@@ -31,13 +31,13 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
 
   Future<void> login() async {
     if(username.text.trim().isEmpty||password.text.isEmpty){setState(()=>error='Enter your Railway username and password.');return;}
-    setState(()=>{busy=true,error=null});
+    setState(() { busy = true; error = null; });
     try{
       final row=await db.from('users').select('id,username,email,role,dept,project')
         .eq('username',username.text.trim()).eq('password',password.text).maybeSingle();
       if(row==null)throw Exception('Invalid username or password.');
       if(!mounted)return;
-      setState(()=>{user=Map<String,dynamic>.from(row),password.clear(),view='home'});
+      setState(() { user = Map<String,dynamic>.from(row); password.clear(); view = 'home'; });
       await loadHeadings();
     }catch(e){if(mounted)setState(()=>error=message(e));}
     finally{if(mounted)setState(()=>busy=false);}
@@ -45,7 +45,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
 
   Future<void> loadHeadings() async {
     if(user==null)return;
-    setState(()=>{busy=true,error=null});
+    setState(() { busy = true; error = null; });
     try{
       final rows=await db.from('main_heading_master').select('id,headingname,status').eq('status','1').order('id');
       var result=List<Map<String,dynamic>>.from(rows);
@@ -54,13 +54,13 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         final ids=access.map((r)=>(r['main_heading_id'] as num).toInt()).toSet();
         result=result.where((h)=>ids.contains((h['id'] as num).toInt())).toList();
       }
-      if(mounted)setState(()=>{headings=result,view='home'});
+      if(mounted)setState(() { headings = result; view = 'home'; });
     }catch(e){if(mounted)setState(()=>error=message(e));}
     finally{if(mounted)setState(()=>busy=false);}
   }
 
   Future<void> openHeading(Map<String,dynamic> h) async {
-    setState(()=>{heading=h,menu=null,menus=[],files=[],view='menus',busy=true,error=null});
+    setState(() { heading = h; menu = null; menus = []; files = []; view = 'menus'; busy = true; error = null; });
     try{
       final rows=await db.from('menu_master').select('id,menuname,status,main_heading_id').eq('main_heading_id',h['id']).eq('status','1').order('id');
       var result=List<Map<String,dynamic>>.from(rows);
@@ -69,34 +69,34 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         final ids=access.map((r)=>(r['menu_id'] as num).toInt()).toSet();
         result=result.where((m)=>ids.contains((m['id'] as num).toInt())).toList();
       }
-      if(mounted)setState(()=>menus=result);
+      if(mounted)setState(() { menus = result; });
     }catch(e){if(mounted)setState(()=>error=message(e));}
     finally{if(mounted)setState(()=>busy=false);}
   }
 
   Future<void> openMenu(Map<String,dynamic> m) async {
-    setState(()=>{menu=m,view='files',files=[],search.clear(),busy=true,error=null});
+    setState(() { menu = m; view = 'files'; files = []; search.clear(); busy = true; error = null; });
     try{
       final rows=await db.from('datacollection').select('id,name,type,links,menuname,folder,folder_id,menu_id,status,remark,uploaded_by,uploaded_at')
         .eq('menu_id',m['id']).eq('status',1).order('id',ascending:false);
-      if(mounted)setState(()=>files=List<Map<String,dynamic>>.from(rows));
+      if(mounted)setState(() { files = List<Map<String,dynamic>>.from(rows); });
     }catch(e){if(mounted)setState(()=>error=message(e));}
     finally{if(mounted)setState(()=>busy=false);}
   }
 
   Future<void> openMyData() async {
-    setState(()=>{menu={'menuname':'My Data'},heading=null,view='files',files=[],search.clear(),busy=true,error=null});
+    setState(() { menu = {'menuname':'My Data'}; heading = null; view = 'files'; files = []; search.clear(); busy = true; error = null; });
     try{
       final rows=await db.from('datacollection').select('id,name,type,links,menuname,folder,folder_id,menu_id,status,remark,uploaded_by,uploaded_at')
         .eq('menuname','mydata').order('id',ascending:false);
-      if(mounted)setState(()=>files=List<Map<String,dynamic>>.from(rows));
+      if(mounted)setState(() { files = List<Map<String,dynamic>>.from(rows); });
     }catch(e){if(mounted)setState(()=>error=message(e));}
     finally{if(mounted)setState(()=>busy=false);}
   }
 
   void back(){
     if(view=='files'&&heading!=null){openHeading(heading!);return;}
-    if(view=='files'||view=='menus'){setState(()=>{view='home',heading=null,menu=null});return;}
+    if(view=='files'||view=='menus'){setState(() { view = 'home'; heading = null; menu = null; });return;}
     Navigator.of(context).maybePop();
   }
 
@@ -133,7 +133,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       title:Text(title),
       actions:[
         if(user!=null)IconButton(tooltip:'Refresh',onPressed:view=='files'?(heading==null?openMyData:()=>openMenu(menu!)):view=='menus'?()=>openHeading(heading!):loadHeadings,icon:const Icon(Icons.refresh_rounded)),
-        if(user!=null)IconButton(tooltip:'Sign out',onPressed:()=>setState(()=>{user=null,headings=[],menus=[],files=[],view='login',error=null}),icon:const Icon(Icons.logout_rounded)),
+        if(user!=null)IconButton(tooltip:'Sign out',onPressed:()=>setState(() { user = null; headings = []; menus = []; files = []; view = 'login'; error = null; }),icon:const Icon(Icons.logout_rounded)),
       ],
     ),body:user==null?loginView():workspaceView());
   }
@@ -156,11 +156,11 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
 
   Widget workspaceView(){
     if(busy)return const Center(child:CircularProgressIndicator());
-    final filtered=files.where((f)=>'\${f['name']??''} \${f['type']??''} \${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).toList();
+    final filtered=files.where((f)=>'${f['name']??''} ${f['type']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).toList();
     return Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:1100),child:ListView(padding:const EdgeInsets.all(20),children:[
       if(error!=null)Card(color:Theme.of(context).colorScheme.errorContainer,child:Padding(padding:const EdgeInsets.all(14),child:Text(error!))),
       if(view=='home')...[
-        hero('Welcome, \${user?['username']??'Railway user'}','\${user?['dept']??'Railway workspace'} · \${user?['role']??'User'}',Icons.train_rounded),
+        hero('Welcome, ${user?['username']??'Railway user'}','${user?['dept']??'Railway workspace'} · ${user?['role']??'User'}',Icons.train_rounded),
         const SizedBox(height:16),
         LayoutBuilder(builder:(ctx,c){final cols=c.maxWidth>700?3:c.maxWidth>460?2:1;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:cols,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:cols==1?4:2.3,children:[
           metric('Workspaces',headings.length.toString(),Icons.account_tree_rounded),metric('Role',(user?['role']??'User').toString(),Icons.verified_user_outlined),metric('Project',(user?['project']??'Railways').toString(),Icons.business_center_outlined)
@@ -174,10 +174,10 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         if(menus.isEmpty)const EmptyRailway(title:'No menus available',detail:'No active menus or access grants were found.'),
         for(final m in menus)Card(child:ListTile(leading:const Icon(Icons.folder_copy_outlined),title:Text((m['menuname']??'Menu').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>openMenu(m))),
       ]else...[
-        hero((menu?['menuname']??'Files').toString(),'\${filtered.length} records · native Flutter list',Icons.description_outlined),const SizedBox(height:14),
+        hero((menu?['menuname']??'Files').toString(),'${filtered.length} records · native Flutter list',Icons.description_outlined),const SizedBox(height:14),
         TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search_rounded),labelText:'Search documents')),const SizedBox(height:10),
         if(filtered.isEmpty)const EmptyRailway(title:'No files found',detail:'No active documents match this menu and search.'),
-        for(final f in filtered)Card(child:ListTile(leading:fileIcon((f['type']??'').toString()),title:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text('\${(f['type']??'FILE').toString().toUpperCase()} · \${(f['folder']??'No folder').toString()}\\n\${(f['uploaded_by']??'Uploader unknown').toString()}',maxLines:2,overflow:TextOverflow.ellipsis),isThreeLine:true,trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>showFile(f))),
+        for(final f in filtered)Card(child:ListTile(leading:fileIcon((f['type']??'').toString()),title:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text('${(f['type']??'FILE').toString().toUpperCase()} · ${(f['folder']??'No folder').toString()}\\n${(f['uploaded_by']??'Uploader unknown').toString()}',maxLines:2,overflow:TextOverflow.ellipsis),isThreeLine:true,trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>showFile(f))),
       ],
     ])));
   }
