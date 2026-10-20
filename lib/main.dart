@@ -4,12 +4,10 @@ import 'notes_workspace.dart';
 import 'supabase_config.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 const accent = Color(0xFF8FA600);
 const supabaseUrl = SupabaseConfig.primaryUrl;
@@ -716,18 +714,9 @@ const _notesKey = SupabaseConfig.primaryKey;
 const _interviewUrl = SupabaseConfig.primaryUrl;
 const _interviewKey = SupabaseConfig.primaryKey;
 
-class RailwaysNativeScreen extends StatefulWidget {
+class RailwaysNativeScreen extends StatelessWidget {
   const RailwaysNativeScreen({super.key});
-  @override
-  State<RailwaysNativeScreen> createState() => _RailwaysNativeScreenState();
-}
-
-class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   static const portalUrl = 'https://amanjaina.github.io/Railways/';
-  WebViewController? controller;
-  bool embedded = false;
-  bool loadingPortal = false;
-  String? portalError;
 
   static const modules = <Map<String, Object>>[
     {'title': 'My Data', 'detail': 'Assigned files and records', 'icon': Icons.folder_open_rounded},
@@ -740,122 +729,105 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     {'title': 'Activity & History', 'detail': 'Page activity and login history', 'icon': Icons.history_rounded},
   ];
 
-  bool get supportsEmbeddedWebView => !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android ||
-       defaultTargetPlatform == TargetPlatform.iOS);
-
-  @override
-  void initState() {
-    super.initState();
-    if (supportsEmbeddedWebView) _loadPortalInApp();
-  }
-
-  Future<void> _loadPortalInApp() async {
-    setState(() { loadingPortal = true; portalError = null; });
+  Future<void> _openPortal(BuildContext context) async {
     try {
-      final web = WebViewController();
-      await web.setJavaScriptMode(JavaScriptMode.unrestricted);
-      await web.setNavigationDelegate(NavigationDelegate(
-        onWebResourceError: (error) {
-          if (mounted) setState(() => portalError = error.description);
-        },
-      ));
-      await web.loadRequest(Uri.parse(portalUrl));
-      if (mounted) setState(() { controller = web; embedded = true; loadingPortal = false; });
-    } catch (e) {
-      if (mounted) setState(() { portalError = e.toString(); loadingPortal = false; });
-    }
-  }
-
-  Future<void> _openPortalExternally() async {
-    try {
-      final opened = await launchUrl(Uri.parse(portalUrl), mode: LaunchMode.externalApplication);
-      if (!opened && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open the Railway portal. Check your internet connection.')));
+      final opened = await launchUrl(
+        Uri.parse(portalUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the Railway portal. Check your internet connection.')),
+        );
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open the Railway portal.')));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the Railway portal.')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (embedded && controller != null) {
-      return Scaffold(
-        appBar: AppBar(
-          leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
-          title: const Text('Railways'),
-          actions: [
-            IconButton(tooltip: 'Reload portal', onPressed: () => controller?.reload(), icon: const Icon(Icons.refresh_rounded)),
-          ],
-        ),
-        body: WebViewWidget(controller: controller!),
-      );
-    }
-    if (loadingPortal) {
-      return Scaffold(
-        appBar: AppBar(
-          leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
-          title: const Text('Railways'),
-        ),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
         title: const Text('Railways'),
         actions: [
-          IconButton(tooltip: 'Open portal', onPressed: _openPortalExternally, icon: const Icon(Icons.open_in_new_rounded)),
+          IconButton(
+            tooltip: 'Open live Railway portal',
+            onPressed: () => _openPortal(context),
+            icon: const Icon(Icons.open_in_new_rounded),
+          ),
         ],
       ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1000),
-          child: ListView(padding: const EdgeInsets.all(20), children: [
-            const _WorkspaceHero(
-              title: 'Railways workspace',
-              subtitle: 'Open the live Railway portal to access its actual records, files, menus and administration tools.',
-              icon: Icons.train_rounded,
-            ),
-            const SizedBox(height: 14),
-            const _Notice(
-              text: 'On Android and iPhone, the portal opens inside ControlDeck. On web and desktop, use any module tile to open the live portal in your browser. Sign in with your existing Railway portal account; its permissions remain in force.',
-              icon: Icons.open_in_new_rounded,
-            ),
-            if (portalError != null) ...[
-              const SizedBox(height: 10),
-              Text('Embedded view could not load: $portalError', style: TextStyle(color: theme.colorScheme.error)),
-              Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: _openPortalExternally, icon: const Icon(Icons.open_in_new_rounded), label: const Text('Open in browser instead'))),
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              const _WorkspaceHero(
+                title: 'Railways workspace',
+                subtitle: 'Open the live Railway portal to access its actual records, files, menus and administration tools.',
+                icon: Icons.train_rounded,
+              ),
+              const SizedBox(height: 14),
+              const _Notice(
+                text: 'Choose any portal section to open the live Railway portal in your browser. Sign in with your existing Railway portal account; the portal’s own permissions remain in force.',
+                icon: Icons.open_in_new_rounded,
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Portal sections',
+                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 12),
+              LayoutBuilder(builder: (context, constraints) {
+                final columns = constraints.maxWidth > 700 ? 2 : 1;
+                return GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: columns,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: columns == 1 ? 4.1 : 3.2,
+                  children: modules.map((module) => Card(
+                    child: ListTile(
+                      onTap: () => _openPortal(context),
+                      leading: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: .13),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Icon(module['icon'] as IconData, color: accent),
+                      ),
+                      title: Text(
+                        module['title'] as String,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(module['detail'] as String),
+                      trailing: const Icon(Icons.open_in_new_rounded),
+                    ),
+                  )).toList(),
+                );
+              }),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () => _openPortal(context),
+                icon: const Icon(Icons.launch_rounded),
+                label: const Text('Open Railway portal'),
+              ),
             ],
-            const SizedBox(height: 18),
-            Text('Portal sections', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 12),
-            LayoutBuilder(builder: (context, constraints) {
-              final columns = constraints.maxWidth > 700 ? 2 : 1;
-              return GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: columns,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: columns == 1 ? 4.1 : 3.2,
-                children: modules.map((module) => Card(child: ListTile(
-                  onTap: _openPortalExternally,
-                  leading: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(color: accent.withValues(alpha: .13), borderRadius: BorderRadius.circular(13)),
-                    child: Icon(module['icon'] as IconData, color: accent),
-                  ),
-                  title: Text(module['title'] as String, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text(module['detail'] as String),
-                  trailing: const Icon(Icons.open_in_new_rounded),
-                ))).toList(),
-              );
-            }),
-          ]),
+          ),
         ),
       ),
     );
