@@ -665,8 +665,65 @@ class _NotesBlock extends StatelessWidget {
     if(type=='heading')return Padding(padding:const EdgeInsets.only(top:18,bottom:8),child:Text(text,style:theme.textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)));
     if(type=='subheading')return Padding(padding:const EdgeInsets.only(top:12,bottom:6),child:Text(text,style:theme.textTheme.titleMedium?.copyWith(fontWeight:FontWeight.w700)));
     if(type=='code')return Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[if((block['filename']??'').toString().isNotEmpty)Text(block['filename'].toString()),const SizedBox(height:8),SingleChildScrollView(scrollDirection:Axis.horizontal,child:SelectableText((block['code']??text).toString(),style:const TextStyle(fontFamily:'monospace',height:1.5)))])));
-    if(type=='list'){final items=List<dynamic>.from(block['items'] as List? ?? const []);return Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[for(var i=0;i<items.length;i++)Padding(padding:const EdgeInsets.only(bottom:7),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[SizedBox(width:24,child:Text(block['ordered']==true?'${i+1}.':'•',style:const TextStyle(color:Colors.amber,fontWeight:FontWeight.w800))),Expanded(child:Text(items[i] is Map?(items[i]['text']??'').toString():items[i].toString()))]))])));}
-    if(type=='image'){final src=(block['src']??'').toString();if(src.isEmpty)return const SizedBox.shrink();return Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(children:[Image.network(src,fit:BoxFit.contain,errorBuilder:(_,__,___)=>const Icon(Icons.broken_image_outlined)),if((block['caption']??'').toString().isNotEmpty)Text(block['caption'].toString())])));}
+    if (type == 'list') {
+      final items = List<dynamic>.from(block['items'] as List? ?? const []);
+      final ordered = block['ordered'] == true;
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < items.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 7),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        child: Text(
+                          ordered ? '${i + 1}.' : '•',
+                          style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(items[i] is Map ? (items[i]['text'] ?? '').toString() : items[i].toString()),
+                            if (items[i] is Map && items[i]['children'] is List)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6, left: 8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    for (final child in List<dynamic>.from(items[i]['children'] as List))
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 4),
+                                        child: Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('–  '),
+                                            Expanded(child: Text(child.toString())),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+    if(type=='image'){final src=(block['src']??'').toString();if(src.isEmpty)return const SizedBox.shrink();return Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(children:[Image.network(src,fit:BoxFit.contain,semanticLabel:(block['alt']??'Lesson image').toString(),errorBuilder:(_,__,___)=>const Icon(Icons.broken_image_outlined)),if((block['caption']??'').toString().isNotEmpty)Text(block['caption'].toString())])));}
     if(type=='table'){final headers=List<dynamic>.from(block['headers'] as List? ?? const []);final rows=List<dynamic>.from(block['rows'] as List? ?? const []);if(headers.isEmpty)return const SizedBox.shrink();return Card(child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columns:headers.map((h)=>DataColumn(label:Text(h.toString()))).toList(),rows:rows.map((r){final cells=List<dynamic>.from(r as List);return DataRow(cells:List.generate(headers.length,(i)=>DataCell(Text(i<cells.length?cells[i].toString():''))));}).toList())));}
     if(type=='divider')return const Divider(height:28);
     if(type=='note'){final v=(block['variant']??'info').toString();final color=v=='warning'?Colors.orange:v=='tip'?Colors.green:Colors.amber;return Card(color:color.withValues(alpha:.12),child:Padding(padding:const EdgeInsets.all(14),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(v=='warning'?Icons.warning_amber_rounded:v=='tip'?Icons.lightbulb_outline_rounded:Icons.info_outline_rounded,color:color),const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[if((block['title']??'').toString().isNotEmpty)Text(block['title'].toString(),style:const TextStyle(fontWeight:FontWeight.w800)),Text(text)]))])));}
