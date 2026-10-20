@@ -20,6 +20,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   final search = TextEditingController();
   Map<String,dynamic>? user, heading, menu;
   List<Map<String,dynamic>> headings=[], menus=[], folders=[], files=[], trackingRows=[];
+  Map<int,int> menuFolderCounts = {};
   int? selectedFolderId;
   int? dashboardHeadingId;
   String typeFilter='all', trackingTab='online';
@@ -142,7 +143,17 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       final raw = await db.from('datacollection')
           .select('id,name,links,type,status,remark,uploaded_by,uploaded_at,main_heading_id,menu_id,folder_id,menuname,folder,source_type')
           .eq('status', 1).eq('main_heading_id', id).order('id', ascending: false);
-      if (mounted) setState(() { files = List<Map<String,dynamic>>.from(raw); });
+      final folderRows = await db.from('folder_master')
+          .select('id,menu_id').eq('main_heading_id', id).eq('status', '1');
+      final folderCounts = <int,int>{};
+      for (final folder in folderRows) {
+        final menuId = (folder['menu_id'] as num?)?.toInt();
+        if (menuId != null) folderCounts[menuId] = (folderCounts[menuId] ?? 0) + 1;
+      }
+      if (mounted) setState(() {
+        files = List<Map<String,dynamic>>.from(raw);
+        menuFolderCounts = folderCounts;
+      });
     } catch (e) {
       if (mounted) setState(() => error = message(e));
     } finally {
@@ -549,11 +560,12 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
           Builder(builder:(ctx){
             final id=(m['id'] as num).toInt();
             final count=files.where((f)=>(f['menu_id'] as num?)?.toInt()==id).length;
-            final hasFolders=files.any((f)=>(f['menu_id'] as num?)?.toInt()==id && (f['folder_id'] as num?)!=null);
+            final folderCount = menuFolderCounts[id] ?? 0;
+            final hasFolders = folderCount > 0;
             return Card(clipBehavior:Clip.antiAlias,child:ListTile(
               leading:const CircleAvatar(child:Icon(Icons.folder_open_rounded)),
               title:Text((m['menuname']??'Menu').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),
-              subtitle:Text('$count approved documents' + (hasFolders ? ' · Folders available' : ' · Open menu to view documents')),
+              subtitle:Text('$count approved documents' + (hasFolders ? ' · $folderCount folders' : ' · No folders')),
               trailing:const Icon(Icons.chevron_right_rounded),
               onTap:()=>openMenu(m),
             ));
