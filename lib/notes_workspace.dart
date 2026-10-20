@@ -394,7 +394,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         }
         final bytes = book.encode();
         if (bytes == null) throw Exception('Excel file could not be generated.');
-        await Share.shareXFiles([XFile.fromData(Uint8List.fromList(bytes), name: '$baseName.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')], subject: 'Notes Activity - $activityTab', text: 'Exported Notes activity data.');
+        await SharePlus.instance.share(ShareParams(files: [XFile.fromData(Uint8List.fromList(bytes), name: '$baseName.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')], subject: 'Notes Activity - $activityTab', text: 'Exported Notes activity data.'));
       } else if (format == 'word') {
         final html = StringBuffer('<html><head><meta charset="utf-8"></head><body><h1>Notes Activity — ${_activityLabel(activityTab)}</h1><table border="1" cellspacing="0" cellpadding="5"><thead><tr>');
         for (final h in matrix.first) { html.write('<th>${_htmlEscape(h)}</th>'); }
@@ -405,7 +405,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
           html.write('</tr>');
         }
         html.write('</tbody></table></body></html>');
-        await Share.shareXFiles([XFile.fromData(Uint8List.fromList(utf8.encode(html.toString())), name: '$baseName.doc', mimeType: 'application/msword')], subject: 'Notes Activity - $activityTab', text: 'Word-compatible activity report.');
+        await SharePlus.instance.share(ShareParams(files: [XFile.fromData(Uint8List.fromList(utf8.encode(html.toString())), name: '$baseName.doc', mimeType: 'application/msword')], subject: 'Notes Activity - $activityTab', text: 'Word-compatible activity report.'));
       } else if (format == 'pdf') {
         final doc = pw.Document();
         doc.addPage(pw.MultiPage(pageFormat: PdfPageFormat.a4.landscape, build: (_) => [
@@ -423,7 +423,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         await Printing.sharePdf(bytes: await doc.save(), filename: '$baseName.pdf');
       } else {
         final csv = matrix.map((row) => row.map((cell) => '"${cell.replaceAll('"', '""')}"').join(',')).join('\r\n');
-        await Share.shareXFiles([XFile.fromData(Uint8List.fromList([0xEF,0xBB,0xBF,...utf8.encode(csv)]), name: '$baseName.csv', mimeType: 'text/csv')], subject: 'Notes Activity - $activityTab', text: 'CSV file compatible with Excel.');
+        await SharePlus.instance.share(ShareParams(files: [XFile.fromData(Uint8List.fromList([0xEF,0xBB,0xBF,...utf8.encode(csv)]), name: '$baseName.csv', mimeType: 'text/csv')], subject: 'Notes Activity - $activityTab', text: 'CSV file compatible with Excel.'));
       }
       if (mounted) setState(() => notice = '$format export prepared for ${matrix.length - 1} rows.');
     } catch (e) {
