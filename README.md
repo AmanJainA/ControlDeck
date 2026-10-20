@@ -1,14 +1,16 @@
 # ControlDeck
 
-ControlDeck is a cross-platform Flutter dashboard for launching and managing your personal and professional tools from one place.
+ControlDeck is a cross-platform Flutter workspace that gives LifeHub, Notes, Railways, Interview, and Portfolio dedicated connection cards. It starts as a UI/UX hub: no project repository URLs or deployment destinations are prefilled. Add the actual app or admin destination yourself when you are ready.
 
 ## What it includes
 
 - Responsive desktop, tablet, and mobile dashboard
 - Dark/light themes with an olive accent
 - Search, category filters, favourites, and app shortcut management
-- Starter shortcuts for LifeHub, Notes, Railways, Interview, and Portfolio
-- Optional Portfolio admin URL field on the Portfolio shortcut
+- Dedicated, initially unconnected cards for LifeHub, Notes, Railways, Interview, and Portfolio
+- Visible Connected / Not connected states and a Connect action on each card
+- Separate Portfolio admin destination field; the admin destination can be configured independently
+- No GitHub repository URLs or guessed deployment URLs are prefilled
 - Supabase email/password authentication and per-user cloud-synced shortcuts
 - Row Level Security so signed-in users can only access their own ControlDeck shortcuts
 - Local-only mode when Supabase is not configured
@@ -33,11 +35,11 @@ flutter run -d macos \
 
 For Chrome, replace `-d macos` with `-d chrome`. For another device, use its Flutter device ID. The URL and publishable/anon key are client configuration; access is restricted by Supabase Auth and RLS. Do not put a service-role key in the app or commit secrets to GitHub.
 
-When the app is launched without both compile-time values, it runs in local mode and stores shortcuts on that device only. With Supabase configured, sign in or create an account and shortcuts sync to the account.
+When the app is launched without both compile-time values, it runs in local mode and stores shortcuts on that device only. With Supabase configured, sign in or create an account and shortcuts sync to the account. On first launch, all five project cards are intentionally marked **Not connected** until you add your own destinations.
 
 ## Configure the Portfolio admin shortcut
 
-Open ControlDeck, choose the Portfolio card menu, select **Edit shortcut**, and fill in **Admin URL** with the actual admin login/dashboard URL for your Portfolio deployment. Save it, then use the admin icon on the Portfolio card. The admin URL is intentionally not guessed because it depends on how your Portfolio admin is deployed. ControlDeck stores the destination only; it does not grant admin rights.
+Open ControlDeck, choose the Portfolio card menu, select **Edit shortcut**, and enter the actual **Admin URL** for your Portfolio admin login/dashboard. You can leave **App URL** blank if you only want to configure the admin destination. Save, then use the admin icon on the Portfolio card. No destination is guessed or prefilled. ControlDeck stores the destination only; it does not grant admin rights.
 
 ## Run locally
 
