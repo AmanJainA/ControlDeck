@@ -832,7 +832,7 @@ class _NotesNativeScreenState extends State<NotesNativeScreen> {
           _WorkspaceHero(title: 'Coding Notes', subtitle: 'Browse the database-driven programming curriculum.', icon: Icons.menu_book_rounded),
           LayoutBuilder(builder: (context, box) { final cols = box.maxWidth > 700 ? 3 : box.maxWidth > 440 ? 2 : 1; return GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: cols, childAspectRatio: 2.3, crossAxisSpacing: 12, mainAxisSpacing: 12, children: languages.map((l) => Card(child: InkWell(onTap: () => loadTopics(l), child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Icon(Icons.code_rounded, color: accent), const Spacer(), Text(l['name'].toString(), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)), Text(l['description']?.toString() ?? '', maxLines: 2, overflow: TextOverflow.ellipsis)]))))).toList()); }),
         ],
-      ])));
+      ]))));
   }
 }
 
