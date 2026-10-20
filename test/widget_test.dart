@@ -7,6 +7,6 @@ void main() {
     await tester.pumpWidget(const ControlDeckApp());
 
     expect(find.text('Set up secure sign-in'), findsOneWidget);
-    expect(find.textContaining('SUPABASE_URL'), findsOneWidget);
+    expect(find.textContaining('Run with SUPABASE_URL'), findsOneWidget);
   });
 }
