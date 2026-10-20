@@ -62,8 +62,10 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     }
     setState(() { busy = true; error = null; });
     try {
-      final response = await Supabase.instance.client.functions.invoke(
-        'controldeck-sso',
+      // Call the Railways project's own function so it can use that project's
+      // server-managed service role key without cross-project secrets.
+      final response = await db.functions.invoke(
+        'railways-sso',
         headers: {'Authorization': 'Bearer ${session.accessToken}'},
         body: {'action': 'exchange', 'app': 'railways'},
       );
