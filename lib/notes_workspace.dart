@@ -613,19 +613,111 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     current.dispose();next.dispose();
   }
   List<Widget> activityView(ThemeData theme) {
-    final rows=activityTab=='Online'?onlineUsers:activityTab=='Logins'?loginActivity:pageVisits;
+    final rows = activityTab == 'Online'
+        ? onlineUsers
+        : activityTab == 'Logins'
+            ? loginActivity
+            : pageVisits;
+    final columns = <String>[];
+    for (final row in rows) {
+      for (final key in row.keys) {
+        if (!columns.contains(key)) columns.add(key);
+      }
+    }
+    final preferred = activityTab == 'Online'
+        ? ['username', 'email', 'user_id', 'page_name', 'last_seen_at']
+        : activityTab == 'Logins'
+            ? ['username', 'email', 'user_id', 'login_time', 'ip_address', 'user_agent']
+            : ['username', 'email', 'user_id', 'page_name', 'page_url', 'visit_time'];
+    columns.sort((a, b) {
+      final ai = preferred.indexOf(a);
+      final bi = preferred.indexOf(b);
+      if (ai >= 0 && bi >= 0) return ai.compareTo(bi);
+      if (ai >= 0) return -1;
+      if (bi >= 0) return 1;
+      return a.compareTo(b);
+    });
     return [
-      if (page != 'Admin') const _NotesHero(title:'Notes activity',subtitle:'Review currently online users, recent sign-ins and page visits.'),
-      Wrap(spacing:8,children:[
-        ChoiceChip(label:Text('Online (${onlineUsers.length})'),selected:activityTab=='Online',onSelected:(_){setState(()=>activityTab='Online');}),
-        ChoiceChip(label:Text('Logins (${loginActivity.length})'),selected:activityTab=='Logins',onSelected:(_){setState(()=>activityTab='Logins');}),
-        ChoiceChip(label:Text('Page visits (${pageVisits.length})'),selected:activityTab=='Visits',onSelected:(_){setState(()=>activityTab='Visits');}),
-        OutlinedButton.icon(onPressed:copyActivity,icon:const Icon(Icons.copy_rounded),label:const Text('Copy CSV')),
-        OutlinedButton.icon(onPressed:() => loadActivity(withinAdmin: page == 'Admin'),icon:const Icon(Icons.refresh_rounded),label:const Text('Refresh')),
+      if (page != 'Admin')
+        const _NotesHero(
+          title: 'Notes activity',
+          subtitle: 'Review currently online users, recent sign-ins and page visits.',
+        ),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        ChoiceChip(
+          label: Text('Online (${onlineUsers.length})'),
+          selected: activityTab == 'Online',
+          onSelected: (_) => setState(() => activityTab = 'Online'),
+        ),
+        ChoiceChip(
+          label: Text('Logins (${loginActivity.length})'),
+          selected: activityTab == 'Logins',
+          onSelected: (_) => setState(() => activityTab = 'Logins'),
+        ),
+        ChoiceChip(
+          label: Text('Page visits (${pageVisits.length})'),
+          selected: activityTab == 'Visits',
+          onSelected: (_) => setState(() => activityTab = 'Visits'),
+        ),
+        OutlinedButton.icon(
+          onPressed: copyActivity,
+          icon: const Icon(Icons.copy_rounded),
+          label: const Text('Copy CSV'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => loadActivity(withinAdmin: page == 'Admin'),
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Refresh'),
+        ),
       ]),
-      const SizedBox(height:10),
-      if(rows.isEmpty)const _NotesNotice(title:'No activity rows available',detail:'The source Notes activity tables may not be installed or may not allow this admin token to read them.'),
-      for(final row in rows)Card(child:ListTile(title:Text((row['username']??row['email']??row['page_name']??row['page_url']??row['user_id']??'Activity record').toString()),subtitle:Text(row.entries.where((e)=>e.value!=null).take(5).map((e)=>'${e.key}: ${e.value}').join(' · ')))),
+      const SizedBox(height: 12),
+      Text(
+        '${rows.length} records · ${columns.length} fields',
+        style: theme.textTheme.labelLarge,
+      ),
+      const SizedBox(height: 8),
+      if (rows.isEmpty)
+        const _NotesNotice(
+          title: 'No activity rows available',
+          detail: 'No records were returned. Check that the Notes activity tables exist and that the current admin session has permission to read them.',
+        )
+      else
+        Card(
+          clipBehavior: Clip.antiAlias,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columnSpacing: 24,
+              headingRowHeight: 48,
+              dataRowMinHeight: 52,
+              dataRowMaxHeight: 76,
+              columns: columns
+                  .map((key) => DataColumn(
+                        label: Text(
+                          key.replaceAll('_', ' ').toUpperCase(),
+                          maxLines: 2,
+                        ),
+                      ))
+                  .toList(),
+              rows: rows
+                  .map((row) => DataRow(
+                        cells: columns
+                            .map((key) => DataCell(
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 240),
+                                    child: Text(
+                                      (row[key] ?? '—').toString(),
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ))
+                            .toList(),
+                      ))
+                  .toList(),
+            ),
+          ),
+        ),
     ];
   }
   List<Widget> adminView(ThemeData theme) {
