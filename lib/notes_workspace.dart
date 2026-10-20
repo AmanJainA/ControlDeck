@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -21,7 +22,8 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   String page = 'Dashboard', query = '';
   String? error, notice, token;
   Map<String,dynamic>? profile, language, topic;
-  List<Map<String,dynamic>> languages = [], topics = [], progress = [], profiles = [];
+  List<Map<String,dynamic>> languages = [], topics = [], progress = [], profiles = [], onlineUsers = [], loginActivity = [], pageVisits = [];
+  String activityTab = 'Online';
   List<dynamic> blocks = [];
   final email = TextEditingController(text: _notesAdminEmail);
   final password = TextEditingController();
@@ -193,6 +195,21 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       contactSubject.clear();contactMessage.clear();if(mounted)setState(()=>notice='Message sent. Thanks for reaching out.');
     }catch(e){if(mounted)setState(()=>error=friendly(e));}
   }
+  Future<void> loadActivity() async {
+    if (!isAdmin) return;
+    setState(() => {loading=true,error=null,page='Activity'});
+    try { final rows=await client!.schema('notes').from('currently_online').select('*').order('last_seen_at',ascending:false).limit(100); if(mounted)onlineUsers=List<Map<String,dynamic>>.from(rows); } catch (_) { onlineUsers=[]; }
+    try { final rows=await client!.schema('notes').from('login_activity').select('*').order('login_time',ascending:false).limit(100); if(mounted)loginActivity=List<Map<String,dynamic>>.from(rows); } catch (_) { loginActivity=[]; }
+    try { final rows=await client!.schema('notes').from('page_visits').select('*').order('visit_time',ascending:false).limit(100); if(mounted)pageVisits=List<Map<String,dynamic>>.from(rows); } catch (_) { pageVisits=[]; }
+    if(mounted)setState(()=>loading=false);
+  }
+  Future<void> copyActivity() async {
+    final rows=activityTab=='Online'?onlineUsers:activityTab=='Logins'?loginActivity:pageVisits;
+    final keys=rows.isEmpty?<String>[]:rows.first.keys.toList();
+    final csv=[keys.join(','),...rows.map((r)=>keys.map((k)=>'"${(r[k]??'').toString().replaceAll('"','""')}"').join(','))].join('\n');
+    await Clipboard.setData(ClipboardData(text:csv));
+    if(mounted)setState(()=>notice='${rows.length} rows copied as CSV text.');
+  }
   Future<void> loadAdmin() async {
     if(!isAdmin){setState(()=>error='Admin access is restricted.');return;}
     setState(()=>{loading=true,error=null});
@@ -260,7 +277,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       profile==null?authView(theme):loading?const Center(child:CircularProgressIndicator()):ListView(padding:const EdgeInsets.all(18),children:[
         if(error!=null)message(error!,true),if(notice!=null)message(notice!,false),
         if(page=='Dashboard')...dashboard(theme),if(page=='Lessons')...lessonList(theme),if(page=='Lesson')...lessonView(theme),
-        if(page=='About')...aboutView(),if(page=='Contact')...contactView(),if(page=='Profile')...profileView(theme),if(page=='Admin')...adminView(theme),
+        if(page=='About')...aboutView(),if(page=='Contact')...contactView(),if(page=='Profile')...profileView(theme),if(page=='Admin')...adminView(theme),if(page=='Activity')...activityView(theme),
       ]);
   }
   Widget authView(ThemeData theme)=>Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:470),child:ListView(shrinkWrap:true,padding:const EdgeInsets.all(22),children:[
@@ -284,6 +301,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         ActionChip(label:const Text('About'),onPressed:()=>setState(()=>page='About')),
         ActionChip(label:const Text('Contact'),onPressed:()=>setState(()=>page='Contact')),
         if(isAdmin)ActionChip(label:const Text('Admin management'),onPressed:loadAdmin),
+        if(isAdmin)ActionChip(label:const Text('Activity monitor'),onPressed:loadActivity),
       ]),
       LayoutBuilder(builder:(context,box){final cols=box.maxWidth>760?3:box.maxWidth>460?2:1;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:cols,mainAxisSpacing:12,crossAxisSpacing:12,childAspectRatio:cols==1?2.6:1.6,children:visible.map((l)=>Card(child:InkWell(onTap:()=>loadTopics(l),child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         const Icon(Icons.code_rounded,color:Colors.amber,size:30),const Spacer(),Text(l['name'].toString(),style:theme.textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),
@@ -320,8 +338,25 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     }catch(e){if(mounted)setState(()=>error=friendly(e));}
     current.dispose();next.dispose();
   }
+  List<Widget> activityView(ThemeData theme) {
+    final rows=activityTab=='Online'?onlineUsers:activityTab=='Logins'?loginActivity:pageVisits;
+    return [
+      const _NotesHero(title:'Notes activity',subtitle:'Review currently online users, recent sign-ins and page visits.'),
+      Wrap(spacing:8,children:[
+        ChoiceChip(label:Text('Online (${onlineUsers.length})'),selected:activityTab=='Online',onSelected:(_){setState(()=>activityTab='Online');}),
+        ChoiceChip(label:Text('Logins (${loginActivity.length})'),selected:activityTab=='Logins',onSelected:(_){setState(()=>activityTab='Logins');}),
+        ChoiceChip(label:Text('Page visits (${pageVisits.length})'),selected:activityTab=='Visits',onSelected:(_){setState(()=>activityTab='Visits');}),
+        OutlinedButton.icon(onPressed:copyActivity,icon:const Icon(Icons.copy_rounded),label:const Text('Copy CSV')),
+        OutlinedButton.icon(onPressed:loadActivity,icon:const Icon(Icons.refresh_rounded),label:const Text('Refresh')),
+      ]),
+      const SizedBox(height:10),
+      if(rows.isEmpty)const _NotesNotice(title:'No activity rows available',detail:'The source Notes activity tables may not be installed or may not allow this admin token to read them.'),
+      for(final row in rows)Card(child:ListTile(title:Text((row['username']??row['email']??row['page_name']??row['page_url']??row['user_id']??'Activity record').toString()),subtitle:Text(row.entries.where((e)=>e.value!=null).take(5).map((e)=>'${e.key}: ${e.value}').join(' · ')))),
+    ];
+  }
   List<Widget> adminView(ThemeData theme)=>[
     _NotesHero(title:'Notes Admin Management',subtitle:'Manage curriculum, lesson content and profiles.'),
+    Align(alignment:Alignment.centerLeft,child:OutlinedButton.icon(onPressed:loadActivity,icon:const Icon(Icons.query_stats_rounded),label:const Text('Open activity monitor'))),
     Row(children:[Expanded(child:Text('Languages',style:theme.textTheme.titleLarge)),FilledButton.icon(onPressed:()=>editLanguage(),icon:const Icon(Icons.add),label:const Text('Add'))]),
     for(final l in languages)Card(child:ListTile(title:Text(l['name'].toString()),subtitle:Text('${l['slug']} · order ${l['sort_order']}'),trailing:Wrap(children:[IconButton(onPressed:()=>editLanguage(l),icon:const Icon(Icons.edit_outlined)),IconButton(onPressed:()=>deleteRow('languages',l),icon:const Icon(Icons.delete_outline))]))),
     Row(children:[Expanded(child:Text('Topics',style:theme.textTheme.titleLarge)),FilledButton.icon(onPressed:()=>editTopic(),icon:const Icon(Icons.add),label:const Text('Add'))]),
