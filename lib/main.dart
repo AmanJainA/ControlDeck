@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 const accent = Color(0xFF8FA600);
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
@@ -180,7 +179,7 @@ class _DeckHomeState extends State<DeckHome> {
   final search = TextEditingController();
   List<DeckApp> apps = starterApps();
   String category = 'All apps', page = 'Overview';
-  bool favoritesOnly = false, loading = true, cloudError = false;
+  bool favoritesOnly = false, loading = true, cloudError = false, searchExpanded = false;
   static const categories = ['All apps', 'Personal', 'Professional', 'Creative', 'Administration', 'Other'];
 
   @override void initState() { super.initState(); search.addListener(_refresh); _load(); }
@@ -240,21 +239,10 @@ class _DeckHomeState extends State<DeckHome> {
 
   void message(String s) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s), behavior: SnackBarBehavior.floating));
 
-  Future<void> openUrl(String value) async {
-    final uri = Uri.tryParse(value.trim());
-    if (uri == null || !uri.hasScheme || !(uri.scheme == 'https' || uri.scheme == 'http')) { message('Add a valid http or https URL first.'); return; }
-    try { if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) message('Could not open this link.'); }
-    catch (_) { if (mounted) message('Could not open this link.'); }
-  }
-
-  Future<void> openApp(DeckApp app, {bool admin = false}) async {
-    final target = admin ? app.adminUrl : app.url;
-    if (target.trim().isEmpty) {
-      await editApp(app);
-      if (mounted && admin) message('Add the admin URL to enable the Portfolio admin shortcut.');
-      return;
-    }
-    await openUrl(target);
+  void openApp(DeckApp app, {bool admin = false}) {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => AppWorkspaceScreen(app: app, admin: admin),
+    ));
   }
 
   Future<void> editApp([DeckApp? old]) async {
@@ -265,13 +253,11 @@ class _DeckHomeState extends State<DeckHome> {
     String cat = old?.category ?? 'Personal', icon = old?.iconKey ?? 'apps';
     final formKey = GlobalKey<FormState>();
     final ok = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
-      title: Text(old == null ? 'Add an app' : (old.url.trim().isEmpty ? 'Connect ' + old.name : 'Edit ' + old.name)),
+      title: Text(old == null ? 'Add an app workspace' : 'Edit ' + old.name),
       content: SizedBox(width: 460, child: SingleChildScrollView(child: Form(key: formKey, child: Column(mainAxisSize: MainAxisSize.min, children: [
         TextFormField(controller: name, decoration: const InputDecoration(labelText: 'App name'), validator: (v) => v == null || v.trim().isEmpty ? 'Enter a name' : null),
         const SizedBox(height: 10), TextFormField(controller: description, decoration: const InputDecoration(labelText: 'Description')),
-        const SizedBox(height: 10), TextFormField(controller: url, decoration: const InputDecoration(labelText: 'App URL (optional if using admin only)'), keyboardType: TextInputType.url, validator: (v) => (v == null || v.trim().isEmpty) && adminUrl.text.trim().isEmpty ? 'Enter an app URL or an admin URL' : null),
-        const SizedBox(height: 10), TextFormField(controller: adminUrl, decoration: const InputDecoration(labelText: 'Admin URL (optional)'), keyboardType: TextInputType.url),
-        const SizedBox(height: 10),
+        const SizedBox(height: 10), 
         DropdownButtonFormField<String>(value: categories.contains(cat) && cat != 'All apps' ? cat : 'Other', decoration: const InputDecoration(labelText: 'Category'),
           items: categories.where((x) => x != 'All apps').map((x) => DropdownMenuItem(value: x, child: Text(x))).toList(), onChanged: (v) => setDialog(() => cat = v ?? cat)),
         const SizedBox(height: 10),
@@ -283,7 +269,7 @@ class _DeckHomeState extends State<DeckHome> {
             DropdownMenuItem(value: 'code', child: Text('Code'))], onChanged: (v) => setDialog(() => icon = v ?? icon)),
       ])))),
       actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-        FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(ctx, true); }, child: Text(old != null && old.url.trim().isEmpty ? 'Save connection' : 'Save app'))],
+        FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(ctx, true); }, child: const Text('Save workspace'))],
     )));
     if (ok == true && mounted) {
       final isNew = old == null;
@@ -291,7 +277,7 @@ class _DeckHomeState extends State<DeckHome> {
         category: cat, url: '', iconKey: icon, accentHex: 0xFF64748B, sortOrder: apps.length);
       setState(() {
         item.name = name.text.trim(); item.description = description.text.trim(); item.category = cat;
-        item.url = url.text.trim(); item.adminUrl = adminUrl.text.trim(); item.iconKey = icon;
+        item.iconKey = icon;
         if (isNew) apps.add(item);
       });
       try { await _persist(item, insert: isNew); }
@@ -308,7 +294,7 @@ class _DeckHomeState extends State<DeckHome> {
   Future<void> removeApp(DeckApp app) async {
     final confirm = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
       title: const Text('Remove app shortcut?'),
-      content: Text('Remove ' + app.name + ' from ControlDeck? This does not delete the original website or repository.'),
+      content: Text('Remove ' + app.name + ' from your ControlDeck workspace?'),
       actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove'))]));
     if (confirm != true) return;
@@ -325,6 +311,45 @@ class _DeckHomeState extends State<DeckHome> {
     final professional = apps.where((a) => a.category == 'Professional').length;
     return Scaffold(
       appBar: AppBar(title: const _BrandMark(), actions: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeInOutCubic,
+          width: searchExpanded ? (wide ? 270 : 176) : 44,
+          height: 42,
+          decoration: BoxDecoration(
+            color: searchExpanded ? Theme.of(context).colorScheme.surfaceContainerHighest : Colors.transparent,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: searchExpanded
+              ? Row(children: [
+                  const SizedBox(width: 12),
+                  const Icon(Icons.search_rounded, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(child: TextField(
+                    controller: search,
+                    autofocus: true,
+                    textInputAction: TextInputAction.search,
+                    decoration: const InputDecoration(
+                      hintText: 'Search apps…',
+                      border: InputBorder.none,
+                      filled: false,
+                      contentPadding: EdgeInsets.symmetric(vertical: 10),
+                      isDense: true,
+                    ),
+                  )),
+                  IconButton(
+                    tooltip: 'Close search',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => setState(() { search.clear(); searchExpanded = false; }),
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                  ),
+                ])
+              : IconButton(
+                  tooltip: 'Search apps',
+                  onPressed: () => setState(() => searchExpanded = true),
+                  icon: const Icon(Icons.search_rounded),
+                ),
+        ),
         if (widget.cloudUserId != null) const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Center(child: _StatusPill(label: 'Cloud synced', icon: Icons.cloud_done_rounded, color: accent))),
         IconButton(tooltip: 'Toggle theme', onPressed: () => widget.onTheme(!widget.dark), icon: Icon(widget.dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded)),
         if (widget.cloudUserId != null) IconButton(tooltip: 'Sign out', onPressed: () => Supabase.instance.client.auth.signOut(), icon: const Icon(Icons.logout_rounded)),
@@ -337,7 +362,7 @@ class _DeckHomeState extends State<DeckHome> {
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(page == 'Overview' ? 'Your workspace, in one place.' : page, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -1)),
-                const SizedBox(height: 8), Text('One workspace for LifeHub, Notes, Railways, Interview, and Portfolio — connect each destination when you are ready.', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                const SizedBox(height: 8), Text('Your apps, tools, and workspaces — all inside one native experience.', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               ])),
               if (wide) FilledButton.icon(onPressed: () => editApp(), icon: const Icon(Icons.add_rounded), label: const Text('Add app'),
                 style: FilledButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16))),
@@ -358,7 +383,6 @@ class _DeckHomeState extends State<DeckHome> {
             Row(children: [Expanded(child: Text('App library', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))),
               Text(items.length.toString() + ' shown', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant))]),
             const SizedBox(height: 14),
-            TextField(controller: search, decoration: const InputDecoration(hintText: 'Search apps, tools, categories…', prefixIcon: Icon(Icons.search_rounded))),
             const SizedBox(height: 12),
             SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [
               for (final c in categories) Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(c), selected: category == c, onSelected: (_) => setState(() { category = c; favoritesOnly = false; }))),
@@ -377,7 +401,7 @@ class _DeckHomeState extends State<DeckHome> {
             }),
             if (!wide) ...[const SizedBox(height: 24), OutlinedButton.icon(onPressed: () => editApp(), icon: const Icon(Icons.add_rounded), label: const Text('Add app shortcut'))],
             const SizedBox(height: 24),
-            _Notice(text: widget.cloudUserId != null ? 'Your shortcuts sync through Supabase. Each app keeps its own sign-in and permissions.' : 'Local mode is active. Configure Supabase to sync your app library across devices.', icon: Icons.shield_outlined),
+            _Notice(text: widget.cloudUserId != null ? 'Your shortcuts sync through Supabase. Each app keeps its own sign-in and permissions.' : 'Local mode is active. Configure Supabase to sync your workspace across devices.', icon: Icons.shield_outlined),
           ]))),
         ])),
       ]),
@@ -385,6 +409,97 @@ class _DeckHomeState extends State<DeckHome> {
         onDestinationSelected: (i) => setState(() { page = ['Overview', 'Favourites', 'Settings'][i]; favoritesOnly = i == 1; }),
         destinations: const [NavigationDestination(icon: Icon(Icons.dashboard_rounded), label: 'Overview'),
           NavigationDestination(icon: Icon(Icons.star_rounded), label: 'Favourites'), NavigationDestination(icon: Icon(Icons.tune_rounded), label: 'Settings')]),
+    );
+  }
+}
+
+class AppWorkspaceScreen extends StatelessWidget {
+  const AppWorkspaceScreen({super.key, required this.app, this.admin = false});
+  final DeckApp app;
+  final bool admin;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tint = Color(app.accentHex);
+    final title = admin ? '${app.name} Admin' : app.name;
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Back',
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+        actions: const [SizedBox(width: 12)],
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 920),
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [tint.withValues(alpha: .18), theme.colorScheme.surfaceContainerHighest],
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 58, height: 58,
+                      decoration: BoxDecoration(color: tint.withValues(alpha: .18), borderRadius: BorderRadius.circular(18)),
+                      child: Icon(admin ? Icons.admin_panel_settings_rounded : iconFor(app.iconKey), color: tint, size: 30),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(admin ? 'Workspace administration' : 'Your workspace',
+                      style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -.8)),
+                    const SizedBox(height: 8),
+                    Text(app.description.isEmpty ? 'A dedicated space for ${app.name}.' : app.description,
+                      style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.5)),
+                    const SizedBox(height: 18),
+                    const _StatusPill(label: 'Opened inside ControlDeck', icon: Icons.check_circle_rounded, color: accent),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text('Workspace overview', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Icon(Icons.widgets_rounded, color: tint, size: 26),
+                    const SizedBox(width: 14),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(admin ? 'Admin tools' : 'Workspace home', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 6),
+                      Text(
+                        admin
+                          ? 'This is the in-app administration area for ${app.name}. Management tools can be added here without sending you to a URL.'
+                          : 'This is the native in-app space for ${app.name}. Add its screens and features here as the workspace grows. Navigation stays inside ControlDeck.',
+                        style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.5),
+                      ),
+                    ])),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.grid_view_rounded),
+                label: const Text('Back to all workspaces'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -461,12 +576,12 @@ class _AppCard extends StatelessWidget {
         const SizedBox(height: 14), Text(app.name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height: 7),
         _StatusPill(label: app.isConnected ? 'Connected' : 'Not connected', icon: app.isConnected ? Icons.link_rounded : Icons.link_off_rounded, color: app.isConnected ? accent : theme.colorScheme.onSurfaceVariant),
-        const SizedBox(height: 5), Expanded(child: Text(app.isConnected ? (app.description.isEmpty ? 'Open this tool from your workspace.' : app.description) : 'Connection slot ready. Add your preferred app destination when you are ready.',
+        const SizedBox(height: 5), Expanded(child: Text(app.description.isEmpty ? 'Open this workspace inside ControlDeck.' : app.description,
           maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.4))),
         Row(children: [
           Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)), child: Text(app.category, style: theme.textTheme.labelSmall)),
           const Spacer(), if (onAdmin != null) IconButton(tooltip: app.adminUrl.trim().isEmpty ? 'Configure Portfolio admin' : 'Open admin', onPressed: onAdmin, icon: const Icon(Icons.admin_panel_settings_outlined, size: 19)),
-          FilledButton.tonalIcon(onPressed: onOpen, icon: Icon(app.isConnected ? Icons.north_east_rounded : Icons.link_rounded, size: 16), label: Text(app.isConnected ? 'Open' : 'Connect')),
+          FilledButton.tonalIcon(onPressed: onOpen, icon: const Icon(Icons.arrow_forward_rounded, size: 16), label: const Text('Open workspace')),
         ]),
       ]))));
   }
