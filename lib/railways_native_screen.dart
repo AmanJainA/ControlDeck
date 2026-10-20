@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'supabase_config.dart';
@@ -92,38 +93,78 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     int? headingId = headings.isEmpty ? null : (headings.first['id'] as num).toInt();
     int? menuId;
     List<Map<String,dynamic>> availableMenus = [];
+    PlatformFile? picked;
+    String mode = 'file';
     final accepted = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
-      title: const Text('Submit a document link'),
-      content: SizedBox(width: 520, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        DropdownButtonFormField<int>(value: headingId, decoration: const InputDecoration(labelText: 'Main heading'), items: headings.map((h) => DropdownMenuItem<int>(value: (h['id'] as num).toInt(), child: Text((h['headingname'] ?? '').toString()))).toList(), onChanged: (v) async {
-          headingId = v; menuId = null; availableMenus = [];
-          if (v != null) { final raw = await db.from('menu_master').select('id,menuname').eq('main_heading_id', v).eq('status','1').order('id'); availableMenus = List<Map<String,dynamic>>.from(raw); }
-          setDialog(() {});
-        }),
+      title: const Text('Submit a document'),
+      content: SizedBox(width: 520, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        SegmentedButton<String>(segments: const [
+          ButtonSegment(value: 'file', label: Text('Upload file'), icon: Icon(Icons.upload_file)),
+          ButtonSegment(value: 'link', label: Text('Cloud link'), icon: Icon(Icons.link)),
+        ], selected: {mode}, onSelectionChanged: (v) => setDialog(() => mode = v.first)),
         const SizedBox(height: 10),
-        DropdownButtonFormField<int>(value: menuId, decoration: const InputDecoration(labelText: 'Menu'), items: availableMenus.map((m) => DropdownMenuItem<int>(value: (m['id'] as num).toInt(), child: Text((m['menuname'] ?? '').toString()))).toList(), onChanged: (v) => setDialog(() => menuId = v)),
+        DropdownButtonFormField<int>(value: headingId, decoration: const InputDecoration(labelText: 'Main heading'),
+          items: headings.map((h) => DropdownMenuItem<int>(value: (h['id'] as num).toInt(), child: Text((h['headingname'] ?? '').toString()))).toList(),
+          onChanged: (v) async {
+            headingId = v; menuId = null; availableMenus = [];
+            if (v != null) {
+              final raw = await db.from('menu_master').select('id,menuname').eq('main_heading_id', v).eq('status', '1').order('id');
+              availableMenus = List<Map<String,dynamic>>.from(raw);
+            }
+            setDialog(() {});
+          }),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<int>(value: menuId, decoration: const InputDecoration(labelText: 'Menu'),
+          items: availableMenus.map((m) => DropdownMenuItem<int>(value: (m['id'] as num).toInt(), child: Text((m['menuname'] ?? '').toString()))).toList(),
+          onChanged: (v) => setDialog(() => menuId = v)),
         const SizedBox(height: 10),
         TextField(controller: title, decoration: const InputDecoration(labelText: 'Document title')),
-        const SizedBox(height: 10),
-        TextField(controller: link, decoration: const InputDecoration(labelText: 'OneDrive / cloud URL')),
-      ])),
+        if (mode == 'file')
+          Align(alignment: Alignment.centerLeft, child: TextButton.icon(
+            onPressed: () async {
+              final result = await FilePicker.platform.pickFiles(withData: true, type: FileType.custom, allowedExtensions: ['jpg','jpeg','png','gif','pdf','doc','docx','xls','xlsx','ppt','pptx']);
+              if (result != null && result.files.isNotEmpty) { picked = result.files.first; setDialog(() {}); }
+            },
+            icon: const Icon(Icons.attach_file), label: Text(picked?.name ?? 'Choose file'),
+          ))
+        else
+          TextField(controller: link, decoration: const InputDecoration(labelText: 'OneDrive / cloud URL')),
+        const SizedBox(height: 6),
+        Text('New submissions stay pending until an administrator approves them.', style: Theme.of(ctx).textTheme.bodySmall),
+      ]))),
       actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Submit'))],
     )));
     if (accepted == true) {
       try {
-        final uri = Uri.tryParse(link.text.trim());
-        if (headingId == null || menuId == null || title.text.trim().isEmpty || uri == null || !uri.hasScheme) throw Exception('Select a heading and menu, enter a title and a valid URL.');
-        final h = headings.firstWhere((x) => (x['id'] as num).toInt() == headingId);
-        final m = availableMenus.firstWhere((x) => (x['id'] as num).toInt() == menuId);
+        if (headingId == null || menuId == null || title.text.trim().isEmpty) throw Exception('Select a heading and menu and enter a document title.');
+        String storedLink = link.text.trim();
+        String type = 'ONEDRIVE';
+        String sourceType = 'onedrive_path';
+        if (mode == 'file') {
+          final bytes = picked?.bytes;
+          if (picked == null || bytes == null) throw Exception('Choose a file first.');
+          final ext = (picked!.extension ?? '').toLowerCase();
+          if (!['jpg','jpeg','png','gif','pdf','doc','docx','xls','xlsx','ppt','pptx'].contains(ext)) throw Exception('This file type is not supported.');
+          final path = DateTime.now().millisecondsSinceEpoch.toString() + '_' + picked!.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+          await db.storage.from('documents').uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: false));
+          storedLink = path; type = ext; sourceType = 'file_upload';
+        } else {
+          final uri = Uri.tryParse(storedLink);
+          if (uri == null || !uri.hasScheme || !(uri.scheme == 'https' || uri.scheme == 'http')) throw Exception('Enter a valid cloud URL.');
+        }
+        final selectedMenu = availableMenus.firstWhere((m) => (m['id'] as num).toInt() == menuId);
         await db.from('datacollection').insert({
-          'name': title.text.trim(), 'links': link.text.trim(), 'type': 'ONEDRIVE',
-          'menuname': m['menuname'], 'main_heading_id': headingId, 'menu_id': menuId,
-          'status': 0, 'uploaded_by': user?['username'], 'uploaded_at': DateTime.now().toIso8601String(),
-          'source_type': 'onedrive_path'
+          'name': title.text.trim(), 'links': storedLink, 'type': type, 'menuname': selectedMenu['menuname'],
+          'main_heading_id': headingId, 'menu_id': menuId, 'status': 0, 'uploaded_by': user?['username'],
+          'uploaded_at': DateTime.now().toIso8601String(), 'source_type': sourceType,
         });
-        if (mounted) setState(() => error = null);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link submitted for approval.')));
-      } catch (e) { if (mounted) setState(() => error = message(e)); }
+        if (mounted) {
+          setState(() => error = null);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Document submitted for approval.')));
+        }
+      } catch (e) {
+        if (mounted) setState(() => error = message(e));
+      }
     }
     title.dispose(); link.dispose();
   }
