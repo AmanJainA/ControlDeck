@@ -55,6 +55,22 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       controlDeckWorkspaceUrl.isNotEmpty &&
       controlDeckWorkspaceKey.isNotEmpty;
 
+  Future<Map<String, dynamic>> _requestSharedNotes(String accessToken) async {
+    final response = await Supabase.instance.client.functions.invoke(
+      'controldeck-sso',
+      headers: {'Authorization': 'Bearer $accessToken'},
+      body: {'app': 'notes', 'page': '/'},
+    );
+    if (response.data is! Map) {
+      throw Exception('Notes access could not be verified.');
+    }
+    final data = Map<String, dynamic>.from(response.data as Map);
+    if (response.status >= 400 || data['error'] != null) {
+      throw Exception((data['error'] ?? 'Notes access could not be verified.').toString());
+    }
+    return data;
+  }
+
   Future<void> initializeSharedNotes() async {
     final auth = Supabase.instance.client.auth;
     var session = auth.currentSession;
@@ -73,48 +89,34 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       });
       return;
     }
-    setState(() => {loading=true,error=null,notice=null});
+    setState(() => {loading = true, error = null, notice = null});
     try {
-      var response = await Supabase.instance.client.functions.invoke(
-        'controldeck-sso',
-        headers: {'Authorization':'Bearer ${session.accessToken}'},
-        body: {'app':'notes','page':'/'},
-      );
-
-      // If the access token is stale, refresh the existing ControlDeck session
-      // and retry once instead of showing the separate Notes login form.
-      if (response.status == 401) {
+      Map<String, dynamic> data;
+      try {
+        data = await _requestSharedNotes(session.accessToken);
+      } catch (e) {
+        // Supabase Flutter throws FunctionsHttpException for HTTP 401 instead
+        // of always returning a response object. Refresh the shared token and retry.
+        if (!e.toString().contains('401')) rethrow;
         final refreshed = await auth.refreshSession();
         session = refreshed.session ?? auth.currentSession;
-        if (session != null) {
-          response = await Supabase.instance.client.functions.invoke(
-            'controldeck-sso',
-            headers: {'Authorization':'Bearer ${session.accessToken}'},
-            body: {'app':'notes','page':'/'},
-          );
-        }
+        if (session == null) rethrow;
+        data = await _requestSharedNotes(session.accessToken);
       }
-
-      if (response.status >= 400 || response.data is! Map || response.data['error'] != null) {
-        throw Exception(response.data is Map
-            ? (response.data['error'] ?? 'Notes access could not be verified.').toString()
-            : 'Notes access could not be verified.');
-      }
-      final data = Map<String,dynamic>.from(response.data as Map);
       final user = auth.currentUser;
       if (user == null || session == null) {
-        throw Exception('Your ControlDeck session has expired. Sign in to ControlDeck again.');
+        throw Exception('Your ControlDeck session has expired. Return to ControlDeck and sign in again.');
       }
       client = Supabase.instance.client;
       token = session.accessToken;
-      profile = Map<String,dynamic>.from(data['profile'] as Map);
+      profile = Map<String, dynamic>.from(data['profile'] as Map);
       contactEmail.text = user.email ?? _notesAdminEmail;
       await loadLanguages();
       await loadProgress();
-    } catch(e) {
-      if(mounted)setState(()=>error=friendly(e));
+    } catch (e) {
+      if (mounted) setState(() => error = friendly(e));
     } finally {
-      if(mounted)setState(()=>loading=false);
+      if (mounted) setState(() => loading = false);
     }
   }
   @override void dispose() {
