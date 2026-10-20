@@ -432,7 +432,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   ]));
 
   @override Widget build(BuildContext context){
-    final title=view=='files'?(menu?['menuname']??'Files').toString():view=='menus'?(heading?['headingname']??'Workspace').toString():view=='tracking'?'Manage Tracking':'Railways';
+    final title=view=='files'?(menu?['menuname']??'Files').toString():view=='menus'?(heading?['headingname']??'Workspace').toString():view=='tracking'?'Manage Tracking':view=='nr'?(dashboardHeadingId==null?'Northern Railway Dashboard':(heading?['headingname']??'NR Data Dashboard').toString()):'Railways';
     return Scaffold(appBar:AppBar(
       leading:IconButton(onPressed:user==null?()=>Navigator.of(context).maybePop():back,icon:const Icon(Icons.arrow_back_rounded)),
       title:Text(title),
