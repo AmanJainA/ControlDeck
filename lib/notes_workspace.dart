@@ -444,6 +444,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
           NavigationDestination(icon: Icon(Icons.account_circle_outlined), label: 'Profile'),
         ],
       ),
+    );
   }
   Widget authView(ThemeData theme)=>Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:470),child:ListView(shrinkWrap:true,padding:const EdgeInsets.all(22),children:[
     const _NotesHero(title:'Coding Notes',subtitle:'Programming lessons, learning progress and resources in one place.'),
