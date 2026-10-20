@@ -1071,7 +1071,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
         ])),
         if (message != null) Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), child: Text(message!, style: TextStyle(color: theme.colorScheme.error))),
         Expanded(child: busy ? const Center(child: CircularProgressIndicator()) : ListView(padding: const EdgeInsets.all(16), children: [
-          Row(children: [Expanded(child: Text(current['label'].toString(), style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))), if (current['key'] != 'profile') FilledButton.icon(onPressed: () => editRecord(current), icon: const Icon(Icons.add_rounded), label: const Text('Add'))]),
+          Row(children: [Expanded(child: Text(current['label'].toString(), style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))), if (current['key'] != 'profile' || rows.isEmpty) FilledButton.icon(onPressed: () => editRecord(current), icon: const Icon(Icons.add_rounded), label: const Text('Add'))]),
           const SizedBox(height: 12),
           if (rows.isEmpty) const _Notice(text: 'No records yet. Add the first record to this collection.', icon: Icons.inbox_outlined),
           for (final row in rows) Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
