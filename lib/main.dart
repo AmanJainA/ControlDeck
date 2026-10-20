@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const accent = Color(0xFF8FA600);
 const supabaseUrl = SupabaseConfig.primaryUrl;
@@ -419,7 +420,7 @@ class _DeckHomeState extends State<DeckHome> {
         const SizedBox(width: 8),
       ]),
       body: Row(children: [
-        if (wide) _SideNav(page: page, onSelect: (v) => setState(() { page = v; favoritesOnly = v == 'Favourites'; if (v == 'All apps' || v == 'Overview') category = 'All apps'; })),
+        if (wide) _SideNav(page: page, onSelect: (v) { if (v == 'Profile') { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AccountProfileScreen())); } else if (v == 'Settings') { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => AccountSettingsScreen(dark: widget.dark, onTheme: widget.onTheme))); } else { setState(() { page = v; favoritesOnly = v == 'Favourites'; if (v == 'All apps' || v == 'Overview') category = 'All apps'; }); } }),
         Expanded(child: CustomScrollView(slivers: [SliverPadding(padding: EdgeInsets.fromLTRB(wide ? 30 : 18, 20, wide ? 30 : 18, 32),
           sliver: SliverList(delegate: SliverChildListDelegate([
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -468,10 +469,19 @@ class _DeckHomeState extends State<DeckHome> {
           ]))),
         ])),
       ]),
-      bottomNavigationBar: wide ? null : NavigationBar(selectedIndex: page == 'Overview' ? 0 : page == 'Favourites' ? 1 : 2,
-        onDestinationSelected: (i) => setState(() { page = ['Overview', 'Favourites', 'Settings'][i]; favoritesOnly = i == 1; }),
-        destinations: const [NavigationDestination(icon: Icon(Icons.dashboard_rounded), label: 'Overview'),
-          NavigationDestination(icon: Icon(Icons.star_rounded), label: 'Favourites'), NavigationDestination(icon: Icon(Icons.tune_rounded), label: 'Settings')]),
+      bottomNavigationBar: wide ? null : NavigationBar(selectedIndex: page == 'Favourites' ? 1 : 0,
+        onDestinationSelected: (i) {
+          if (i == 0) setState(() { page = 'Overview'; favoritesOnly = false; category = 'All apps'; });
+          if (i == 1) setState(() { page = 'Favourites'; favoritesOnly = true; });
+          if (i == 2) Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AccountProfileScreen()));
+          if (i == 3) Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => AccountSettingsScreen(dark: widget.dark, onTheme: widget.onTheme)));
+        },
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.dashboard_rounded), label: 'Overview'),
+          NavigationDestination(icon: Icon(Icons.star_rounded), label: 'Favourites'),
+          NavigationDestination(icon: Icon(Icons.account_circle_outlined), label: 'Profile'),
+          NavigationDestination(icon: Icon(Icons.tune_rounded), label: 'Settings'),
+        ]),
     );
   }
 }
@@ -527,7 +537,7 @@ class RailwaysNativeScreen extends StatelessWidget {
         child: ListView(padding: const EdgeInsets.all(20), children: [
           const _WorkspaceHero(title: 'Railways workspace', subtitle: 'A native mobile entry point for records, documents and operational workflows.', icon: Icons.train_rounded),
           const SizedBox(height: 18),
-          const _Notice(text: 'This screen is a native module map, not a completed port of the Railway portal. The source currently uses a separate username/password table and client-side role flags. Secure role-aware access must be moved behind server-enforced authorization before the mobile app can load user records safely.', icon: Icons.shield_outlined),
+          const _Notice(text: 'Railway modules open the existing Railway portal so you can use its actual records, documents and administration screens. Sign in there with your Railway portal account; access remains controlled by the portal.', icon: Icons.open_in_new_rounded),
           const SizedBox(height: 18),
           Text('Portal modules', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
@@ -537,12 +547,21 @@ class RailwaysNativeScreen extends StatelessWidget {
               crossAxisCount: columns, crossAxisSpacing: 12, mainAxisSpacing: 12,
               childAspectRatio: columns == 1 ? 4.1 : 3.2,
               children: modules.map((module) => Card(child: ListTile(
+                onTap: () async {
+                  final uri = Uri.parse('https://amanjaina.github.io/Railways/');
+                  try {
+                    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    if (!opened && context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open the Railway portal. Check your internet connection.')));
+                  } catch (_) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open the Railway portal.')));
+                  }
+                },
                 leading: Container(width: 44, height: 44,
                   decoration: BoxDecoration(color: accent.withValues(alpha: .13), borderRadius: BorderRadius.circular(13)),
                   child: Icon(module['icon'] as IconData, color: accent)),
                 title: Text(module['title'] as String, style: const TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: Text(module['detail'] as String),
-                trailing: const Icon(Icons.lock_outline_rounded),
+                trailing: const Icon(Icons.open_in_new_rounded),
               ))).toList(),
             );
           }),
@@ -638,7 +657,7 @@ class _PortfolioNativeScreenState extends State<PortfolioNativeScreen> {
       body: loading ? const Center(child: CircularProgressIndicator()) : error != null
         ? _ConnectionNotice(title: 'Portfolio data could not load', detail: error!, onRetry: load)
         : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1050), child: ListView(padding: const EdgeInsets.all(20), children: [
-          _WorkspaceHero(title: name, subtitle: (profile['headline'] ?? profile['about'] ?? 'Full Stack Developer · Consultant & Data Analyst').toString(), icon: Icons.person_rounded),
+          _WorkspaceHero(title: name, subtitle: (profile['hero_role'] ?? profile['hero_intro'] ?? profile['about_text'] ?? 'Full Stack Developer · Consultant & Data Analyst').toString(), icon: Icons.person_rounded),
           const SizedBox(height: 16),
           SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: sections.map((s) => Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(s), selected: section == s, onSelected: (_) => setState(() => section = s)))).toList())),
           const SizedBox(height: 18),
@@ -1241,6 +1260,7 @@ class _SideNav extends StatelessWidget {
         _NavItem(icon: Icons.dashboard_rounded, label: 'Overview', selected: page == 'Overview', onTap: () => onSelect('Overview')),
         _NavItem(icon: Icons.star_rounded, label: 'Favourites', selected: page == 'Favourites', onTap: () => onSelect('Favourites')),
         _NavItem(icon: Icons.apps_rounded, label: 'All apps', selected: page == 'All apps', onTap: () => onSelect('All apps')),
+        _NavItem(icon: Icons.account_circle_outlined, label: 'Profile', selected: page == 'Profile', onTap: () => onSelect('Profile')),
         const Spacer(), _NavItem(icon: Icons.tune_rounded, label: 'Settings', selected: page == 'Settings', onTap: () => onSelect('Settings')),
         const SizedBox(height: 8), Padding(padding: const EdgeInsets.all(12), child: Text('ONE HUB. YOUR TOOLS.', style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 1.1, color: theme.colorScheme.onSurfaceVariant))),
       ]));
