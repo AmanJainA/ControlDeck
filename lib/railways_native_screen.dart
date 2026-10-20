@@ -21,7 +21,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   Map<String,dynamic>? user, heading, menu;
   List<Map<String,dynamic>> headings=[], menus=[], folders=[], files=[];
   int? selectedFolderId;
-  bool busy=false;
+  bool busy=true;
   String view='login';
   String? error;
   bool get admin => (user?['role']??'').toString().toLowerCase()=='admin';
@@ -57,7 +57,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     final auth = Supabase.instance.client.auth;
     final session = auth.currentSession;
     if (session == null || auth.currentUser == null) {
-      if (mounted) setState(() => error = 'Sign in to ControlDeck first. Railways uses the same account and does not have a separate password.');
+      if (mounted) setState(() { error = 'Sign in to ControlDeck first. Railways uses the same account and does not have a separate password.'; busy = false; });
       return;
     }
     setState(() { busy = true; error = null; });
@@ -391,8 +391,40 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         if(user!=null)IconButton(tooltip:'Refresh',onPressed:view=='files'?(heading==null?openMyData:()=>openMenu(menu!)):view=='menus'?()=>openHeading(heading!):view=='pending'?openPendingApprovals:view=='nr'?openNRDashboard:loadHeadings,icon:const Icon(Icons.refresh_rounded)),
         if(user!=null)IconButton(tooltip:'Sign out',onPressed:signOut,icon:const Icon(Icons.logout_rounded)),
       ],
-    ),body:user==null?loginView():workspaceView());
+    ),body:user==null?(busy?openingDashboardView():loginView()):workspaceView(),
+      bottomNavigationBar:user==null?null:NavigationBar(
+        selectedIndex: _selectedMainTab,
+        onDestinationSelected: _selectMainTab,
+        destinations:[
+          const NavigationDestination(icon:Icon(Icons.home_rounded),label:'Home'),
+          const NavigationDestination(icon:Icon(Icons.dashboard_rounded),label:'Dashboard'),
+          const NavigationDestination(icon:Icon(Icons.folder_copy_rounded),label:'My Data'),
+          if(canApprove) const NavigationDestination(icon:Icon(Icons.fact_check_rounded),label:'Approvals'),
+        ],
+      ));
   }
+
+  int get _selectedMainTab => view=='nr'?1:(view=='files'&&heading==null)?2:view=='pending'&&canApprove?3:0;
+
+  void _selectMainTab(int index){
+    if(index==0){setState(()=>view='home');loadHeadings();}
+    else if(index==1)openNRDashboard();
+    else if(index==2)openMyData();
+    else if(index==3&&canApprove)openPendingApprovals();
+  }
+
+  Widget openingDashboardView()=>Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:1100),child:ListView(padding:const EdgeInsets.all(20),children:[
+    hero('Railways Dashboard','Your workspaces, documents and tools',Icons.train_rounded),
+    const SizedBox(height:16),
+    const LinearProgressIndicator(),
+    const SizedBox(height:16),
+    LayoutBuilder(builder:(ctx,c){final cols=c.maxWidth>700?3:c.maxWidth>460?2:1;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:cols,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:cols==1?4:2.3,children:[
+      metric('Workspaces','—',Icons.account_tree_rounded),metric('Documents','—',Icons.description_outlined),metric('Access','—',Icons.verified_user_outlined)
+    ]);}),
+    const SizedBox(height:8),
+    const Card(child:ListTile(leading:Icon(Icons.folder_copy_outlined),title:Text('My Data'),subtitle:Text('Your submitted railway documents'))),
+    const Card(child:ListTile(leading:Icon(Icons.dashboard_customize_outlined),title:Text('Northern Railway Dashboard'),subtitle:Text('Approved documents across workspaces')),
+  ])));
 
   Widget loginView()=>Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:460),child:ListView(shrinkWrap:true,padding:const EdgeInsets.all(24),children:[
     Container(padding:const EdgeInsets.all(22),decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),gradient:const LinearGradient(colors:[Color(0xFF102D4D),Color(0xFF176B87)])),child:const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
