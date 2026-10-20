@@ -1,20 +1,45 @@
 # ControlDeck
 
-ControlDeck is a responsive Flutter app launcher for bringing personal, professional, and creative tools into one organised dashboard.
+ControlDeck is a cross-platform Flutter dashboard for launching and managing your personal and professional tools from one place.
 
-## Features
+## What it includes
 
-- Premium dark and light themes with an olive accent
-- Responsive dashboard for desktop, tablet, and mobile
-- Search, category filters, and favourites
-- Starter links for LifeHub, Notes, Railways, Interview, and Portfolio
-- Add, edit, and remove app shortcuts
-- Local persistence with `shared_preferences`
-- Open web apps in the browser using `url_launcher`
+- Responsive desktop, tablet, and mobile dashboard
+- Dark/light themes with an olive accent
+- Search, category filters, favourites, and app shortcut management
+- Starter shortcuts for LifeHub, Notes, Railways, Interview, and Portfolio
+- Optional Portfolio admin URL field on the Portfolio shortcut
+- Supabase email/password authentication and per-user cloud-synced shortcuts
+- Row Level Security so signed-in users can only access their own ControlDeck shortcuts
+- Local-only mode when Supabase is not configured
+
+## Supabase setup
+
+ControlDeck uses its own table named `public.controldeck_apps`. This table stores shortcut metadata and URLs; it does **not** import or grant access to the private data in your other apps.
+
+1. Select a dedicated Supabase project for ControlDeck.
+2. Open that project's **SQL Editor**.
+3. Run the complete script in [`supabase/controldeck_schema.sql`](supabase/controldeck_schema.sql).
+4. In Supabase Authentication, enable Email authentication. Configure email confirmation according to your preference.
+5. Copy the project's **Project URL** and **publishable key** (or legacy anon key). Never use a service-role or secret key in the Flutter app.
+6. From the repository root, run the app with the values supplied at build/run time:
+
+```bash
+flutter pub get
+flutter run -d macos \
+  --dart-define=SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_OR_ANON_KEY
+```
+
+For Chrome, replace `-d macos` with `-d chrome`. For another device, use its Flutter device ID. The URL and publishable/anon key are client configuration; access is restricted by Supabase Auth and RLS. Do not put a service-role key in the app or commit secrets to GitHub.
+
+When the app is launched without both compile-time values, it runs in local mode and stores shortcuts on that device only. With Supabase configured, sign in or create an account and shortcuts sync to the account.
+
+## Configure the Portfolio admin shortcut
+
+Open ControlDeck, choose the Portfolio card menu, select **Edit shortcut**, and fill in **Admin URL** with the actual admin login/dashboard URL for your Portfolio deployment. Save it, then use the admin icon on the Portfolio card. The admin URL is intentionally not guessed because it depends on how your Portfolio admin is deployed. ControlDeck stores the destination only; it does not grant admin rights.
 
 ## Run locally
-
-Install Flutter stable, then from this repository run:
 
 ```bash
 flutter pub get
@@ -27,16 +52,16 @@ To run in Chrome:
 flutter run -d chrome
 ```
 
-## Project structure
+## Security and integration boundary
 
-- `lib/main.dart` — app UI and launcher logic
+- ControlDeck's RLS policy scopes shortcut rows to the authenticated user.
+- Each linked website retains its own login, roles, and access controls.
+- Connecting a shortcut does not automatically connect that app's database. If you want data from an individual app inside ControlDeck, integrate that app through a documented API or a separately secured backend endpoint; never place a database service-role key in the Flutter client.
+- The SQL script is intended for a dedicated ControlDeck Supabase project. Do not run it in another project's database unless you explicitly want the ControlDeck table hosted there.
+
+## Repository structure
+
+- `lib/main.dart` — dashboard, sign-in, and shortcut management
 - `pubspec.yaml` — Flutter dependencies
+- `supabase/controldeck_schema.sql` — table and RLS setup
 - `analysis_options.yaml` — Dart lint configuration
-
-## Starter destinations
-
-The starter list includes LifeHub, Notes, Railways, Interview, and Portfolio. Some entries use repository links as placeholders. Use **Add app** or the menu on an app card to configure the actual deployed URL.
-
-## Notes
-
-ControlDeck is a launcher, not a shared sign-in system; each linked application keeps its own authentication. Shortcuts are saved locally on the device. Cloud sync and a secure admin account can be added in a later iteration.
