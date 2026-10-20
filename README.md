@@ -13,9 +13,9 @@ The editable iOS/Android screen concept is in [Figma](https://www.figma.com/desi
 - **LifeHub:** native sign-in, session-aware Supabase connection, and task list/add flow.
 - **Portfolio:** native public portfolio view for profile, skills, projects, work experience, education, languages, and social links.
 - **Portfolio Admin:** native admin sign-in and CRUD screens for languages, skills, projects, education, work experience, and social links, using the existing admin_login, admin_get_all, admin_upsert, admin_delete, and admin_logout database RPCs.
-- **Notes:** native language/topic/lesson browser backed by the Notes schema.
+- **Notes:** native language/topic/lesson browser backed by the Notes schema, with support for heading, subheading, paragraph, code, ordered/unordered lists, image, note, table, and divider content blocks.
 - **Interview:** native sign-in and question catalogue backed by the Interview schema.
-- **Railways:** native placeholder workspace; the full Railway portal workflows still need to be ported.
+- **Railways:** native module map for My Data, Nangia, NR Dashboard, File Viewer, Approvals, Work Tracker, Administration, and Activity/History; secure data loading and role-aware workflows remain to be ported.
 
 ## Shared sign-in and security
 
@@ -23,11 +23,11 @@ The requested single sign-in is the intended product experience, but the source 
 
 ## Important feature-parity status
 
-This is a native Flutter migration in progress, not a claim that every React workflow has already been reproduced. LifeHub currently covers sign-in and basic tasks rather than its complete Life, Finance, Splitwise, dashboard, and profile areas. Notes still needs its full custom-auth, progress tracking, and admin workflows. Interview still needs registration, instructions, timed assessment, autosaved answers, submission/results, and admin reporting. The public Portfolio screen is read-only; its separate admin screen supports content management. These remaining workflows should be ported into Flutter screens and continue using each project's existing backend and access controls.
+This is a native Flutter migration in progress, not a claim that every React workflow has already been reproduced. LifeHub currently covers its custom sign-in and basic tasks rather than its complete Life, Finance, Splitwise, dashboard, and profile areas. Notes still needs its full custom-auth, progress tracking, and admin workflows. Interview still needs registration, instructions, timed assessment, autosaved answers, submission/results, and admin reporting. The public Portfolio screen is read-only; its separate admin screen supports content management. Railways now has a native module map, but its source authentication and access model needs a server-side security migration before protected records can be exposed. These remaining workflows should be ported into Flutter screens and continue using each project's existing backend and access controls.
 
 ## Configuration
 
-ControlDeck's own optional cloud sync uses public.controldeck_apps. To enable it, run supabase/controldeck_schema.sql in a dedicated Supabase project and launch with:
+ControlDeck uses its central Supabase Auth project for sign-in and optional cloud sync uses public.controldeck_apps. Configure the project first; the app now shows a setup screen instead of silently bypassing authentication when these values are absent. To enable cloud sync, run supabase/controldeck_schema.sql in a dedicated Supabase project and launch with:
 
 ~~~bash
 flutter pub get
