@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'lifehub_workspace.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -482,7 +483,7 @@ class AppWorkspaceScreen extends StatelessWidget {
       case 'portfolio': return admin ? const PortfolioAdminNativeScreen() : const PortfolioNativeScreen();
       case 'notes': return const NotesNativeScreen();
       case 'interview': return const InterviewNativeScreen();
-      case 'lifehub': return const LifeHubNativeScreen();
+      case 'lifehub': return const LifeHubFullNativeScreen();
       case 'railways': return const RailwaysNativeScreen();
       default: return _NativeFeatureScreen(title: app.name, subtitle: app.description, icon: iconFor(app.iconKey), features: ['Overview', 'Recent activity', 'Workspace settings']);
     }
