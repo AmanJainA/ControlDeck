@@ -92,9 +92,34 @@ class _ControlDeckAppState extends State<ControlDeckApp> {
         inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: const Color(0xFF1A202A),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none))),
       home: cloudEnabled ? AuthGate(dark: dark, onTheme: (v) => setState(() => dark = v))
-        : DeckHome(dark: dark, onTheme: (v) => setState(() => dark = v)),
+        : const _AuthSetupRequiredScreen(),
     );
   }
+}
+
+class _AuthSetupRequiredScreen extends StatelessWidget {
+  const _AuthSetupRequiredScreen();
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 480),
+      child: Padding(padding: const EdgeInsets.all(24), child: Card(
+        child: Padding(padding: const EdgeInsets.all(24), child: Column(
+          mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const _BrandMark(),
+            const SizedBox(height: 24),
+            Text('Set up secure sign-in', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 10),
+            const Text('ControlDeck requires its shared Supabase Auth project before showing your workspaces. This keeps the app from silently skipping sign-in when cloud configuration is missing.'),
+            const SizedBox(height: 16),
+            const _Notice(text: 'Run with SUPABASE_URL and SUPABASE_ANON_KEY configured. Create or invite your account in that project; do not store passwords or service-role keys in source code.', icon: Icons.lock_outline_rounded),
+            const SizedBox(height: 16),
+            SelectableText('flutter run --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co --dart-define=SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_KEY', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontFamily: 'monospace')),
+          ],
+        )),
+      )),
+    )),
+  );
 }
 
 class AuthGate extends StatelessWidget {
@@ -425,7 +450,7 @@ class AppWorkspaceScreen extends StatelessWidget {
       case 'notes': return const NotesNativeScreen();
       case 'interview': return const InterviewNativeScreen();
       case 'lifehub': return const LifeHubNativeScreen();
-      case 'railways': return const _NativeFeatureScreen(title: 'Railways', subtitle: 'Railway workflows and operational tools', icon: Icons.train_rounded, features: ['Railway portal overview', 'Operational records', 'Data collection', 'Reports and status tracking']);
+      case 'railways': return const RailwaysNativeScreen();
       default: return _NativeFeatureScreen(title: app.name, subtitle: app.description, icon: iconFor(app.iconKey), features: ['Overview', 'Recent activity', 'Workspace settings']);
     }
   }
@@ -439,6 +464,55 @@ const _notesUrl = String.fromEnvironment('NOTES_SUPABASE_URL');
 const _notesKey = String.fromEnvironment('NOTES_SUPABASE_ANON_KEY');
 const _interviewUrl = String.fromEnvironment('INTERVIEW_SUPABASE_URL');
 const _interviewKey = String.fromEnvironment('INTERVIEW_SUPABASE_ANON_KEY');
+
+class RailwaysNativeScreen extends StatelessWidget {
+  const RailwaysNativeScreen({super.key});
+
+  static const modules = <Map<String, Object>>[
+    {'title': 'My Data', 'detail': 'Assigned files and records', 'icon': Icons.folder_open_rounded},
+    {'title': 'Nangia', 'detail': 'Project workspace and documents', 'icon': Icons.work_outline_rounded},
+    {'title': 'NR Dashboard', 'detail': 'Role-based headings and menus', 'icon': Icons.dashboard_rounded},
+    {'title': 'File Viewer', 'detail': 'Open approved documents', 'icon': Icons.description_outlined},
+    {'title': 'Approvals', 'detail': 'Pending uploads and review tasks', 'icon': Icons.fact_check_outlined},
+    {'title': 'Work Tracker', 'detail': 'Tasks, ownership and progress', 'icon': Icons.track_changes_rounded},
+    {'title': 'Administration', 'detail': 'Folders, menus, users and access', 'icon': Icons.admin_panel_settings_outlined},
+    {'title': 'Activity & History', 'detail': 'Page activity and login history', 'icon': Icons.history_rounded},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
+        title: const Text('Railways')),
+      body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1000),
+        child: ListView(padding: const EdgeInsets.all(20), children: [
+          const _WorkspaceHero(title: 'Railways workspace', subtitle: 'A native mobile entry point for records, documents and operational workflows.', icon: Icons.train_rounded),
+          const SizedBox(height: 18),
+          const _Notice(text: 'This screen is a native module map, not a completed port of the Railway portal. The source currently uses a separate username/password table and client-side role flags. Secure role-aware access must be moved behind server-enforced authorization before the mobile app can load user records safely.', icon: Icons.shield_outlined),
+          const SizedBox(height: 18),
+          Text('Portal modules', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 12),
+          LayoutBuilder(builder: (context, constraints) {
+            final columns = constraints.maxWidth > 700 ? 2 : 1;
+            return GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: columns, crossAxisSpacing: 12, mainAxisSpacing: 12,
+              childAspectRatio: columns == 1 ? 4.1 : 3.2,
+              children: modules.map((module) => Card(child: ListTile(
+                leading: Container(width: 44, height: 44,
+                  decoration: BoxDecoration(color: accent.withValues(alpha: .13), borderRadius: BorderRadius.circular(13)),
+                  child: Icon(module['icon'] as IconData, color: accent)),
+                title: Text(module['title'] as String, style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(module['detail'] as String),
+                trailing: const Icon(Icons.lock_outline_rounded),
+              ))).toList(),
+            );
+          }),
+        ]),
+      )),
+    );
+  }
+}
 
 class _NativeFeatureScreen extends StatelessWidget {
   const _NativeFeatureScreen({required this.title, required this.subtitle, required this.icon, required this.features});
@@ -764,15 +838,111 @@ class _NotesNativeScreenState extends State<NotesNativeScreen> {
 
 class _LessonBlock extends StatelessWidget {
   const _LessonBlock({required this.block});
-  final Map<String,dynamic> block;
-  @override Widget build(BuildContext context) {
+  final Map<String, dynamic> block;
+
+  @override
+  Widget build(BuildContext context) {
     final type = (block['type'] ?? '').toString();
     final text = (block['text'] ?? block['content'] ?? block['title'] ?? '').toString();
-    if (type == 'code') return Card(child: Padding(padding: const EdgeInsets.all(14), child: SelectableText((block['code'] ?? text).toString(), style: const TextStyle(fontFamily: 'monospace'))));
-    if (type == 'list') return Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: (block['items'] as List? ?? []).map((v) => Padding(padding: const EdgeInsets.only(bottom: 6), child: Text('• ${v.toString()}')).toList())));
-    if (type == 'heading') return Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(text, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)));
-    if (type == 'note') return Card(color: accent.withValues(alpha: .12), child: Padding(padding: const EdgeInsets.all(14), child: Text(text)));
-    return Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: SelectableText(text.isEmpty ? jsonEncode(block) : text, style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.55)));
+    final theme = Theme.of(context);
+    if (type == 'heading') {
+      return Padding(padding: const EdgeInsets.only(top: 18, bottom: 8),
+        child: Text(text, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)));
+    }
+    if (type == 'subheading') {
+      return Padding(padding: const EdgeInsets.only(top: 12, bottom: 6),
+        child: Text(text, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)));
+    }
+    if (type == 'code') {
+      final code = (block['code'] ?? text).toString();
+      return Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if ((block['filename'] ?? '').toString().isNotEmpty)
+            Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(block['filename'].toString(), style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant))),
+          SingleChildScrollView(scrollDirection: Axis.horizontal,
+            child: SelectableText(code, style: const TextStyle(fontFamily: 'monospace', height: 1.5))),
+        ],
+      )));
+    }
+    if (type == 'list') {
+      final items = List<dynamic>.from(block['items'] as List? ?? const []);
+      final ordered = block['ordered'] == true;
+      return Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+          for (var i = 0; i < items.length; i++)
+            Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start, children: [
+                SizedBox(width: 24, child: Text(ordered ? '${i + 1}.' : '•', style: TextStyle(color: accent, fontWeight: FontWeight.w800))),
+                Expanded(child: _LessonListItem(item: items[i])),
+              ],
+            )),
+        ],
+      )));
+    }
+    if (type == 'image') {
+      final src = (block['src'] ?? '').toString();
+      if (src.isEmpty) return const SizedBox.shrink();
+      return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center, children: [
+          ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.network(src, fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const _Notice(text: 'This lesson image could not be loaded.', icon: Icons.broken_image_outlined))),
+          if ((block['caption'] ?? '').toString().isNotEmpty)
+            Padding(padding: const EdgeInsets.only(top: 8), child: Text(block['caption'].toString(), style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant))),
+        ],
+      )));
+    }
+    if (type == 'table') {
+      final headers = List<dynamic>.from(block['headers'] as List? ?? const []);
+      final rows = List<dynamic>.from(block['rows'] as List? ?? const []);
+      if (headers.isEmpty) return const SizedBox.shrink();
+      return Card(child: SingleChildScrollView(scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columns: headers.map((h) => DataColumn(label: Text(h.toString()))).toList(),
+          rows: rows.map((row) {
+            final cells = List<dynamic>.from(row as List);
+            return DataRow(cells: List<DataCell>.generate(headers.length,
+              (i) => DataCell(Text(i < cells.length ? cells[i].toString() : ''))));
+          }).toList(),
+        )));
+    }
+    if (type == 'divider') return const Divider(height: 28);
+    if (type == 'note') {
+      final variant = (block['variant'] ?? 'info').toString();
+      final color = variant == 'warning' ? Colors.orange : variant == 'tip' ? Colors.green : accent;
+      return Card(color: color.withValues(alpha: .12), child: Padding(padding: const EdgeInsets.all(14), child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(variant == 'warning' ? Icons.warning_amber_rounded : variant == 'tip' ? Icons.lightbulb_outline_rounded : Icons.info_outline_rounded, color: color),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if ((block['title'] ?? '').toString().isNotEmpty)
+              Padding(padding: const EdgeInsets.only(bottom: 4), child: Text(block['title'].toString(), style: const TextStyle(fontWeight: FontWeight.w800))),
+            Text(text),
+          ])),
+        ],
+      )));
+    }
+    if (type == 'paragraph' || text.isNotEmpty) {
+      return Padding(padding: const EdgeInsets.symmetric(vertical: 7),
+        child: SelectableText(text, style: theme.textTheme.bodyLarge?.copyWith(height: 1.55)));
+    }
+    return const SizedBox.shrink();
+  }
+}
+
+class _LessonListItem extends StatelessWidget {
+  const _LessonListItem({required this.item});
+  final dynamic item;
+  @override
+  Widget build(BuildContext context) {
+    if (item is! Map) return Text(item.toString(), style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.45));
+    final map = Map<String, dynamic>.from(item as Map);
+    final children = List<dynamic>.from(map['children'] as List? ?? const []);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text((map['text'] ?? '').toString(), style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.45)),
+      for (final child in children)
+        Padding(padding: const EdgeInsets.only(left: 12, top: 4),
+          child: Text('• ${child.toString()}', style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.4))),
+    ]);
   }
 }
 
