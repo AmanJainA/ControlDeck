@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -323,7 +324,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         if(isAdmin)ActionChip(label:const Text('Activity monitor'),onPressed:loadActivity),
       ]),
       LayoutBuilder(builder:(context,box){final cols=box.maxWidth>760?3:box.maxWidth>460?2:1;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:cols,mainAxisSpacing:12,crossAxisSpacing:12,childAspectRatio:cols==1?2.6:1.6,children:visible.map((l)=>Card(child:InkWell(onTap:()=>loadTopics(l),child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        const Icon(Icons.code_rounded,color:Colors.amber,size:30),const Spacer(),Text(l['name'].toString(),style:theme.textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),
+        _NotesLanguageIcon(language: l, size: 36),const SizedBox(height: 14),Text(l['name'].toString(),style:theme.textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),
         Text(l['description']?.toString()??'',maxLines:3,overflow:TextOverflow.ellipsis),const SizedBox(height:8),const Text('Open curriculum →'),
       ]))))).toList());})];
   }
@@ -410,5 +411,41 @@ class _NotesBlock extends StatelessWidget {
     if(type=='divider')return const Divider(height:28);
     if(type=='note'){final v=(block['variant']??'info').toString();final color=v=='warning'?Colors.orange:v=='tip'?Colors.green:Colors.amber;return Card(color:color.withValues(alpha:.12),child:Padding(padding:const EdgeInsets.all(14),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(v=='warning'?Icons.warning_amber_rounded:v=='tip'?Icons.lightbulb_outline_rounded:Icons.info_outline_rounded,color:color),const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[if((block['title']??'').toString().isNotEmpty)Text(block['title'].toString(),style:const TextStyle(fontWeight:FontWeight.w800)),Text(text)]))])));}
     return Padding(padding:const EdgeInsets.symmetric(vertical:7),child:SelectableText(text,style:theme.textTheme.bodyLarge?.copyWith(height:1.55)));
+  }
+}
+
+
+class _NotesLanguageIcon extends StatelessWidget {
+  const _NotesLanguageIcon({required this.language, this.size = 36});
+  final Map<String, dynamic> language;
+  final double size;
+  @override
+  Widget build(BuildContext context) {
+    final name = (language['name'] ?? '').toString().toLowerCase();
+    final slug = (language['slug'] ?? '').toString().toLowerCase();
+    final key = '$name $slug';
+    IconData? icon;
+    Color color = const Color(0xFF64748B);
+    String? mark;
+    if (key.contains('c++') || key.contains('cpp')) { mark = 'C++'; color = const Color(0xFF00599C); }
+    else if (name == 'c' || slug == 'c' || name.startsWith('c language')) { mark = 'C'; color = const Color(0xFF283593); }
+    else if (key.contains('javascript') || key.contains(' js')) { icon = FontAwesomeIcons.js; color = const Color(0xFFF0DB4F); }
+    else if (key.contains('html')) { icon = FontAwesomeIcons.html5; color = const Color(0xFFE34F26); }
+    else if (key.contains('css')) { icon = FontAwesomeIcons.css3Alt; color = const Color(0xFF1572B6); }
+    else if (key.contains('bootstrap')) { icon = FontAwesomeIcons.bootstrap; color = const Color(0xFF7952B3); }
+    else if (key.contains('php')) { icon = FontAwesomeIcons.php; color = const Color(0xFF777BB4); }
+    else if (key.contains('java')) { icon = FontAwesomeIcons.java; color = const Color(0xFFED8B00); }
+    else if (key.contains('python')) { icon = FontAwesomeIcons.python; color = const Color(0xFF3776AB); }
+    else if (key.contains('react')) { icon = FontAwesomeIcons.react; color = const Color(0xFF61DAFB); }
+    else if (key.contains('node')) { icon = FontAwesomeIcons.nodeJs; color = const Color(0xFF339933); }
+    else if (key.contains('sql') || key.contains('database') || key.contains('mysql')) { icon = FontAwesomeIcons.database; color = const Color(0xFF4479A1); }
+    else if (key.contains('git')) { icon = FontAwesomeIcons.gitAlt; color = const Color(0xFFF05032); }
+    else if (key.contains('dart') || key.contains('flutter')) { mark = key.contains('flutter') ? 'Fl' : 'D'; color = const Color(0xFF02569B); }
+    else if (key.contains('c#') || key.contains('csharp')) { mark = 'C#'; color = const Color(0xFF68217A); }
+    else if (key.contains('typescript')) { mark = 'TS'; color = const Color(0xFF3178C6); }
+    else { icon = FontAwesomeIcons.code; }
+    return Container(width: size + 22, height: size + 22, alignment: Alignment.center,
+      decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(15), border: Border.all(color: color.withOpacity(0.24))),
+      child: mark != null ? Text(mark, style: TextStyle(color: color, fontSize: mark.length > 2 ? size * 0.36 : size * 0.52, fontWeight: FontWeight.w900, letterSpacing: -1.2)) : FaIcon(icon, size: size, color: color));
   }
 }
