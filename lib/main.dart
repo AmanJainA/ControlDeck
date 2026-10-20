@@ -143,8 +143,8 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInScreenState extends State<SignInScreen> {
-  final email = TextEditingController(), password = TextEditingController();
-  bool creating = false, busy = false;
+  final email = TextEditingController(text: 'amanjain033@gmail.com'), password = TextEditingController();
+  bool creating = false, busy = false, showPassword = false;
   String? errorText;
   @override void dispose() { email.dispose(); password.dispose(); super.dispose(); }
 
@@ -179,7 +179,7 @@ class _SignInScreenState extends State<SignInScreen> {
           const SizedBox(height: 22),
           TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email address', prefixIcon: Icon(Icons.mail_outline_rounded))),
           const SizedBox(height: 12),
-          TextField(controller: password, obscureText: true, onSubmitted: (_) => submit(), decoration: const InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock_outline_rounded))),
+          TextField(controller: password, obscureText: !showPassword, onSubmitted: (_) => submit(), decoration: InputDecoration(labelText: 'Password', prefixIcon: const Icon(Icons.lock_outline_rounded), suffixIcon: IconButton(tooltip: showPassword ? 'Hide password' : 'Show password', onPressed: () => setState(() => showPassword = !showPassword), icon: Icon(showPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded)))),
           if (errorText != null) ...[const SizedBox(height: 12), Text(errorText!, style: TextStyle(color: theme.colorScheme.error))],
           const SizedBox(height: 18),
           FilledButton(onPressed: busy ? null : submit, style: FilledButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 16)),
@@ -1029,6 +1029,30 @@ class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
       if (mounted) setState(() { tasks = List<Map<String,dynamic>>.from(rows); busy = false; });
     } catch (e) { if (mounted) setState(() { error = e.toString(); busy = false; }); }
   }
+  Future<void> toggleTask(Map<String, dynamic> task, bool done) async {
+    if (profile == null) return;
+    setState(() { busy = true; error = null; });
+    try {
+      await client.from('tasks').update({'status': done ? 'done' : 'pending'})
+        .eq('id', task['id']).eq('user_id', profile!['id']);
+      await loadTasks();
+    } catch (e) {
+      if (mounted) setState(() { error = e.toString(); busy = false; });
+    }
+  }
+
+  Future<void> deleteTask(Map<String, dynamic> task) async {
+    if (profile == null) return;
+    setState(() { busy = true; error = null; });
+    try {
+      await client.from('tasks').delete()
+        .eq('id', task['id']).eq('user_id', profile!['id']);
+      await loadTasks();
+    } catch (e) {
+      if (mounted) setState(() { error = e.toString(); busy = false; });
+    }
+  }
+
   Future<void> addTask() async {
     if (taskTitle.text.trim().isEmpty || profile == null) return;
     setState(() { busy = true; error = null; });
@@ -1050,7 +1074,35 @@ class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
       const SizedBox(height: 18),
       Row(children: [Expanded(child: TextField(controller: taskTitle, onSubmitted: (_) => addTask(), decoration: const InputDecoration(labelText: 'Add a task', prefixIcon: Icon(Icons.add_task_rounded)))), const SizedBox(width: 10), FilledButton(onPressed: busy ? null : addTask, child: const Text('Add'))]),
       const SizedBox(height: 14),
-      _DataSection(title: 'Tasks', rows: tasks.map((t) => {'title':t['title'],'priority':t['priority'],'due date':t['due_date'],'status':t['status'] == 'done' ? 'Done' : 'Pending'}).toList()),
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Tasks', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            if (tasks.isEmpty)
+              const Padding(padding: EdgeInsets.symmetric(vertical: 18), child: Text('No tasks yet. Add your first task above.')),
+            for (final task in tasks)
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: task['status'] == 'done',
+                onChanged: busy ? null : (value) => toggleTask(task, value ?? false),
+                title: Text((task['title'] ?? 'Untitled task').toString(),
+                  style: TextStyle(decoration: task['status'] == 'done' ? TextDecoration.lineThrough : null)),
+                subtitle: Text([
+                  if ((task['priority'] ?? '').toString().isNotEmpty) 'Priority: ${task['priority']}',
+                  if ((task['due_date'] ?? '').toString().isNotEmpty) 'Due: ${task['due_date']}',
+                  task['status'] == 'done' ? 'Completed' : 'Pending',
+                ].join(' · ')),
+                secondary: IconButton(
+                  tooltip: 'Delete task',
+                  onPressed: busy ? null : () => deleteTask(task),
+                  icon: const Icon(Icons.delete_outline_rounded),
+                ),
+              ),
+          ]),
+        ),
+      ),
       if (busy) const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator())),
       if (error != null) Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
       OutlinedButton.icon(onPressed: () => setState(() { profile = null; tasks = []; sessionId = null; client = SupabaseClient(_lifeHubUrl, _lifeHubKey); }), icon: const Icon(Icons.logout_rounded), label: const Text('Sign out')),

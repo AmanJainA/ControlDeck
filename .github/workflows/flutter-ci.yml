@@ -1,0 +1,48 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze-and-test:
+    name: Analyze and widget tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate native platform scaffolding
+        run: flutter create --platforms=android,ios --project-name=controldeck --org=com.amanjain .
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Analyze Dart code
+        run: flutter analyze
+      - name: Run widget tests
+        run: flutter test
+      - name: Build Android debug APK
+        run: flutter build apk --debug
+
+  ios-simulator:
+    name: Build iOS simulator app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate native platform scaffolding
+        run: flutter create --platforms=ios --project-name=controldeck --org=com.amanjain .
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Build iOS simulator app
+        run: flutter build ios --simulator --no-codesign
