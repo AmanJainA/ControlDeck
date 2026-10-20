@@ -546,7 +546,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
-                    label: Text('Overview · ${files.length}'),
+                    label: Text('Dashboard · ${files.length}'),
                     selected: dashboardMenuFilterId == null,
                     onSelected: (_) => setState(() {
                       dashboardMenuFilterId = null;
@@ -577,7 +577,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         const SizedBox(height:12),
         TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search_rounded),labelText:'Search approved documents')),
         const SizedBox(height:8),
-        if(nrVisibleFiles.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).isEmpty)const EmptyRailway(title:'No documents found',detail:'No approved documents match this menu and search.'),
+        if(nrVisibleFiles.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).isEmpty)const EmptyRailway(title:'No documents found',detail:'No approved documents match this dashboard/menu and search.'),
         if(nrVisibleFiles.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).isNotEmpty)Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columns:const [DataColumn(label:Text('Document')),DataColumn(label:Text('Menu')),DataColumn(label:Text('Folder')),DataColumn(label:Text('Uploaded by')),DataColumn(label:Text('Uploaded at')),DataColumn(label:Text('Open'))],rows:nrVisibleFiles.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).map((f)=>DataRow(onSelectChanged:(_)=>showFile(f),cells:[DataCell(SizedBox(width:220,child:Text((f['name']??'Document').toString(),maxLines:2,overflow:TextOverflow.ellipsis))),DataCell(Text((f['menuname']??'—').toString())),DataCell(Text((f['folder']??'—').toString())),DataCell(Text((f['uploaded_by']??'—').toString())),DataCell(Text((f['uploaded_at']??'—').toString())),DataCell(IconButton(tooltip:'Open details',onPressed:()=>showFile(f),icon:const Icon(Icons.open_in_new_rounded)))])).toList()))),
       ]else if(view=='pending')...[
         hero('Pending Approvals', 'Approve or reject documents submitted by Railway users.', Icons.fact_check_outlined),
