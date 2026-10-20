@@ -615,7 +615,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   List<Widget> activityView(ThemeData theme) {
     final rows=activityTab=='Online'?onlineUsers:activityTab=='Logins'?loginActivity:pageVisits;
     return [
-      const _NotesHero(title:'Notes activity',subtitle:'Review currently online users, recent sign-ins and page visits.'),
+      if (page != 'Admin') const _NotesHero(title:'Notes activity',subtitle:'Review currently online users, recent sign-ins and page visits.'),
       Wrap(spacing:8,children:[
         ChoiceChip(label:Text('Online (${onlineUsers.length})'),selected:activityTab=='Online',onSelected:(_){setState(()=>activityTab='Online');}),
         ChoiceChip(label:Text('Logins (${loginActivity.length})'),selected:activityTab=='Logins',onSelected:(_){setState(()=>activityTab='Logins');}),
@@ -634,7 +634,13 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     final missingCount = adminTopics.length > lessonCount ? adminTopics.length - lessonCount : 0;
     Widget tab(String value, String label, IconData icon) => ChoiceChip(
       avatar: Icon(icon, size: 18), label: Text(label), selected: adminTab == value,
-      onSelected: (_) => setState(() => adminTab = value),
+      onSelected: (_) {
+        if (value == 'Activity') {
+          loadActivity(withinAdmin: true);
+        } else {
+          setState(() => adminTab = value);
+        }
+      },
     );
     Widget sectionTitle(String title, String subtitle, Widget? action) => Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 12),
