@@ -7,9 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'railways_embed_stub.dart'
-    if (dart.library.io) 'railways_embed_mobile.dart'
-    if (dart.library.html) 'railways_embed_web.dart' as railways_embed;
+import 'railways_native_screen.dart';
 
 const accent = Color(0xFF8FA600);
 const supabaseUrl = SupabaseConfig.primaryUrl;
@@ -715,13 +713,6 @@ const _notesUrl = SupabaseConfig.primaryUrl;
 const _notesKey = SupabaseConfig.primaryKey;
 const _interviewUrl = SupabaseConfig.primaryUrl;
 const _interviewKey = SupabaseConfig.primaryKey;
-
-class RailwaysNativeScreen extends StatelessWidget {
-  const RailwaysNativeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) => railways_embed.buildRailwaysEmbed(context);
-}
 
 class _NativeFeatureScreen extends StatelessWidget {
   const _NativeFeatureScreen({
