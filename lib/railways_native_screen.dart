@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'supabase_config.dart';
+import 'railways_data_manager.dart';
 
 /// Native Flutter implementation of the Railways workspace.
 class RailwaysNativeScreen extends StatefulWidget {
@@ -84,6 +85,49 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     finally{if(mounted)setState(()=>busy=false);}
   }
 
+
+  Future<void> uploadLink() async {
+    final title = TextEditingController();
+    final link = TextEditingController();
+    int? headingId = headings.isEmpty ? null : (headings.first['id'] as num).toInt();
+    int? menuId;
+    List<Map<String,dynamic>> availableMenus = [];
+    final accepted = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
+      title: const Text('Submit a document link'),
+      content: SizedBox(width: 520, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        DropdownButtonFormField<int>(value: headingId, decoration: const InputDecoration(labelText: 'Main heading'), items: headings.map((h) => DropdownMenuItem<int>(value: (h['id'] as num).toInt(), child: Text((h['headingname'] ?? '').toString()))).toList(), onChanged: (v) async {
+          headingId = v; menuId = null; availableMenus = [];
+          if (v != null) { final raw = await db.from('menu_master').select('id,menuname').eq('main_heading_id', v).eq('status','1').order('id'); availableMenus = List<Map<String,dynamic>>.from(raw); }
+          setDialog(() {});
+        }),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<int>(value: menuId, decoration: const InputDecoration(labelText: 'Menu'), items: availableMenus.map((m) => DropdownMenuItem<int>(value: (m['id'] as num).toInt(), child: Text((m['menuname'] ?? '').toString()))).toList(), onChanged: (v) => setDialog(() => menuId = v)),
+        const SizedBox(height: 10),
+        TextField(controller: title, decoration: const InputDecoration(labelText: 'Document title')),
+        const SizedBox(height: 10),
+        TextField(controller: link, decoration: const InputDecoration(labelText: 'OneDrive / cloud URL')),
+      ])),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Submit'))],
+    )));
+    if (accepted == true) {
+      try {
+        final uri = Uri.tryParse(link.text.trim());
+        if (headingId == null || menuId == null || title.text.trim().isEmpty || uri == null || !uri.hasScheme) throw Exception('Select a heading and menu, enter a title and a valid URL.');
+        final h = headings.firstWhere((x) => (x['id'] as num).toInt() == headingId);
+        final m = availableMenus.firstWhere((x) => (x['id'] as num).toInt() == menuId);
+        await db.from('datacollection').insert({
+          'name': title.text.trim(), 'links': link.text.trim(), 'type': 'ONEDRIVE',
+          'menuname': m['menuname'], 'main_heading_id': headingId, 'menu_id': menuId,
+          'status': 0, 'uploaded_by': user?['username'], 'uploaded_at': DateTime.now().toIso8601String(),
+          'source_type': 'onedrive_path'
+        });
+        if (mounted) setState(() => error = null);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link submitted for approval.')));
+      } catch (e) { if (mounted) setState(() => error = message(e)); }
+    }
+    title.dispose(); link.dispose();
+  }
+
   Future<void> openMyData() async {
     setState(() { menu = {'menuname':'My Data'}; heading = null; view = 'files'; files = []; search.clear(); busy = true; error = null; });
     try{
@@ -92,6 +136,47 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       if(mounted)setState(() { files = List<Map<String,dynamic>>.from(rows); });
     }catch(e){if(mounted)setState(()=>error=message(e));}
     finally{if(mounted)setState(()=>busy=false);}
+  }
+
+
+  Future<void> openPendingApprovals() async {
+    setState(() { view = 'pending'; files = []; busy = true; error = null; });
+    try {
+      var query = db.from('datacollection').select('id,name,links,type,status,remark,uploaded_by,uploaded_at,main_heading_id,menu_id,folder_id,menuname,folder,source_type').eq('status', 0);
+      if (!admin) {
+        final ids = headings.map((h) => (h['id'] as num).toInt()).toList();
+        if (ids.isEmpty) { if (mounted) setState(() { files = []; busy = false; }); return; }
+        query = query.inFilter('main_heading_id', ids);
+      }
+      final raw = await query.order('id', ascending: false);
+      if (mounted) setState(() { files = List<Map<String,dynamic>>.from(raw); });
+    } catch (e) { if (mounted) setState(() => error = message(e)); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+
+  Future<void> updateApproval(Map<String,dynamic> file, int status) async {
+    final remark = TextEditingController(text: (file['remark'] ?? '').toString());
+    if (status == 2) {
+      final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+        title: const Text('Reject document'),
+        content: TextField(controller: remark, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Reason / remark')),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Reject'))],
+      ));
+      if (ok != true) { remark.dispose(); return; }
+    }
+    try {
+      await db.from('datacollection').update({'status': status, 'remark': remark.text.trim()}).eq('id', file['id']);
+      await openPendingApprovals();
+    } catch (e) { if (mounted) setState(() => error = message(e)); }
+    remark.dispose();
+  }
+
+  Future<void> openNativeManager(String table, String title) async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => RailwaysDataManager(db: db, user: user!, table: table, title: title)));
+    if (mounted) {
+      if (view == 'home') await loadHeadings();
+      if (view == 'files') await openMyData();
+    }
   }
 
   void back(){
@@ -169,6 +254,35 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         Row(children:[Expanded(child:Text('Workspaces',style:Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800))),TextButton.icon(onPressed:openMyData,icon:const Icon(Icons.folder_copy_outlined),label:const Text('My Data'))]),
         if(headings.isEmpty)const EmptyRailway(title:'No workspaces assigned',detail:'Ask your administrator to grant access.'),
         for(final h in headings)Card(child:ListTile(leading:const CircleAvatar(child:Icon(Icons.account_tree_rounded)),title:Text((h['headingname']??'Workspace').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:const Text('Open menus and documents'),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>openHeading(h))),
+        const SizedBox(height:20),
+        Text('Railway tools', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height:8),
+        Card(child: ListTile(leading: const Icon(Icons.cloud_upload_outlined), title: const Text('Upload Files'), subtitle: const Text('Submit a document or cloud link'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => uploadLink())),
+        Card(child: ListTile(leading: const Icon(Icons.folder_copy_outlined), title: const Text('My Data'), subtitle: const Text('View your submissions'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openMyData)),
+        if (canApprove) Card(child: ListTile(leading: const Icon(Icons.fact_check_outlined), title: const Text('Pending Approvals'), subtitle: const Text('Approve or reject submitted files'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openPendingApprovals)),
+        if (admin) ...[
+          Card(child: ListTile(leading: const Icon(Icons.file_present_outlined), title: const Text('Manage Uploads'), subtitle: const Text('Edit or delete document metadata'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('datacollection', 'Manage Uploads'))),
+          Card(child: ListTile(leading: const Icon(Icons.account_tree_outlined), title: const Text('Main Headings'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('main_heading_master', 'Main Headings'))),
+          Card(child: ListTile(leading: const Icon(Icons.menu_open_rounded), title: const Text('Manage Menus'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('menu_master', 'Manage Menus'))),
+          Card(child: ListTile(leading: const Icon(Icons.folder_outlined), title: const Text('Manage Folders'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('folder_master', 'Manage Folders'))),
+          Card(child: ListTile(leading: const Icon(Icons.manage_accounts_outlined), title: const Text('Users & Access'), subtitle: const Text('Manage Railway accounts'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('users', 'Users & Access'))),
+          Card(child: ListTile(leading: const Icon(Icons.task_alt_rounded), title: const Text('Work Tracker'), subtitle: const Text('Manage tasks, reports and due dates'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('work_items', 'Work Tracker'))),
+          Card(child: ListTile(leading: const Icon(Icons.monitor_heart_outlined), title: const Text('User Presence'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('user_presence', 'User Presence'))),
+        ],
+      ]else if(view=='pending')...[
+        hero('Pending Approvals', 'Approve or reject documents submitted by Railway users.', Icons.fact_check_outlined),
+        if (files.isEmpty) const EmptyRailway(title: 'No pending documents', detail: 'There are no submissions waiting for approval.'),
+        for (final f in files) Card(child: ListTile(
+          leading: fileIcon((f['type'] ?? '').toString()),
+          title: Text((f['name'] ?? 'Document').toString(), style: const TextStyle(fontWeight: FontWeight.w700)),
+          subtitle: Text('Uploaded by: ' + (f['uploaded_by'] ?? 'Unknown').toString() + '\\n' + (f['menuname'] ?? '').toString() + ' • ' + (f['uploaded_at'] ?? '').toString(), maxLines: 2, overflow: TextOverflow.ellipsis),
+          isThreeLine: true,
+          trailing: PopupMenuButton<String>(onSelected: (v) { if (v == 'approve') updateApproval(f, 1); if (v == 'reject') updateApproval(f, 2); }, itemBuilder: (_) => const [
+            PopupMenuItem(value: 'approve', child: Text('Approve')),
+            PopupMenuItem(value: 'reject', child: Text('Reject')),
+          ]),
+          onTap: () => showFile(f),
+        )),
       ]else if(view=='menus')...[
         hero((heading?['headingname']??'Workspace').toString(),'Choose a menu to browse its files.',Icons.folder_open_rounded),const SizedBox(height:14),
         if(menus.isEmpty)const EmptyRailway(title:'No menus available',detail:'No active menus or access grants were found.'),
