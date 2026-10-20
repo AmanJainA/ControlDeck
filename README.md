@@ -2,6 +2,10 @@
 
 ControlDeck is a cross-platform Flutter workspace for opening native Flutter versions of your LifeHub, Portfolio, Notes, Interview, and Railways projects. It does not route project cards to GitHub Pages.
 
+## Design concept
+
+The editable iOS/Android screen concept is in [Figma](https://www.figma.com/design/hl5NbR4aBUGDaeafAJMl73). The reviewed product direction, per-project workflows, security constraints and migration plan are documented in [docs/APP_DESIGN_CONCEPT.md](docs/APP_DESIGN_CONCEPT.md).
+
 ## Current native implementation
 
 - **Responsive dashboard:** mobile/tablet/desktop layouts, dark/light themes, favourites, categories, editable shortcuts, local storage and optional Supabase sync.
@@ -12,6 +16,10 @@ ControlDeck is a cross-platform Flutter workspace for opening native Flutter ver
 - **Notes:** native language/topic/lesson browser backed by the Notes schema.
 - **Interview:** native sign-in and question catalogue backed by the Interview schema.
 - **Railways:** native placeholder workspace; the full Railway portal workflows still need to be ported.
+
+## Shared sign-in and security
+
+The requested single sign-in is the intended product experience, but the source projects currently use different authentication systems: ControlDeck/Portfolio Supabase Auth or admin RPCs, LifeHub custom-auth Edge Functions, Notes custom-auth/session handling, Interview custom login RPCs, and Railways table-based username/password checks. A single screen does not create secure SSO by itself. A central identity/session bridge must be deployed and tested for each backend before the app can promise one login across all workspaces. Do not hardcode the supplied password or commit service-role credentials.
 
 ## Important feature-parity status
 
