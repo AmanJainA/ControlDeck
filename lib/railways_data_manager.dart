@@ -144,7 +144,21 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
     ));
     if (accepted != true) return;
     try {
-      await widget.db.from(widget.table).delete().eq('id', row['id']);
+      if (widget.table == 'datacollection') {
+        final path = (row['links'] ?? '').toString().trim();
+        final sourceType = (row['source_type'] ?? '').toString();
+        final uri = Uri.tryParse(path);
+        if (sourceType == 'file_upload' && path.isNotEmpty && (uri == null || !uri.hasScheme)) {
+          await widget.db.storage.from('documents').remove([path]);
+        }
+        await widget.db.from('work_item_links').delete().eq('datacollection_id', row['id']);
+        await widget.db.from('file_uploads').delete().eq('datacollection_id', row['id']);
+      }
+      if (widget.table == 'work_items') {
+        await widget.db.from('work_item_links').delete().eq('work_item_id', row['id']);
+      }
+      final primaryKey = widget.table == 'user_presence' ? 'session_id' : 'id';
+      await widget.db.from(widget.table).delete().eq(primaryKey, row[primaryKey]);
       await load();
     } catch (e) { if (mounted) setState(() => error = e.toString().replaceFirst('Exception: ', '')); }
   }
