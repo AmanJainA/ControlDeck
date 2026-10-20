@@ -423,7 +423,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     ]);}),
     const SizedBox(height:8),
     const Card(child:ListTile(leading:Icon(Icons.folder_copy_outlined),title:Text('My Data'),subtitle:Text('Your submitted railway documents'))),
-    const Card(child:ListTile(leading:Icon(Icons.dashboard_customize_outlined),title:Text('Northern Railway Dashboard'),subtitle:Text('Approved documents across workspaces')),
+    const Card(child:ListTile(leading:Icon(Icons.dashboard_customize_outlined),title:Text('Northern Railway Dashboard'),subtitle:Text('Approved documents across workspaces'))),
   ])));
 
   Widget loginView()=>Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:460),child:ListView(shrinkWrap:true,padding:const EdgeInsets.all(24),children:[
