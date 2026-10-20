@@ -182,6 +182,34 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
 
 
 
+
+  Future<void> changePassword() async {
+    final oldPassword = TextEditingController();
+    final newPassword = TextEditingController();
+    final confirm = TextEditingController();
+    final accepted = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Change Railway password'),
+      content: SizedBox(width: 440, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: oldPassword, obscureText: true, decoration: const InputDecoration(labelText: 'Current password')),
+        const SizedBox(height: 10),
+        TextField(controller: newPassword, obscureText: true, decoration: const InputDecoration(labelText: 'New password')),
+        const SizedBox(height: 10),
+        TextField(controller: confirm, obscureText: true, decoration: const InputDecoration(labelText: 'Confirm new password')),
+      ])),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Update password'))],
+    ));
+    if (accepted == true) {
+      try {
+        if (newPassword.text.length < 8) throw Exception('Use at least 8 characters for the new password.');
+        if (newPassword.text != confirm.text) throw Exception('The new passwords do not match.');
+        final result = await db.from('users').update({'password': newPassword.text}).eq('id', user!['id']).eq('password', oldPassword.text).select('id').maybeSingle();
+        if (result == null) throw Exception('The current password is incorrect.');
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Railway password updated.')));
+      } catch (e) { if (mounted) setState(() => error = message(e)); }
+    }
+    oldPassword.dispose(); newPassword.dispose(); confirm.dispose();
+  }
+
   Future<void> openNRDashboard() async {
     setState(() { view = 'nr'; files = []; busy = true; error = null; });
     try {
@@ -313,6 +341,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         Text('Railway tools', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height:8),
         Card(child: ListTile(leading: const Icon(Icons.cloud_upload_outlined), title: const Text('Upload Files'), subtitle: const Text('Submit a document or cloud link'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => uploadLink())),
+        Card(child: ListTile(leading: const Icon(Icons.lock_reset_rounded), title: const Text('Change Password'), subtitle: const Text('Update your Railway account password'), trailing: const Icon(Icons.chevron_right_rounded), onTap: changePassword)),
         Card(child: ListTile(leading: const Icon(Icons.folder_copy_outlined), title: const Text('My Data'), subtitle: const Text('View your submissions'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openMyData)),
         if (canApprove) Card(child: ListTile(leading: const Icon(Icons.fact_check_outlined), title: const Text('Pending Approvals'), subtitle: const Text('Approve or reject submitted files'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openPendingApprovals)),
         if (admin) ...[
