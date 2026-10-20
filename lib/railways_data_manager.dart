@@ -52,7 +52,9 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
   Future<void> load() async {
     setState(() { busy = true; error = null; });
     try {
-      final data = await widget.db.from(widget.table).select('*').order('id', ascending: false);
+      final data = widget.table == 'user_presence'
+          ? await widget.db.from(widget.table).select('*').order('last_seen', ascending: false)
+          : await widget.db.from(widget.table).select('*').order('id', ascending: false);
       if (mounted) setState(() { rows = List<Map<String,dynamic>>.from(data); busy = false; });
     } catch (e) {
       if (mounted) setState(() { error = e.toString().replaceFirst('Exception: ', ''); busy = false; });
