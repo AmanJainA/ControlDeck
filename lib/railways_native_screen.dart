@@ -440,10 +440,10 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   ])));
 
   Widget workspaceView(){
-    if(busy)return const Center(child:CircularProgressIndicator());
     final filtered=files.where((f)=>(selectedFolderId == null || (f['folder_id'] as num?)?.toInt() == selectedFolderId) && '${f['name']??''} ${f['type']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).toList();
     return Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:1100),child:ListView(padding:const EdgeInsets.all(20),children:[
       if(error!=null)Card(color:Theme.of(context).colorScheme.errorContainer,child:Padding(padding:const EdgeInsets.all(14),child:Text(error!))),
+      if(busy)const LinearProgressIndicator(),
       if(view=='home')...[
         hero('Welcome, ${user?['username']??'Railway user'}','${user?['dept']??'Railway workspace'} · ${user?['role']??'User'}',Icons.train_rounded),
         const SizedBox(height:16),
