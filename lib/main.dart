@@ -781,7 +781,8 @@ class _NativeFeatureScreen extends StatelessWidget {
 class _WorkspaceHero extends StatelessWidget {
   const _WorkspaceHero({required this.title, required this.subtitle, required this.icon});
   final String title, subtitle;
-  final Widget icon;
+  // Accept both Material IconData and widget-based icons such as Font Awesome.
+  final Object icon;
 
   @override
   Widget build(BuildContext context) {
@@ -805,7 +806,9 @@ class _WorkspaceHero extends StatelessWidget {
               color: accent.withValues(alpha: .18),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: IconTheme(data: const IconThemeData(color: accent, size: 28), child: icon),
+            child: icon is IconData
+                ? Icon(icon, color: accent, size: 28)
+                : IconTheme(data: const IconThemeData(color: accent, size: 28), child: icon as Widget),
           ),
           const SizedBox(height: 18),
           Text(title, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
