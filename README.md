@@ -4,7 +4,7 @@ ControlDeck is a cross-platform Flutter workspace for opening native Flutter ver
 
 ## Design concept
 
-The editable iOS/Android screen concept is in [Figma](https://www.figma.com/design/hl5NbR4aBUGDaeafAJMl73). The reviewed product direction, per-project workflows, security constraints and migration plan are documented in [docs/APP_DESIGN_CONCEPT.md](docs/APP_DESIGN_CONCEPT.md).
+The editable iOS/Android screen concept is in [Figma](https://www.figma.com/design/hl5NbR4aBUGDaeafAJMl73). The reviewed product direction, per-project workflows, security constraints and migration plan are documented in [docs/APP_DESIGN_CONCEPT.md](docs/APP_DESIGN_CONCEPT.md). For first-time platform setup and run commands, see [docs/MOBILE_BUILD_SETUP.md](docs/MOBILE_BUILD_SETUP.md).
 
 ## Current native implementation
 
@@ -27,14 +27,14 @@ This is a native Flutter migration in progress, not a claim that every React wor
 
 ## Configuration
 
-ControlDeck uses its central Supabase Auth project for sign-in and optional cloud sync uses public.controldeck_apps. Configure the project first; the app now shows a setup screen instead of silently bypassing authentication when these values are absent. To enable cloud sync, run supabase/controldeck_schema.sql in a dedicated Supabase project and launch with:
+ControlDeck uses its central Supabase Auth project for sign-in and optional cloud sync uses `public.controldeck_apps`. Configure the project first; the app shows a setup screen instead of silently bypassing authentication when these values are absent. To enable cloud sync, run `supabase/controldeck_schema.sql` in a dedicated Supabase project and launch with:
 
-~~~bash
+```bash
 flutter pub get
-flutter run -d macos \
+flutter run \
   --dart-define=SUPABASE_URL=https://YOUR_CONTROLDECK_PROJECT.supabase.co \
   --dart-define=SUPABASE_ANON_KEY=YOUR_CONTROLDECK_PUBLISHABLE_OR_ANON_KEY
-~~~
+```
 
 The project-specific data connections are separate from ControlDeck's own shortcut sync.
 
@@ -46,22 +46,26 @@ The LifeHub URL and publishable key use the public configuration already present
 
 Their source repositories keep database settings in local environment variables. Provide the values at run time rather than committing credentials:
 
-~~~bash
-flutter run -d macos \
+```bash
+flutter run \
   --dart-define=NOTES_SUPABASE_URL=https://YOUR_NOTES_PROJECT.supabase.co \
   --dart-define=NOTES_SUPABASE_ANON_KEY=YOUR_NOTES_PUBLISHABLE_OR_ANON_KEY \
   --dart-define=INTERVIEW_SUPABASE_URL=https://YOUR_INTERVIEW_PROJECT.supabase.co \
   --dart-define=INTERVIEW_SUPABASE_ANON_KEY=YOUR_INTERVIEW_PUBLISHABLE_OR_ANON_KEY
-~~~
+```
 
 Never put service-role keys or database passwords in the Flutter app. The Notes and Interview keys must be the same publishable/anon values used by their respective React apps.
 
 ## Run and verify
 
-~~~bash
+Follow [docs/MOBILE_BUILD_SETUP.md](docs/MOBILE_BUILD_SETUP.md) to generate missing platform runner folders, configure iOS/Android tooling, and run on a device or simulator.
+
+Before a release, run:
+
+```bash
 flutter pub get
 flutter analyze
-flutter run -d macos
-~~~
+flutter test
+```
 
-The GitHub changes have been committed, but a Flutter build/analyze run still needs to be performed in a local environment with the Flutter SDK installed.
+A successful GitHub commit does not by itself mean the iOS/Android builds or every migrated workflow have been tested.
