@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -8,6 +9,9 @@ const accent = Color(0xFF8FA600);
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 const cloudEnabled = supabaseUrl != '' && supabaseAnonKey != '';
+const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+const String _lifeHubSessionStorageKey = 'controldeck.lifehub.session.v1';
+const String _portfolioAdminSessionStorageKey = 'controldeck.portfolio.admin.session.v1';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -658,7 +662,20 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
       {'key':'label','label':'Label'},{'key':'url','label':'URL'},{'key':'icon_class','label':'Icon class'},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
   ];
 
+  @override void initState() { super.initState(); _restoreAdminSession(); }
   @override void dispose() { email.dispose(); password.dispose(); super.dispose(); }
+
+  Future<void> _restoreAdminSession() async {
+    try {
+      final savedToken = await _secureStorage.read(key: _portfolioAdminSessionStorageKey);
+      if (!mounted || savedToken == null || savedToken.isEmpty) return;
+      setState(() { token = savedToken; busy = true; });
+      await loadData();
+    } catch (_) {
+      if (mounted) setState(() { token = null; data = {}; busy = false; });
+      await _secureStorage.delete(key: _portfolioAdminSessionStorageKey);
+    }
+  }
 
   Future<void> signIn() async {
     setState(() { busy = true; message = null; });
@@ -667,6 +684,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
       final result = raw is List && raw.isNotEmpty ? Map<String, dynamic>.from(raw.first as Map) : Map<String, dynamic>.from(raw as Map);
       if (result['ok'] != true || result['token'] == null) throw Exception((result['message'] ?? 'Admin sign-in failed.').toString());
       token = result['token'].toString();
+      await _secureStorage.write(key: _portfolioAdminSessionStorageKey, value: token);
       await loadData();
     } catch (e) {
       if (mounted) setState(() { message = e.toString().replaceFirst('Exception: ', ''); busy = false; });
@@ -680,6 +698,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
       if (raw is! Map) throw Exception('Unexpected response from the Portfolio admin API.');
       if (mounted) setState(() { data = Map<String, dynamic>.from(raw); busy = false; message = null; });
     } catch (e) {
+      await _secureStorage.delete(key: _portfolioAdminSessionStorageKey);
       if (mounted) setState(() { message = e.toString().replaceFirst('Exception: ', ''); busy = false; token = null; data = {}; });
     }
   }
@@ -687,6 +706,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
   Future<void> signOut() async {
     final old = token;
     setState(() { token = null; data = {}; password.clear(); });
+    await _secureStorage.delete(key: _portfolioAdminSessionStorageKey);
     if (old != null) { try { await client.schema('portfolio').rpc('admin_logout', params: {'p_token': old}); } catch (_) {} }
   }
 
@@ -1007,7 +1027,31 @@ class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
   Map<String,dynamic>? profile;
   String? sessionId;
   List<Map<String,dynamic>> tasks = [];
+  @override void initState() { super.initState(); _restoreSession(); }
   @override void dispose() { email.dispose(); password.dispose(); taskTitle.dispose(); super.dispose(); }
+
+  Future<void> _restoreSession() async {
+    try {
+      final raw = await _secureStorage.read(key: _lifeHubSessionStorageKey);
+      if (!mounted || raw == null || raw.isEmpty) return;
+      final saved = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      final savedSessionId = saved['sessionId']?.toString();
+      final savedProfile = saved['profile'];
+      if (savedSessionId == null || savedSessionId.isEmpty || savedProfile is! Map) {
+        await _secureStorage.delete(key: _lifeHubSessionStorageKey);
+        return;
+      }
+      sessionId = savedSessionId;
+      profile = Map<String, dynamic>.from(savedProfile);
+      client = SupabaseClient(_lifeHubUrl, _lifeHubKey, headers: {'x-lifehub-session': savedSessionId});
+      if (mounted) setState(() {});
+      await loadTasks();
+    } catch (_) {
+      await _secureStorage.delete(key: _lifeHubSessionStorageKey);
+      if (mounted) setState(() { profile = null; sessionId = null; tasks = []; });
+    }
+  }
+
   Future<void> login() async {
     setState(() { busy = true; error = null; });
     try {
@@ -1016,7 +1060,10 @@ class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
       if (data['error'] != null) throw Exception(data['error'].toString());
       sessionId = data['sessionId']?.toString();
       profile = Map<String,dynamic>.from(data['profile'] as Map);
-      if (sessionId != null && sessionId!.isNotEmpty) client = SupabaseClient(_lifeHubUrl, _lifeHubKey, headers: {'x-lifehub-session': sessionId!});
+      if (sessionId != null && sessionId!.isNotEmpty) {
+        client = SupabaseClient(_lifeHubUrl, _lifeHubKey, headers: {'x-lifehub-session': sessionId!});
+        await _secureStorage.write(key: _lifeHubSessionStorageKey, value: jsonEncode({'sessionId': sessionId, 'profile': profile}));
+      }
       if (mounted) setState(() { busy = false; });
       await loadTasks();
     } catch (e) { if (mounted) setState(() { error = e.toString().replaceFirst('Exception: ', ''); busy = false; }); }
@@ -1105,7 +1152,10 @@ class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
       ),
       if (busy) const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator())),
       if (error != null) Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-      OutlinedButton.icon(onPressed: () => setState(() { profile = null; tasks = []; sessionId = null; client = SupabaseClient(_lifeHubUrl, _lifeHubKey); }), icon: const Icon(Icons.logout_rounded), label: const Text('Sign out')),
+      OutlinedButton.icon(onPressed: () async {
+        await _secureStorage.delete(key: _lifeHubSessionStorageKey);
+        if (mounted) setState(() { profile = null; tasks = []; sessionId = null; client = SupabaseClient(_lifeHubUrl, _lifeHubKey); password.clear(); });
+      }, icon: const Icon(Icons.logout_rounded), label: const Text('Sign out')),
     ]))),
   );
 }
