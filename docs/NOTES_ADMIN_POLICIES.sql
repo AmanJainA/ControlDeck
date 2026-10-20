@@ -22,3 +22,11 @@ create policy "Notes admin manages lesson content" on notes.topic_content
   for all to authenticated
   using (lower(coalesce(auth.jwt() ->> 'email', '')) = 'amanjain033@gmail.com')
   with check (lower(coalesce(auth.jwt() ->> 'email', '')) = 'amanjain033@gmail.com');
+
+-- Admin may inspect profile rows in the Notes admin screen. This does not grant
+-- permission to alter another user's identity or authentication credentials.
+grant select on notes.profiles to authenticated;
+drop policy if exists "Notes admin reads profiles" on notes.profiles;
+create policy "Notes admin reads profiles" on notes.profiles
+  for select to authenticated
+  using (lower(coalesce(auth.jwt() ->> 'email', '')) = 'amanjain033@gmail.com');
