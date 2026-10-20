@@ -44,7 +44,11 @@ The LifeHub URL and publishable key use the public configuration already present
 
 ### Notes and Interview
 
-Their source repositories keep database settings in local environment variables. Provide the values at run time rather than committing credentials:
+Notes defaults to the central ControlDeck Supabase project and reuses its authenticated client when both point to the same URL. Override the Notes URL/key only when its database is genuinely hosted in another project; a different Supabase project needs its own trusted SSO bridge and cannot accept the central JWT automatically.
+
+Interview currently retains its own backend configuration and login RPC. Until an Interview-side SSO bridge is implemented and tested, do not assume that setting the same email alone creates a shared session.
+
+When you need to configure a separate Notes or Interview backend, provide its public URL and publishable/anon key at run time rather than committing credentials:
 
 ```bash
 flutter run \
