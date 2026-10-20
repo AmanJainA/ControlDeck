@@ -9,26 +9,28 @@ Sign in once in ControlDeck, keep the session securely across app restarts, and 
 ## Changes committed in this phase
 
 - Added `flutter_secure_storage` for device-side storage of session tokens.
-- LifeHub now saves the custom-auth session ID and the minimal profile data needed to restore its screen. It restores the session on reopening and continues to send the session ID in the `x-lifehub-session` header. The LifeHub backend remains responsible for validating the session.
-- Portfolio Admin now saves its existing admin token in secure storage and attempts to restore it through the existing `admin_get_all` RPC. If the backend rejects the token, the app clears the saved token.
-- Explicit sign-out removes the saved LifeHub or Portfolio Admin session token.
+- Added and deployed the `controldeck-sso` Edge Function to the `p&l` Supabase project. It verifies the ControlDeck Supabase Auth access token server-side and resolves the authenticated email against the target module's existing profile; it does not trust a client-supplied email.
+- LifeHub exchanges the existing ControlDeck session for a server-validated LifeHub session. Its existing `x-lifehub-session` validation remains in place. Valid unexpired LifeHub sessions are reused where possible.
+- Notes uses the canonical Supabase client when its configured URL is the ControlDeck project, so it can share the same persisted Supabase Auth session. The SSO endpoint checks the Notes profile and its `notes_enabled` flag before issuing module access.
+- Global ControlDeck sign-out attempts to revoke the current LifeHub session, ends the Portfolio Admin token through its existing logout RPC, clears locally stored module tokens, and signs out of Supabase Auth.
+- Portfolio Admin token persistence remains a compatibility measure; it is not yet authenticated by the shared identity.
 
-These changes prevent those two module sessions from being kept only in widget memory. They do **not** yet constitute single sign-on across every project.
+This is the first SSO phase, **not** complete single sign-on across all five projects. No existing profile, permission flag, password hash, or business record was migrated or deleted.
 
 ## What is still required for true one-login SSO
 
 | Module | Current authentication | Work required |
 |---|---|---|
-| ControlDeck | Supabase Auth; its session persistence is managed by `supabase_flutter` | Establish the canonical identity and account mapping for all module backends. |
-| LifeHub | `custom-auth` Edge Function and server-issued session ID | Add a backend-verified session exchange from the canonical identity; do not trust a local profile alone. |
-| Notes | Custom-auth/profile system in the `notes` schema | Add the same trusted identity/session validation and preserve Notes-specific permissions. |
+| ControlDeck | Supabase Auth; its session persistence is managed by `supabase_flutter` | Canonical identity is the ControlDeck Auth user. The account must be email-verified. |
+| LifeHub | `custom-auth` Edge Function and server-issued session ID | **Implemented in this phase** via `controldeck-sso`, preserving LifeHub profile and session validation. |
+| Notes | `notes.profiles` plus Supabase Auth | Shared Auth session is available when Notes uses the same Supabase project. SSO still respects `notes_enabled`; existing access flags are not automatically changed. |
 | Interview | `interview.login_user` RPC | Replace profile-only client state with a backend-issued session or verified canonical identity. |
 | Portfolio Admin | Separate `admin_login`/admin token RPCs | Add an explicit, server-validated SSO exchange while retaining admin-role checks. |
 | Railways | Legacy user table and role-based workflows | Redesign the backend authorization first; do not bypass the existing role and record-level access rules. |
 
 ## Why the remaining bridge is not deployed in this commit
 
-The connected Supabase account currently exposes the `p&l` project (`wrssvnvagpnvlwhnqqta`) and the separate `Railways` project (`drcxxbymdonyfjtkiouf`). The Portfolio client code also references a different Supabase project (`ixjdjvkktlzgiyojnsto`), which is not among the connected projects. Notes and Interview URLs are runtime configuration values. A secure SSO bridge cannot be completed safely until the correct backend project access, canonical account mapping, and per-project authorization entry points are confirmed.
+The connected Supabase account currently exposes the `p&l` project (`wrssvnvagpnvlwhnqqta`) and the separate `Railways` project (`drcxxbymdonyfjtkiouf`). The Portfolio client code references `ixjdjvkktlzgiyojnsto`, which is not among the connected projects. Interview and Notes URLs are runtime configuration values; Notes can share the canonical session when configured to the `p&l` project. Interview, Portfolio, and Railways still require backend-specific token exchange or secure proxy work before their separate login prompts can be removed. Do not pass the ControlDeck JWT directly to a different Supabase project, because that project cannot automatically validate it.
 
 No production table, user, password hash, or existing record was migrated or deleted as part of this phase.
 
