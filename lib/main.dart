@@ -884,6 +884,13 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
   Map<String, dynamic> data = {};
 
   static const resources = <Map<String, dynamic>>[
+    {'key':'profile','label':'Profile','resource':'profile','fields':[
+      {'key':'full_name','label':'Full name'},{'key':'username','label':'Display username'},
+      {'key':'hero_role','label':'Hero role'},{'key':'profile_image_url','label':'Profile image URL'},
+      {'key':'favicon_url','label':'Favicon URL'},{'key':'resume_url','label':'Resume URL'},
+      {'key':'email','label':'Email'},{'key':'phone','label':'Phone'},{'key':'location','label':'Location'},
+      {'key':'contact_heading','label':'Contact heading'},{'key':'contact_description','label':'Contact description','multi':true},
+      {'key':'hero_intro','label':'Hero intro','multi':true},{'key':'about_text','label':'About me','multi':true}]},
     {'key':'languages','label':'Languages','resource':'language','fields':[
       {'key':'name','label':'Name'},{'key':'icon_url','label':'Icon URL'},{'key':'icon_class','label':'Icon class'},{'key':'level','label':'Level'},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
     {'key':'skills','label':'Skills','resource':'skill','fields':[
@@ -1011,7 +1018,12 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
       ]))));
     final chosen = resources.where((r) => r['key'] == section).toList();
     final current = chosen.isEmpty ? resources[2] : chosen.first;
-    final rows = List<Map<String, dynamic>>.from(data[current['key']] as List? ?? []);
+    final rawRows = data[current['key']];
+    final rows = rawRows is List
+        ? List<Map<String, dynamic>>.from(rawRows.map((e) => Map<String, dynamic>.from(e as Map)))
+        : rawRows is Map
+            ? <Map<String, dynamic>>[Map<String, dynamic>.from(rawRows)]
+            : <Map<String, dynamic>>[];
     return Scaffold(
       appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: const Text('Portfolio Admin'), actions: [
         IconButton(tooltip: 'Refresh', onPressed: busy ? null : loadData, icon: const Icon(Icons.refresh_rounded)),
