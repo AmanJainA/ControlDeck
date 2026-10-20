@@ -23,13 +23,14 @@ Deno.serve(async (req: Request) => {
   const authorization = req.headers.get("Authorization") || "";
   if (!authorization.startsWith("Bearer ")) return json({ error: "Sign in to ControlDeck first." }, 401);
 
-  let body: { app?: unknown; page?: unknown };
+  let body: { app?: unknown; page?: unknown; action?: unknown; sessionId?: unknown };
   try {
     body = await req.json();
   } catch {
     return json({ error: "Invalid JSON body." }, 400);
   }
 
+  const action = String(body.action || "exchange").toLowerCase();
   const app = String(body.app || "").toLowerCase();
   if (app !== "lifehub" && app !== "notes") {
     return json({ error: "This module is not configured for shared sign-in yet." }, 400);
@@ -62,6 +63,22 @@ Deno.serve(async (req: Request) => {
       profile.is_active === false || profile.account_status === "blocked") {
     return json({ error: "This email does not have an active, verified profile for this module." }, 403);
   }
+
+  if (action === "logout") {
+    if (app === "lifehub") {
+      const sessionId = String(body.sessionId || "");
+      if (sessionId) {
+        const { error: revokeError } = await admin.from("app_sessions")
+          .update({ revoked_at: new Date().toISOString() })
+          .eq("id", sessionId)
+          .eq("app", "lifehub")
+          .eq("user_id", profile.id);
+        if (revokeError) return json({ error: "Could not revoke the LifeHub session." }, 500);
+      }
+    }
+    return json({ ok: true, action: "logout" });
+  }
+  if (action !== "exchange") return json({ error: "Unknown action." }, 400);
 
   if (app === "notes") {
     if (profile.id !== user.id) {
