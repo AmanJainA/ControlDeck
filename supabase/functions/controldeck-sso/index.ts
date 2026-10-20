@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
 
   const action = String(body.action || "exchange").toLowerCase();
   const app = String(body.app || "").toLowerCase();
-  if (app !== "lifehub" && app !== "notes" && app !== "railways") {
+  if (app !== "lifehub" && app !== "notes" && app !== "railways" && app !== "interview") {
     return json({ error: "This module is not configured for shared sign-in yet." }, 400);
   }
 
@@ -72,6 +72,35 @@ Deno.serve(async (req: Request) => {
       console.error("[controldeck-sso] Railways SSO bridge failed", error);
       return json({ error: "Could not reach the Railways sign-in service. Please try again." }, 502);
     }
+  }
+
+  if (app === "interview") {
+    if (action !== "exchange") return json({ error: "Unknown action." }, 400);
+
+    // Interview keeps its existing users table and records. Link the module
+    // account to the verified ControlDeck identity by email; never accept an
+    // email supplied separately by the client and never return password data.
+    const { data: profile, error: profileError } = await admin
+      .schema("interview")
+      .from("users")
+      .select("id, name, email, stream, location, registration_no, contact_number, gender, father_name, usertype, created_date")
+      .ilike("email", email)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error("[controldeck-sso] Interview profile lookup failed", { code: profileError.code });
+      return json({ error: "Could not verify your Interview account. Please try again." }, 500);
+    }
+    if (!profile) {
+      return json({ error: "Your ControlDeck email is not linked to an Interview account. Contact the Interview administrator." }, 403);
+    }
+
+    return json({
+      ok: true,
+      app,
+      profile,
+      authUserId: user.id,
+    });
   }
 
   const profileQuery = app === "lifehub"
