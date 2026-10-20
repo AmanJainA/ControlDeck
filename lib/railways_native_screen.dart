@@ -20,6 +20,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   String view='login';
   String? error;
   bool get admin => (user?['role']??'').toString().toLowerCase()=='admin';
+  bool get canApprove => admin || (user?['role'] ?? '').toString().toLowerCase() == 'subadmin';
 
   @override void initState(){super.initState();db=SupabaseClient(SupabaseConfig.professionalUrl,SupabaseConfig.professionalKey);}
   @override void dispose(){username.dispose();password.dispose();search.dispose();db.dispose();super.dispose();}
