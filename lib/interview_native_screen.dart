@@ -47,7 +47,7 @@ class _InterviewNativeScreenV2State extends State<InterviewNativeScreenV2>{
       final a=await s.from('assessment_attempts').select('*').eq('user_id',profile!['id']).eq('assessment_type','general').order('started_at',ascending:false).limit(10);
       if(!mounted)return;setState(() { company = c == null ? null : Map<String,dynamic>.from(c); questions = List<Map<String,dynamic>>.from(q); attempts = List<Map<String,dynamic>>.from(a); });
       final active=attempts.where((x)=>x['status']=='in_progress').firstOrNull;if(active!=null)await resume(active);
-      if(admin)await loadAdmin();
+      if(admin){await loadAdmin();await loadUsers();}
     }catch(e){if(mounted)setState(()=>error='Interview data could not load: '+clean(e));}
     finally{if(mounted)setState(()=>busy=false);}
   }
