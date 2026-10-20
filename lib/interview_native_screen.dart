@@ -36,7 +36,7 @@ class _InterviewNativeScreenV2State extends State<InterviewNativeScreenV2>{
       if(res.status>=400||b['ok']!=true||b['profile'] is! Map)throw Exception((b['error']??'Could not verify your ControlDeck session.').toString());
       profile=Map<String,dynamic>.from(b['profile'] as Map);
       if(!mounted)return;setState(()=>loading=false);await refreshData();
-    }catch(e){if(mounted)setState(()=>{loading=false,error=clean(e)});}
+    }catch(e){if(mounted)setState(() { loading = false; error = clean(e); });}
   }
   Future<void> refreshData()async{
     if(profile==null)return;setState(()=>busy=true);error=null;
@@ -45,7 +45,7 @@ class _InterviewNativeScreenV2State extends State<InterviewNativeScreenV2>{
       final c=await s.from('company_info').select('id,about,instructions,duration_minutes').eq('id',1).maybeSingle();
       final q=await s.from('questions').select('id,assessment_type,question_text,option_a,option_b,option_c,option_d,correct_option,marks,sort_order').eq('assessment_type','general').order('sort_order');
       final a=await s.from('assessment_attempts').select('*').eq('user_id',profile!['id']).eq('assessment_type','general').order('started_at',ascending:false).limit(10);
-      if(!mounted)return;setState(()=>{company:c==null?null:Map<String,dynamic>.from(c),questions:List<Map<String,dynamic>>.from(q),attempts:List<Map<String,dynamic>>.from(a)});
+      if(!mounted)return;setState(() { company = c == null ? null : Map<String,dynamic>.from(c); questions = List<Map<String,dynamic>>.from(q); attempts = List<Map<String,dynamic>>.from(a); });
       final active=attempts.where((x)=>x['status']=='in_progress').firstOrNull;if(active!=null)await resume(active);
       if(admin)await loadAdmin();
     }catch(e){if(mounted)setState(()=>error='Interview data could not load: '+clean(e));}
@@ -71,7 +71,7 @@ class _InterviewNativeScreenV2State extends State<InterviewNativeScreenV2>{
     }catch(e){if(mounted)setState(()=>error=clean(e));}finally{if(mounted)setState(()=>busy=false);}
   }
   Future<void> save(Map<String,dynamic> q,String option)async{
-    if(attempt==null||busy||attempt!['status']!='in_progress')return;setState(()=>{answers[q['id'].toString()]=option,busy=true});
+    if(attempt==null||busy||attempt!['status']!='in_progress')return;setState(() { answers[q['id'].toString()] = option; busy = true; });
     try{await db.schema('interview').from('user_answers').upsert({'attempt_id':attempt!['id'],'question_id':q['id'],'selected_option':option,'is_correct':q['correct_option']==option},onConflict:'attempt_id,question_id');}
     catch(e){if(mounted)setState(()=>error='Answer save failed: '+clean(e));}finally{if(mounted)setState(()=>busy=false);}
   }
@@ -83,11 +83,11 @@ class _InterviewNativeScreenV2State extends State<InterviewNativeScreenV2>{
       final score=list.where((x)=>x['is_correct']==true).fold<double>(0,(sum,a){final q=questions.where((q)=>q['id'].toString()==a['question_id'].toString()).firstOrNull;return sum+(q==null?0:n(q['marks']));});
       final max=questions.fold<double>(0,(sum,q)=>sum+n(q['marks']));
       await db.schema('interview').from('assessment_attempts').update({'status':'submitted','submitted_at':DateTime.now().toUtc().toIso8601String(),'correct_count':correct,'score':score,'max_score':max,'total_questions':questions.length,'percentage':max<=0?0:double.parse((score/max*100).toStringAsFixed(2))}).eq('id',attempt!['id']).eq('user_id',profile!['id']).eq('status','in_progress');
-      if(!mounted)return;setState(()=>{attempt={...attempt!,'status':'submitted','correct_count':correct,'score':score,'max_score':max,'percentage':max<=0?0:score/max*100},page='Result'});note(auto?'Time ended; assessment submitted automatically.':'Assessment submitted.');await refreshData();if(mounted)setState(()=>page='Result');
+      if(!mounted)return;setState(() { attempt = {...attempt!, 'status':'submitted', 'correct_count':correct, 'score':score, 'max_score':max, 'percentage':max<=0?0:score/max*100}; page = 'Result'; });note(auto?'Time ended; assessment submitted automatically.':'Assessment submitted.');await refreshData();if(mounted)setState(()=>page='Result');
     }catch(e){if(mounted)setState(()=>error='Submission failed: '+clean(e));}finally{submitting=false;if(mounted)setState(()=>busy=false);}
   }
   Future<void> open(String p)async{
-    setState(()=>{page=p,error=null});
+    setState(() { page = p; error = null; });
     try{
       if(p=='Results'||(p=='Dashboard'&&admin)){await loadAdmin();final u=await db.schema('interview').from('users').select('id,name,email,stream,location,usertype,created_date').order('created_date',ascending:false);if(mounted)setState(()=>users=List<Map<String,dynamic>>.from(u));}
       if(p=='Questions'){final q=await db.schema('interview').from('questions').select('*').order('sort_order');if(mounted)setState(()=>questions=List<Map<String,dynamic>>.from(q));}
