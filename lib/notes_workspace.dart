@@ -1,4 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:excel/excel.dart' as excel;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/services.dart';
@@ -27,6 +33,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   List<Map<String,dynamic>> languages = [], topics = [], allTopics = [], progress = [], profiles = [], contents = [], onlineUsers = [], loginActivity = [], pageVisits = [];
   String activityTab = 'Online';
   final Map<String, String> activityErrors = {};
+  final Map<String, Map<String, dynamic>> activityUserMap = {};
   String adminTab = 'Overview';
   String adminTopicSearch = '';
   List<dynamic> blocks = [];
@@ -283,18 +290,144 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       page = withinAdmin ? 'Admin' : 'Activity';
       if (withinAdmin) adminTab = 'Activity';
     });
-    try { final rows=await client!.schema('notes').from('currently_online').select('*').order('last_seen_at',ascending:false).limit(100); if(mounted){onlineUsers=List<Map<String,dynamic>>.from(rows);activityErrors.remove('Online');} } catch (e) { onlineUsers=[]; activityErrors['Online']=friendly(e); }
-    try { final rows=await client!.schema('notes').from('login_activity').select('*').order('login_time',ascending:false).limit(100); if(mounted){loginActivity=List<Map<String,dynamic>>.from(rows);activityErrors.remove('Logins');} } catch (e) { loginActivity=[]; activityErrors['Logins']=friendly(e); }
-    try { final rows=await client!.schema('notes').from('page_visits').select('*').order('visit_time',ascending:false).limit(100); if(mounted){pageVisits=List<Map<String,dynamic>>.from(rows);activityErrors.remove('Visits');} } catch (e) { pageVisits=[]; activityErrors['Visits']=friendly(e); }
+    try {
+      final userRows = await client!.schema('notes').from('profiles').select('*').limit(2000);
+      activityUserMap
+        ..clear()
+        ..addEntries(List<Map<String, dynamic>>.from(userRows).map((u) => MapEntry((u['id'] ?? '').toString(), u)));
+      activityErrors.remove('Profiles');
+    } catch (e) {
+      activityErrors['Profiles'] = friendly(e);
+    }
+    try { final rows=await client!.schema('notes').from('currently_online').select('*').order('last_seen_at',ascending:false).limit(500); if(mounted){onlineUsers=List<Map<String,dynamic>>.from(rows);activityErrors.remove('Online');} } catch (e) { onlineUsers=[]; activityErrors['Online']=friendly(e); }
+    try { final rows=await client!.schema('notes').from('login_activity').select('*').order('login_time',ascending:false).limit(500); if(mounted){loginActivity=List<Map<String,dynamic>>.from(rows);activityErrors.remove('Logins');} } catch (e) { loginActivity=[]; activityErrors['Logins']=friendly(e); }
+    try { final rows=await client!.schema('notes').from('page_visits').select('*').order('visit_time',ascending:false).limit(500); if(mounted){pageVisits=List<Map<String,dynamic>>.from(rows);activityErrors.remove('Visits');} } catch (e) { pageVisits=[]; activityErrors['Visits']=friendly(e); }
     if(mounted)setState(()=>loading=false);
   }
-  Future<void> copyActivity() async {
-    final rows=activityTab=='Online'?onlineUsers:activityTab=='Logins'?loginActivity:pageVisits;
-    final keys=rows.isEmpty?<String>[]:rows.first.keys.toList();
-    final csv=[keys.join(','),...rows.map((r)=>keys.map((k)=>'"${(r[k]??'').toString().replaceAll('"','""')}"').join(','))].join('\n');
-    await Clipboard.setData(ClipboardData(text:csv));
-    if(mounted)setState(()=>notice='${rows.length} rows copied as CSV text.');
+
+  String _activityUserName(Map<String, dynamic> row) {
+    final rawId = (row['user_id'] ?? row['profile_id'] ?? '').toString();
+    final embeddedName = (row['username'] ?? row['full_name'] ?? row['name'] ?? '').toString().trim();
+    if (embeddedName.isNotEmpty) return embeddedName;
+    final user = activityUserMap[rawId];
+    if (user != null) {
+      for (final key in ['full_name', 'name', 'username', 'display_name']) {
+        final value = (user[key] ?? '').toString().trim();
+        if (value.isNotEmpty) return value;
+      }
+      final email = (user['email'] ?? '').toString().trim();
+      if (email.isNotEmpty) return email;
+    }
+    if (rawId.isEmpty || rawId == 'null') return 'Guest / unknown user';
+    return activityErrors.containsKey('Profiles') ? 'User unavailable (ID: $rawId)' : 'Unknown user (ID: $rawId)';
   }
+
+  String _activityLabel(String key) => key.replaceAll('_', ' ').split(' ').map((part) =>
+      part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1)}').join(' ');
+
+  List<String> _activityColumns(List<Map<String, dynamic>> rows) {
+    final keys = <String>{};
+    for (final row in rows) { keys.addAll(row.keys); }
+    keys.removeAll(['username', 'full_name', 'name']);
+    final preferred = activityTab == 'Online'
+      ? ['user_id', 'profile_id', 'email', 'page_name', 'last_seen_at', 'created_at']
+      : activityTab == 'Logins'
+        ? ['user_id', 'profile_id', 'email', 'login_time', 'ip_address', 'user_agent']
+        : ['user_id', 'profile_id', 'email', 'page_name', 'page_url', 'visit_time'];
+    final result = keys.toList();
+    result.sort((a, b) {
+      final ai = preferred.indexOf(a), bi = preferred.indexOf(b);
+      if (ai >= 0 && bi >= 0) return ai.compareTo(bi);
+      if (ai >= 0) return -1;
+      if (bi >= 0) return 1;
+      return a.compareTo(b);
+    });
+    return ['S. No.', ...result];
+  }
+
+  String _activityCell(Map<String, dynamic> row, String key, int index) {
+    if (key == 'S. No.') return '${index + 1}';
+    if (key == 'user_id' || key == 'profile_id') return _activityUserName(row);
+    final value = row[key];
+    if (value == null || value.toString().trim().isEmpty) return '—';
+    if (value is Map || value is List) return const JsonEncoder.withIndent(' ').convert(value);
+    if (key.toLowerCase().contains('time') || key.toLowerCase().endsWith('_at')) {
+      final parsed = DateTime.tryParse(value.toString());
+      if (parsed != null) return parsed.toLocal().toString().split('.').first;
+    }
+    return value.toString();
+  }
+
+  List<List<String>> _activityExportMatrix() {
+    final rows = activityTab == 'Online' ? onlineUsers : activityTab == 'Logins' ? loginActivity : pageVisits;
+    final columns = _activityColumns(rows);
+    return [columns, for (var i = 0; i < rows.length; i++) [for (final key in columns) _activityCell(rows[i], key, i)]];
+  }
+
+  Future<void> copyActivity() async {
+    final matrix = _activityExportMatrix();
+    final text = matrix.map((row) => row.map((cell) => cell.replaceAll('\t', ' ').replaceAll('\n', ' ')).join('\t')).join('\n');
+    await Clipboard.setData(ClipboardData(text: text));
+    if(mounted)setState(()=>notice='${matrix.length - 1} readable rows copied.');
+  }
+
+  Future<void> exportActivity(String format) async {
+    final matrix = _activityExportMatrix();
+    if (matrix.length <= 1) {
+      if (mounted) setState(() => notice = 'There are no rows to export in this tab.');
+      return;
+    }
+    final stamp = DateTime.now().toIso8601String().substring(0, 10);
+    final baseName = 'notes_${activityTab.toLowerCase()}_$stamp';
+    try {
+      if (format == 'excel') {
+        final book = excel.Excel.createExcel();
+        final sheet = book['Activity'];
+        for (var r = 0; r < matrix.length; r++) {
+          for (var c = 0; c < matrix[r].length; c++) {
+            sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r)).value = excel.TextCellValue(matrix[r][c]);
+          }
+        }
+        final bytes = book.encode();
+        if (bytes == null) throw Exception('Excel file could not be generated.');
+        await Share.shareXFiles([XFile.fromData(Uint8List.fromList(bytes), name: '$baseName.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')], subject: 'Notes Activity - $activityTab', text: 'Exported Notes activity data.');
+      } else if (format == 'word') {
+        final html = StringBuffer('<html><head><meta charset="utf-8"></head><body><h1>Notes Activity — ${_activityLabel(activityTab)}</h1><table border="1" cellspacing="0" cellpadding="5"><thead><tr>');
+        for (final h in matrix.first) { html.write('<th>${_htmlEscape(h)}</th>'); }
+        html.write('</tr></thead><tbody>');
+        for (final row in matrix.skip(1)) {
+          html.write('<tr>');
+          for (final cell in row) { html.write('<td>${_htmlEscape(cell)}</td>'); }
+          html.write('</tr>');
+        }
+        html.write('</tbody></table></body></html>');
+        await Share.shareXFiles([XFile.fromData(Uint8List.fromList(utf8.encode(html.toString())), name: '$baseName.doc', mimeType: 'application/msword')], subject: 'Notes Activity - $activityTab', text: 'Word-compatible activity report.');
+      } else if (format == 'pdf') {
+        final doc = pw.Document();
+        doc.addPage(pw.MultiPage(pageFormat: PdfPageFormat.a4.landscape, build: (_) => [
+          pw.Text('Notes Activity — ${_activityLabel(activityTab)}', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 12),
+          pw.TableHelper.fromTextArray(
+            headers: matrix.first,
+            data: matrix.skip(1).toList(),
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+            cellStyle: const pw.TextStyle(fontSize: 7),
+            cellAlignment: pw.Alignment.centerLeft,
+            border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.4),
+          ),
+        ]));
+        await Printing.sharePdf(bytes: await doc.save(), filename: '$baseName.pdf');
+      } else {
+        final csv = matrix.map((row) => row.map((cell) => '"${cell.replaceAll('"', '""')}"').join(',')).join('\r\n');
+        await Share.shareXFiles([XFile.fromData(Uint8List.fromList([0xEF,0xBB,0xBF,...utf8.encode(csv)]), name: '$baseName.csv', mimeType: 'text/csv')], subject: 'Notes Activity - $activityTab', text: 'CSV file compatible with Excel.');
+      }
+      if (mounted) setState(() => notice = '$format export prepared for ${matrix.length - 1} rows.');
+    } catch (e) {
+      if (mounted) setState(() => error = 'Export failed: ${friendly(e)}');
+    }
+  }
+
+  String _htmlEscape(String value) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
   Future<void> loadAdmin() async {
     if(!isAdmin){setState(()=>error='Admin access is restricted.');return;}
     setState(()=>{loading=true,error=null,notice=null,page='Admin'});
@@ -614,73 +747,36 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     current.dispose();next.dispose();
   }
   List<Widget> activityView(ThemeData theme) {
-    final rows = activityTab == 'Online'
-        ? onlineUsers
-        : activityTab == 'Logins'
-            ? loginActivity
-            : pageVisits;
-    final columns = <String>[];
-    for (final row in rows) {
-      for (final key in row.keys) {
-        if (!columns.contains(key)) columns.add(key);
-      }
-    }
-    final preferred = activityTab == 'Online'
-        ? ['username', 'email', 'user_id', 'page_name', 'last_seen_at']
-        : activityTab == 'Logins'
-            ? ['username', 'email', 'user_id', 'login_time', 'ip_address', 'user_agent']
-            : ['username', 'email', 'user_id', 'page_name', 'page_url', 'visit_time'];
-    columns.sort((a, b) {
-      final ai = preferred.indexOf(a);
-      final bi = preferred.indexOf(b);
-      if (ai >= 0 && bi >= 0) return ai.compareTo(bi);
-      if (ai >= 0) return -1;
-      if (bi >= 0) return 1;
-      return a.compareTo(b);
-    });
+    final rows = activityTab == 'Online' ? onlineUsers : activityTab == 'Logins' ? loginActivity : pageVisits;
+    final columns = _activityColumns(rows);
     return [
       if (page != 'Admin')
-        const _NotesHero(
-          title: 'Notes activity',
-          subtitle: 'Review currently online users, recent sign-ins and page visits.',
-        ),
+        const _NotesHero(title: 'Notes activity', subtitle: 'Review online users, sign-ins and page visits with readable names and export tools.'),
       Wrap(spacing: 8, runSpacing: 8, children: [
-        ChoiceChip(
-          label: Text('Online (${onlineUsers.length})'),
-          selected: activityTab == 'Online',
-          onSelected: (_) => setState(() => activityTab = 'Online'),
-        ),
-        ChoiceChip(
-          label: Text('Logins (${loginActivity.length})'),
-          selected: activityTab == 'Logins',
-          onSelected: (_) => setState(() => activityTab = 'Logins'),
-        ),
-        ChoiceChip(
-          label: Text('Page visits (${pageVisits.length})'),
-          selected: activityTab == 'Visits',
-          onSelected: (_) => setState(() => activityTab = 'Visits'),
-        ),
-        OutlinedButton.icon(
-          onPressed: copyActivity,
-          icon: const Icon(Icons.copy_rounded),
-          label: const Text('Copy CSV'),
-        ),
-        OutlinedButton.icon(
-          onPressed: () => loadActivity(withinAdmin: page == 'Admin'),
-          icon: const Icon(Icons.refresh_rounded),
-          label: const Text('Refresh'),
+        ChoiceChip(label: Text('Online (${onlineUsers.length})'), selected: activityTab == 'Online', onSelected: (_) => setState(() => activityTab = 'Online')),
+        ChoiceChip(label: Text('Logins (${loginActivity.length})'), selected: activityTab == 'Logins', onSelected: (_) => setState(() => activityTab = 'Logins')),
+        ChoiceChip(label: Text('Page visits (${pageVisits.length})'), selected: activityTab == 'Visits', onSelected: (_) => setState(() => activityTab = 'Visits')),
+        OutlinedButton.icon(onPressed: copyActivity, icon: const Icon(Icons.copy_rounded), label: const Text('Copy table')),
+        OutlinedButton.icon(onPressed: () => loadActivity(withinAdmin: page == 'Admin'), icon: const Icon(Icons.refresh_rounded), label: const Text('Refresh')),
+        PopupMenuButton<String>(
+          tooltip: 'Export activity data',
+          onSelected: exportActivity,
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'excel', child: ListTile(dense: true, leading: Icon(Icons.table_chart_outlined), title: Text('Export Excel (.xlsx)'))),
+            PopupMenuItem(value: 'word', child: ListTile(dense: true, leading: Icon(Icons.description_outlined), title: Text('Export Word (.doc)'))),
+            PopupMenuItem(value: 'pdf', child: ListTile(dense: true, leading: Icon(Icons.picture_as_pdf_outlined), title: Text('Export PDF'))),
+            PopupMenuItem(value: 'csv', child: ListTile(dense: true, leading: Icon(Icons.file_download_outlined), title: Text('Export CSV'))),
+          ],
+          child: const Padding(padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.file_download_outlined), SizedBox(width: 8), Text('Export'), Icon(Icons.arrow_drop_down)])),
         ),
       ]),
       const SizedBox(height: 12),
-      Text(
-        '${rows.length} records · ${columns.length} fields',
-        style: theme.textTheme.labelLarge,
-      ),
+      Text('${rows.length} records · ${columns.length} columns', style: theme.textTheme.labelLarge),
       const SizedBox(height: 8),
       if (rows.isEmpty)
         _NotesNotice(
           title: activityErrors[activityTab] == null ? 'No activity rows available' : 'Could not load activity data',
-          detail: activityErrors[activityTab] ?? 'No records were returned for this tab. Check whether there are records to display.',
+          detail: activityErrors[activityTab] ?? 'No records were returned for this tab. Check table data and Supabase RLS permissions.',
         )
       else
         Card(
@@ -688,37 +784,44 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
-              columnSpacing: 24,
-              headingRowHeight: 48,
-              dataRowMinHeight: 52,
-              dataRowMaxHeight: 76,
-              columns: columns
-                  .map((key) => DataColumn(
-                        label: Text(
-                          key.replaceAll('_', ' ').toUpperCase(),
-                          maxLines: 2,
-                        ),
-                      ))
-                  .toList(),
-              rows: rows
-                  .map((row) => DataRow(
-                        cells: columns
-                            .map((key) => DataCell(
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 240),
-                                    child: Text(
-                                      (row[key] ?? '—').toString(),
-                                      maxLines: 3,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ))
-                            .toList(),
-                      ))
-                  .toList(),
+              columnSpacing: 22,
+              headingRowHeight: 50,
+              dataRowMinHeight: 54,
+              dataRowMaxHeight: 100,
+              columns: columns.map((key) => DataColumn(label: Text(key == 'S. No.' ? key : _activityLabel(key), maxLines: 2))).toList(),
+              rows: List<DataRow>.generate(rows.length, (i) => DataRow(
+                cells: columns.map((key) => DataCell(
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: key == 'user_agent' || key == 'page_url' ? 280 : 210),
+                    child: SelectableText(_activityCell(rows[i], key, i), maxLines: 4),
+                  ),
+                )).toList(),
+              )),
             ),
           ),
         ),
+      if (rows.isNotEmpty) ...[
+        const SizedBox(height: 14),
+        Text('Record details', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
+        for (var i = 0; i < rows.length; i++)
+          Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ExpansionTile(
+              leading: CircleAvatar(child: Text('${i + 1}')),
+              title: Text(_activityUserName(rows[i]), maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text(_activityLabel(activityTab == 'Online' ? 'last_seen_at' : activityTab == 'Logins' ? 'login_time' : 'visit_time') + ': ' + _activityCell(rows[i], activityTab == 'Online' ? 'last_seen_at' : activityTab == 'Logins' ? 'login_time' : 'visit_time', i)),
+              children: [
+                for (final entry in rows[i].entries)
+                  ListTile(
+                    dense: true,
+                    title: Text(_activityLabel(entry.key), style: theme.textTheme.labelMedium),
+                    subtitle: SelectableText(entry.key == 'user_id' || entry.key == 'profile_id' ? _activityUserName(rows[i]) : _activityCell(rows[i], entry.key, i)),
+                  ),
+              ],
+            ),
+          ),
+      ],
     ];
   }
   List<Widget> adminView(ThemeData theme) {
