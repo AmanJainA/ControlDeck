@@ -35,6 +35,9 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
     'users': [
       {'key':'username','label':'Username'}, {'key':'password','label':'Password'}, {'key':'role','label':'Role: admin / subadmin / user'}, {'key':'email','label':'Email'}, {'key':'dept','label':'Department'}, {'key':'project','label':'Project'}
     ],
+    'work_item_links': [
+      {'key':'work_item_id','label':'Work item ID'}, {'key':'datacollection_id','label':'Document ID'}, {'key':'relation_type','label':'Relation type'}, {'key':'created_by','label':'Created by'}
+    ],
     'work_items': [
       {'key':'title','label':'Title'}, {'key':'description','label':'Description','multi':true}, {'key':'main_heading_id','label':'Main heading ID'}, {'key':'menu_id','label':'Menu ID'}, {'key':'folder_id','label':'Folder ID'}, {'key':'parent_id','label':'Parent task ID'}, {'key':'work_type','label':'Work type'}, {'key':'status','label':'Status: todo / in_progress / done / blocked'}, {'key':'priority','label':'Priority: low / medium / high / urgent'}, {'key':'assigned_to','label':'Assigned user ID'}, {'key':'due_date','label':'Due date YYYY-MM-DD'}, {'key':'sort_order','label':'Sort order'}
     ],
@@ -81,9 +84,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
         final key = f['key'].toString();
         final value = controllers[key]!.text.trim();
         if (value.isEmpty) { payload[key] = null; continue; }
-        if (['main_heading_id','menu_id','folder_id','parent_id','assigned_to','sort_order','status'].contains(key) && widget.table != 'users' && widget.table != 'main_heading_master' && widget.table != 'menu_master' && widget.table != 'folder_master') {
-          payload[key] = num.tryParse(value);
-        } else if (['main_heading_id','menu_id','folder_id','parent_id','assigned_to','sort_order'].contains(key)) {
+        if (['main_heading_id','menu_id','folder_id','parent_id','assigned_to','sort_order'].contains(key) || (key == 'status' && widget.table == 'datacollection')) {
           payload[key] = num.tryParse(value);
         } else {
           payload[key] = value;
