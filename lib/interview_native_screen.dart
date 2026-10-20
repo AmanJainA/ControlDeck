@@ -117,7 +117,50 @@ class _InterviewNativeScreenV2State extends State<InterviewNativeScreenV2>{
   Widget result(){final a=attempts.where((x)=>x['status']=='submitted').firstOrNull??attempt;if(a==null||a['status']!='submitted')return ListView(padding:const EdgeInsets.all(16),children:[info('Your result','Submit the assessment to see your result.',Icons.emoji_events)]);return ListView(padding:const EdgeInsets.all(16),children:[info('Result',n(a['percentage']).toStringAsFixed(1)+'% · '+(a['correct_count']??0).toString()+' correct answers',Icons.emoji_events),info('Score',(a['score']??0).toString()+' / '+(a['max_score']??0).toString()+' · submitted',Icons.verified)]);}
   Widget adminHome(){final done=attempts.where((a)=>a['status']=='submitted').toList();final today=DateTime.now();final todayCount=users.where((u){final d=DateTime.tryParse(u['created_date']?.toString()??'');return d!=null&&d.year==today.year&&d.month==today.month&&d.day==today.day;}).length;final buckets=[('0–69%',done.where((a)=>n(a['percentage'])<70).length),('70–79%',done.where((a)=>n(a['percentage'])>=70&&n(a['percentage'])<80).length),('80–89%',done.where((a)=>n(a['percentage'])>=80&&n(a['percentage'])<90).length),('90–99%',done.where((a)=>n(a['percentage'])>=90&&n(a['percentage'])<100).length),('100%',done.where((a)=>n(a['percentage'])>=100).length)];return RefreshIndicator(onRefresh:()async{await loadAdmin();await open('Users');},child:ListView(padding:const EdgeInsets.all(14),children:[Text('Admin Dashboard',style:Theme.of(context).textTheme.headlineSmall),info('Total users',users.length.toString(),Icons.people),info('Attempted assessment',attempts.map((a)=>a['user_id']).toSet().length.toString(),Icons.assignment_turned_in),info('Registered today',todayCount.toString(),Icons.person_add),const Text('Score distribution'),for(final b in buckets)Padding(padding:const EdgeInsets.symmetric(vertical:5),child:Row(children:[SizedBox(width:75,child:Text(b.$1)),Expanded(child:LinearProgressIndicator(value:done.isEmpty?0:b.$2/done.length)),const SizedBox(width:8),Text(b.$2.toString())])),const Text('Recent submissions'),for(final a in done.take(10))ListTile(title:Text('User '+a['user_id'].toString()),subtitle:Text((a['correct_count']??0).toString()+'/'+(a['total_questions']??0).toString()+' correct'),trailing:Text(n(a['percentage']).toStringAsFixed(1)+'%'))]));}
   Widget results()=>ListView(padding:const EdgeInsets.all(12),children:[Text('Assessment Results',style:Theme.of(context).textTheme.titleLarge),if(attempts.isEmpty)const Text('No attempts found.'),for(final a in attempts)Card(child:ListTile(title:Text('User '+a['user_id'].toString()),subtitle:Text((a['status']??'').toString()+' · '+(a['correct_count']??0).toString()+'/'+(a['total_questions']??0).toString()+' · '+(a['submitted_at']??'Not submitted').toString()),trailing:Text(a['status']=='submitted'?n(a['percentage']).toStringAsFixed(1)+'%':'In progress')))]);
-  Widget usersPage()=>ListView(padding:const EdgeInsets.all(12),children:[Row(children:[Expanded(child:Text('Manage users ('+users.length.toString()+')',style:Theme.of(context).textTheme.titleLarge)),IconButton(onPressed:()=>open('Users'),icon:const Icon(Icons.refresh))]),for(final u in users)Card(child:ListTile(title:Text((u['name']??'').toString()),subtitle:Text((u['email']??'').toString()+' · '+(u['stream']??'').toString()+' · '+(u['usertype']??'user').toString()),trailing:PopupMenuButton<String>(onSelected:(v)=>v=='role'?changeRole(u):deleteUser(u),itemBuilder:(_)=>const[PopupMenuItem(value:'role',child:Text('Toggle role')),PopupMenuItem(value:'delete',child:Text('Delete user'))])))]);
+  Widget usersPage()=>ListView(padding:const EdgeInsets.all(12),children:[Row(children:[Expanded(child:Text('Manage users ('+users.length.toString()+')',style:Theme.of(context).textTheme.titleLarge)),IconButton(onPressed:()=>open('Users'),icon:const Icon(Icons.refresh)),FilledButton(onPressed:addUser,child:const Text('Add user'))]),for(final u in users)Card(child:ListTile(title:Text((u['name']??'').toString()),subtitle:Text((u['email']??'').toString()+' · '+(u['stream']??'').toString()+' · '+(u['usertype']??'user').toString()),trailing:PopupMenuButton<String>(onSelected:(v)=>v=='role'?changeRole(u):deleteUser(u),itemBuilder:(_)=>const[PopupMenuItem(value:'role',child:Text('Toggle role')),PopupMenuItem(value:'delete',child:Text('Delete user'))])))]);
+  Future<void> addUser() async {
+    final fields = <String,TextEditingController>{
+      'name':TextEditingController(), 'email':TextEditingController(), 'password':TextEditingController(),
+      'registration_no':TextEditingController(), 'contact_number':TextEditingController(),
+      'gender':TextEditingController(), 'father_name':TextEditingController(),
+      'stream':TextEditingController(), 'location':TextEditingController(),
+    };
+    final ok = await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
+      title:const Text('Add Interview user'),
+      content:SizedBox(width:480,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+        for(final e in fields.entries) Padding(padding:const EdgeInsets.only(bottom:8),child:TextField(
+          controller:e.value, obscureText:e.key=='password',
+          keyboardType:e.key=='email'?TextInputType.emailAddress:e.key=='contact_number'?TextInputType.phone:TextInputType.text,
+          decoration:InputDecoration(labelText:e.key.replaceAll('_',' ')),
+        )),
+      ]))),
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
+        FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Create user'))],
+    ));
+    try {
+      if(ok==true) {
+        if(fields['name']!.text.trim().isEmpty || fields['email']!.text.trim().isEmpty || fields['password']!.text.length<6) {
+          throw Exception('Name, email and a password of at least 6 characters are required.');
+        }
+        final result=await db.schema('interview').rpc('register_user',params:{
+          'p_name':fields['name']!.text.trim(),
+          'p_email':fields['email']!.text.trim().toLowerCase(),
+          'p_password':fields['password']!.text,
+          'p_stream':fields['stream']!.text.trim().isEmpty?null:fields['stream']!.text.trim(),
+          'p_location':fields['location']!.text.trim().isEmpty?null:fields['location']!.text.trim(),
+          'p_registration_no':fields['registration_no']!.text.trim().isEmpty?null:fields['registration_no']!.text.trim(),
+          'p_contact_number':fields['contact_number']!.text.trim().isEmpty?null:fields['contact_number']!.text.trim(),
+          'p_gender':fields['gender']!.text.trim().isEmpty?null:fields['gender']!.text.trim(),
+          'p_father_name':fields['father_name']!.text.trim().isEmpty?null:fields['father_name']!.text.trim(),
+        });
+        if(result is Map && result['error']!=null) throw Exception(result['error'].toString());
+        await open('Users');
+        note('Interview user created.');
+      }
+    } catch(e) { showError(clean(e)); }
+    finally { for(final controller in fields.values) { controller.dispose(); } }
+  }
+
   Future<void> changeRole(Map<String,dynamic> u)async{if(u['id'].toString()==profile?['id'].toString()){showError('Cannot change your own role.');return;}try{await db.schema('interview').from('users').update({'usertype':u['usertype']=='admin'?'user':'admin'}).eq('id',u['id']);await open('Users');}catch(e){showError(clean(e));}}
   Future<void> deleteUser(Map<String,dynamic> u)async{if(u['id'].toString()==profile?['id'].toString()){showError('Cannot delete your own account.');return;}if(await confirm('Delete user?','Delete '+(u['name']??'user').toString()+' and linked attempts?')!=true)return;try{await db.schema('interview').from('users').delete().eq('id',u['id']);await open('Users');}catch(e){showError(clean(e));}}
   Widget questionsPage()=>Column(children:[Padding(padding:const EdgeInsets.all(12),child:Row(children:[Expanded(child:Text('Questions ('+questions.length.toString()+')',style:Theme.of(context).textTheme.titleLarge)),FilledButton(onPressed:()=>editQuestion(),child:const Text('Add'))])),Expanded(child:ListView(children:[for(final q in questions)Card(child:ListTile(title:Text((q['question_text']??'').toString()),subtitle:Text((q['assessment_type']??'general').toString()+' · '+(q['marks']??1).toString()+' marks'),trailing:PopupMenuButton<String>(onSelected:(v)=>v=='edit'?editQuestion(q):deleteQuestion(q),itemBuilder:(_)=>const[PopupMenuItem(value:'edit',child:Text('Edit')),PopupMenuItem(value:'delete',child:Text('Delete'))])))]))]);
