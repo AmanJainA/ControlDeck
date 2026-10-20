@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'lifehub_workspace.dart';
+import 'notes_workspace.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -481,7 +482,7 @@ class AppWorkspaceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (app.id.toLowerCase()) {
       case 'portfolio': return admin ? const PortfolioAdminNativeScreen() : const PortfolioNativeScreen();
-      case 'notes': return const NotesNativeScreen();
+      case 'notes': return const NotesFullNativeScreen();
       case 'interview': return const InterviewNativeScreen();
       case 'lifehub': return const LifeHubFullNativeScreen();
       case 'railways': return const RailwaysNativeScreen();
