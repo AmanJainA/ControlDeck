@@ -42,17 +42,35 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         authOptions: const AuthClientOptions(autoRefreshToken: false, persistSession: false));
       client = publicClient;
       if (notesWorkspaceUrl == controlDeckWorkspaceUrl && Supabase.instance.client.auth.currentUser != null) {
-        final session = Supabase.instance.client.auth.currentSession!;
-        final user = Supabase.instance.client.auth.currentUser!;
-        client = Supabase.instance.client;
-        token = session.accessToken;
-        profile = {'id': user.id, 'email': user.email, 'full_name': user.userMetadata?['full_name'] ?? user.userMetadata?['name']};
-        contactEmail.text = user.email ?? _notesAdminEmail;
-        loadLanguages();
-        loadProgress();
+        initializeSharedNotes();
       } else {
         restore();
       }
+    }
+  }
+  Future<void> initializeSharedNotes() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) { await restore(); return; }
+    setState(() => {loading=true,error=null});
+    try {
+      final response = await Supabase.instance.client.functions.invoke('controldeck-sso',
+        headers: {'Authorization':'Bearer ${session.accessToken}'},
+        body: {'app':'notes','page':'/'});
+      if (response.status >= 400 || response.data is! Map || response.data['error'] != null) {
+        throw Exception(response.data is Map ? (response.data['error'] ?? 'Notes access is not enabled for this account.').toString() : 'Notes access is not enabled for this account.');
+      }
+      final data = Map<String,dynamic>.from(response.data as Map);
+      final user = Supabase.instance.client.auth.currentUser!;
+      client = Supabase.instance.client;
+      token = session.accessToken;
+      profile = Map<String,dynamic>.from(data['profile'] as Map);
+      contactEmail.text = user.email ?? _notesAdminEmail;
+      await loadLanguages();
+      await loadProgress();
+    } catch(e) {
+      if(mounted)setState(()=>error=friendly(e));
+    } finally {
+      if(mounted)setState(()=>loading=false);
     }
   }
   @override void dispose() {
