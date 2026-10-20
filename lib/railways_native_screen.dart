@@ -120,7 +120,8 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     final link = TextEditingController();
     int? headingId = headings.isEmpty ? null : (headings.first['id'] as num).toInt();
     int? menuId;
-    List<Map<String,dynamic>> availableMenus = [];
+    List<Map<String,dynamic>> availableMenus = [], availableFolders = [];
+    int? folderId;
     PlatformFile? picked;
     String mode = 'file';
     final accepted = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
@@ -134,7 +135,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         DropdownButtonFormField<int>(value: headingId, decoration: const InputDecoration(labelText: 'Main heading'),
           items: headings.map((h) => DropdownMenuItem<int>(value: (h['id'] as num).toInt(), child: Text((h['headingname'] ?? '').toString()))).toList(),
           onChanged: (v) async {
-            headingId = v; menuId = null; availableMenus = [];
+            headingId = v; menuId = null; folderId = null; availableMenus = []; availableFolders = [];
             if (v != null) {
               final raw = await db.from('menu_master').select('id,menuname').eq('main_heading_id', v).eq('status', '1').order('id');
               availableMenus = List<Map<String,dynamic>>.from(raw);
@@ -149,7 +150,18 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         const SizedBox(height: 10),
         DropdownButtonFormField<int>(value: menuId, decoration: const InputDecoration(labelText: 'Menu'),
           items: availableMenus.map((m) => DropdownMenuItem<int>(value: (m['id'] as num).toInt(), child: Text((m['menuname'] ?? '').toString()))).toList(),
-          onChanged: (v) => setDialog(() => menuId = v)),
+          onChanged: (v) async {
+            menuId = v; folderId = null; availableFolders = [];
+            if (v != null && headingId != null) {
+              final raw = await db.from('folder_master').select('id,foldername').eq('main_heading_id', headingId!).eq('menu_id', v).eq('status', '1').order('id');
+              availableFolders = List<Map<String,dynamic>>.from(raw);
+            }
+            setDialog(() {});
+          }),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<int>(value: folderId, decoration: const InputDecoration(labelText: 'Folder (optional)'),
+          items: availableFolders.map((f) => DropdownMenuItem<int>(value: (f['id'] as num).toInt(), child: Text((f['foldername'] ?? '').toString()))).toList(),
+          onChanged: (v) => setDialog(() => folderId = v)),
         const SizedBox(height: 10),
         TextField(controller: title, decoration: const InputDecoration(labelText: 'Document title')),
         if (mode == 'file')
@@ -186,8 +198,10 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
           if (uri == null || !uri.hasScheme || !(uri.scheme == 'https' || uri.scheme == 'http')) throw Exception('Enter a valid cloud URL.');
         }
         final selectedMenu = availableMenus.firstWhere((m) => (m['id'] as num).toInt() == menuId);
+        final selectedFolder = availableFolders.where((f) => (f['id'] as num).toInt() == folderId).firstOrNull;
         await db.from('datacollection').insert({
           'name': title.text.trim(), 'links': storedLink, 'type': type, 'menuname': selectedMenu['menuname'],
+          'folder': selectedFolder?['foldername'], 'folder_id': folderId,
           'main_heading_id': headingId, 'menu_id': menuId, 'status': 0, 'uploaded_by': user?['username'],
           'uploaded_at': DateTime.now().toIso8601String(), 'source_type': sourceType,
         });
