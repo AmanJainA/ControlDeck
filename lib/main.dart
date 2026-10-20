@@ -26,6 +26,8 @@ class DeckApp {
   int accentHex, sortOrder;
   bool favorite;
 
+  bool get isConnected => url.trim().isNotEmpty;
+
   Map<String, dynamic> toJson({String? ownerId}) => {
     'id': id, if (ownerId != null) 'owner_id': ownerId, 'name': name, 'description': description,
     'category': category, 'url': url, 'admin_url': adminUrl, 'icon_key': iconKey,
@@ -59,15 +61,15 @@ IconData iconFor(String key) {
 
 List<DeckApp> starterApps() => [
   DeckApp(id: 'lifehub', name: 'LifeHub', description: 'Personal workspace, notes and daily planning',
-    category: 'Personal', url: 'https://amanajaina.github.io/LifeHub/', iconKey: 'lifehub', accentHex: 0xFF8B5CF6, sortOrder: 0),
+    category: 'Personal', url: '', iconKey: 'lifehub', accentHex: 0xFF8B5CF6, sortOrder: 0),
   DeckApp(id: 'notes', name: 'Notes', description: 'Capture ideas and keep your knowledge organised',
-    category: 'Personal', url: 'https://amanajaina.github.io/Notes/', iconKey: 'notes', accentHex: 0xFFF59E0B, sortOrder: 1),
+    category: 'Personal', url: '', iconKey: 'notes', accentHex: 0xFFF59E0B, sortOrder: 1),
   DeckApp(id: 'railways', name: 'Railways', description: 'Railway portal and operational workflows',
-    category: 'Professional', url: 'https://amanajaina.github.io/Railways/', iconKey: 'railways', accentHex: 0xFF0EA5E9, sortOrder: 2),
+    category: 'Professional', url: '', iconKey: 'railways', accentHex: 0xFF0EA5E9, sortOrder: 2),
   DeckApp(id: 'interview', name: 'Interview', description: 'Practice, assessments and interview results',
-    category: 'Professional', url: 'https://amanajaina.github.io/Interview/', iconKey: 'interview', accentHex: 0xFF10B981, sortOrder: 3),
+    category: 'Professional', url: '', iconKey: 'interview', accentHex: 0xFF10B981, sortOrder: 3),
   DeckApp(id: 'portfolio', name: 'Portfolio', description: 'Personal portfolio and project showcase',
-    category: 'Creative', url: 'https://amanajaina.github.io/Portfolio/', iconKey: 'portfolio', accentHex: 0xFFEC4899, sortOrder: 4),
+    category: 'Creative', url: '', adminUrl: '', iconKey: 'portfolio', accentHex: 0xFFEC4899, sortOrder: 4),
 ];
 
 class ControlDeckApp extends StatefulWidget {
@@ -247,7 +249,11 @@ class _DeckHomeState extends State<DeckHome> {
 
   Future<void> openApp(DeckApp app, {bool admin = false}) async {
     final target = admin ? app.adminUrl : app.url;
-    if (target.trim().isEmpty) { await editApp(app); if (mounted) message('Add the admin URL in Edit app to enable this shortcut.'); return; }
+    if (target.trim().isEmpty) {
+      await editApp(app);
+      if (mounted && admin) message('Add the admin URL to enable the Portfolio admin shortcut.');
+      return;
+    }
     await openUrl(target);
   }
 
@@ -259,7 +265,7 @@ class _DeckHomeState extends State<DeckHome> {
     String cat = old?.category ?? 'Personal', icon = old?.iconKey ?? 'apps';
     final formKey = GlobalKey<FormState>();
     final ok = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
-      title: Text(old == null ? 'Add an app' : 'Edit ' + old.name),
+      title: Text(old == null ? 'Add an app' : (old.url.trim().isEmpty ? 'Connect ' + old.name : 'Edit ' + old.name)),
       content: SizedBox(width: 460, child: SingleChildScrollView(child: Form(key: formKey, child: Column(mainAxisSize: MainAxisSize.min, children: [
         TextFormField(controller: name, decoration: const InputDecoration(labelText: 'App name'), validator: (v) => v == null || v.trim().isEmpty ? 'Enter a name' : null),
         const SizedBox(height: 10), TextFormField(controller: description, decoration: const InputDecoration(labelText: 'Description')),
@@ -277,7 +283,7 @@ class _DeckHomeState extends State<DeckHome> {
             DropdownMenuItem(value: 'code', child: Text('Code'))], onChanged: (v) => setDialog(() => icon = v ?? icon)),
       ])))),
       actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-        FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(ctx, true); }, child: const Text('Save app'))],
+        FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(ctx, true); }, child: Text(old != null && old.url.trim().isEmpty ? 'Save connection' : 'Save app'))],
     )));
     if (ok == true && mounted) {
       final isNew = old == null;
@@ -314,6 +320,7 @@ class _DeckHomeState extends State<DeckHome> {
     final theme = Theme.of(context);
     final wide = MediaQuery.sizeOf(context).width >= 850;
     final items = shown;
+    final connectedCount = apps.where((a) => a.isConnected).length;
     final personal = apps.where((a) => a.category == 'Personal').length;
     final professional = apps.where((a) => a.category == 'Professional').length;
     return Scaffold(
@@ -330,7 +337,7 @@ class _DeckHomeState extends State<DeckHome> {
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(page == 'Overview' ? 'Your workspace, in one place.' : page, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -1)),
-                const SizedBox(height: 8), Text('Launch your tools, manage shortcuts, and keep your workflow connected.', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                const SizedBox(height: 8), Text('One workspace for LifeHub, Notes, Railways, Interview, and Portfolio — connect each destination when you are ready.', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               ])),
               if (wide) FilledButton.icon(onPressed: () => editApp(), icon: const Icon(Icons.add_rounded), label: const Text('Add app'),
                 style: FilledButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16))),
@@ -340,7 +347,7 @@ class _DeckHomeState extends State<DeckHome> {
               final cols = box.maxWidth > 1000 ? 4 : box.maxWidth > 540 ? 2 : 1;
               return GridView.count(crossAxisCount: cols, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 12, crossAxisSpacing: 12,
                 childAspectRatio: cols == 1 ? 4.2 : 2.1, children: [
-                  _MetricCard(label: 'Connected apps', value: apps.length.toString(), caption: 'Your personal app library', icon: Icons.grid_view_rounded),
+                  _MetricCard(label: 'Connected apps', value: connectedCount.toString(), caption: 'Ready to launch', icon: Icons.grid_view_rounded),
                   _MetricCard(label: 'Personal', value: personal.toString(), caption: 'Life and productivity', icon: Icons.home_work_rounded),
                   _MetricCard(label: 'Professional', value: professional.toString(), caption: 'Work and operations', icon: Icons.work_outline_rounded),
                   _MetricCard(label: 'Favourites', value: apps.where((a) => a.favorite).length.toString(), caption: 'Quick access shortcuts', icon: Icons.star_rounded),
@@ -452,12 +459,14 @@ class _AppCard extends StatelessWidget {
             itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('Edit shortcut')), PopupMenuItem(value: 'delete', child: Text('Remove shortcut'))]),
         ]),
         const SizedBox(height: 14), Text(app.name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 7),
+        _StatusPill(label: app.isConnected ? 'Connected' : 'Not connected', icon: app.isConnected ? Icons.link_rounded : Icons.link_off_rounded, color: app.isConnected ? accent : theme.colorScheme.onSurfaceVariant),
         const SizedBox(height: 5), Expanded(child: Text(app.description.isEmpty ? 'Open this tool from your workspace.' : app.description,
           maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.4))),
         Row(children: [
           Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)), child: Text(app.category, style: theme.textTheme.labelSmall)),
-          const Spacer(), if (onAdmin != null) IconButton(tooltip: 'Open admin', onPressed: onAdmin, icon: const Icon(Icons.admin_panel_settings_outlined, size: 19)),
-          FilledButton.tonalIcon(onPressed: onOpen, icon: const Icon(Icons.north_east_rounded, size: 16), label: const Text('Open')),
+          const Spacer(), if (onAdmin != null) IconButton(tooltip: app.adminUrl.trim().isEmpty ? 'Configure Portfolio admin' : 'Open admin', onPressed: onAdmin, icon: const Icon(Icons.admin_panel_settings_outlined, size: 19)),
+          FilledButton.tonalIcon(onPressed: onOpen, icon: Icon(app.isConnected ? Icons.north_east_rounded : Icons.link_rounded, size: 16), label: Text(app.isConnected ? 'Open' : 'Connect')),
         ]),
       ]))));
   }
