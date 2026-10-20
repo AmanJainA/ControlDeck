@@ -180,6 +180,18 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   }
 
 
+
+  Future<void> openNRDashboard() async {
+    setState(() { view = 'nr'; files = []; busy = true; error = null; });
+    try {
+      final raw = await db.from('datacollection')
+          .select('id,name,links,type,status,remark,uploaded_by,uploaded_at,main_heading_id,menu_id,folder_id,menuname,folder,source_type')
+          .eq('status', 1).order('id', ascending: false);
+      if (mounted) setState(() { files = List<Map<String,dynamic>>.from(raw); });
+    } catch (e) { if (mounted) setState(() => error = message(e)); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+
   Future<void> openPendingApprovals() async {
     setState(() { view = 'pending'; files = []; busy = true; error = null; });
     try {
@@ -296,6 +308,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         if(headings.isEmpty)const EmptyRailway(title:'No workspaces assigned',detail:'Ask your administrator to grant access.'),
         for(final h in headings)Card(child:ListTile(leading:const CircleAvatar(child:Icon(Icons.account_tree_rounded)),title:Text((h['headingname']??'Workspace').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:const Text('Open menus and documents'),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>openHeading(h))),
         const SizedBox(height:20),
+        Card(child: ListTile(leading: const Icon(Icons.dashboard_customize_outlined), title: const Text('Northern Railway Dashboard'), subtitle: const Text('Browse approved railway documents across workspaces'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openNRDashboard)),
         Text('Railway tools', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height:8),
         Card(child: ListTile(leading: const Icon(Icons.cloud_upload_outlined), title: const Text('Upload Files'), subtitle: const Text('Submit a document or cloud link'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => uploadLink())),
@@ -314,6 +327,14 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
           Card(child: ListTile(leading: const Icon(Icons.history_rounded), title: const Text('Login History'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('login_history', 'Login History'))),
           Card(child: ListTile(leading: const Icon(Icons.timeline_rounded), title: const Text('Page Activity'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('page_activity', 'Page Activity'))),
         ],
+      ]else if(view=='nr')...[
+        hero('Northern Railway Dashboard', 'Approved repository documents: ' + files.length.toString(), Icons.dashboard_customize_outlined),
+        const SizedBox(height:10),
+        LayoutBuilder(builder:(ctx,c){final counts=<String,int>{};for(final f in files){final key=(f['menuname']??'Uncategorised').toString();counts[key]=(counts[key]??0)+1;}final n=c.maxWidth>700?3:c.maxWidth>460?2:1;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:n,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:n==1?4:2.3,children:counts.entries.map((e)=>metric(e.key,e.value.toString(),Icons.folder_open_rounded)).toList());}),
+        const SizedBox(height:12),
+        TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search_rounded),labelText:'Search approved documents')),
+        const SizedBox(height:8),
+        for(final f in files.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())))Card(child:ListTile(leading:fileIcon((f['type']??'').toString()),title:Text((f['name']??'Document').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text((f['menuname']??'').toString()+' • '+(f['folder']??'').toString(),maxLines:2,overflow:TextOverflow.ellipsis),trailing:const Icon(Icons.open_in_new_rounded),onTap:()=>showFile(f))),
       ]else if(view=='pending')...[
         hero('Pending Approvals', 'Approve or reject documents submitted by Railway users.', Icons.fact_check_outlined),
         if (files.isEmpty) const EmptyRailway(title: 'No pending documents', detail: 'There are no submissions waiting for approval.'),
