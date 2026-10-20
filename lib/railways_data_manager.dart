@@ -26,6 +26,12 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
     'folder_master': [
       {'key':'foldername','label':'Folder name'}, {'key':'main_heading_id','label':'Main heading ID'}, {'key':'menu_id','label':'Menu ID'}, {'key':'status','label':'Status (1 active, 0 inactive'}, {'key':'created_by','label':'Created by'}
     ],
+    'user_main_heading_access': [
+      {'key':'user_id','label':'User ID'}, {'key':'main_heading_id','label':'Main heading ID'}, {'key':'created_by','label':'Created by'}
+    ],
+    'user_menu_access': [
+      {'key':'user_id','label':'User ID'}, {'key':'menu_id','label':'Menu ID'}, {'key':'created_by','label':'Created by'}
+    ],
     'users': [
       {'key':'username','label':'Username'}, {'key':'password','label':'Password'}, {'key':'role','label':'Role: admin / subadmin / user'}, {'key':'email','label':'Email'}, {'key':'dept','label':'Department'}, {'key':'project','label':'Project'}
     ],
@@ -111,6 +117,8 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
     } catch (e) { if (mounted) setState(() => error = e.toString().replaceFirst('Exception: ', '')); }
   }
 
+  bool get readOnly => ['user_presence','login_history','page_activity','file_uploads'].contains(widget.table);
+
   @override Widget build(BuildContext context) {
     final filtered = rows.where((r) => r.values.any((v) => v != null && v.toString().toLowerCase().contains(search.text.toLowerCase()))).toList();
     return Scaffold(
@@ -120,7 +128,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
         Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 6), child: Row(children: [
           Expanded(child: TextField(controller: search, onChanged: (_) => setState(() {}), decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), labelText: 'Search records'))),
           const SizedBox(width: 10),
-          FilledButton.icon(onPressed: () => edit(), icon: const Icon(Icons.add_rounded), label: const Text('Add')),
+          if (!readOnly) FilledButton.icon(onPressed: () => edit(), icon: const Icon(Icons.add_rounded), label: const Text('Add')),
         ])),
         Expanded(child: busy ? const Center(child: CircularProgressIndicator()) : filtered.isEmpty
           ? const Center(child: Text('No records found.'))
@@ -131,7 +139,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
             return Card(child: ListTile(
               title: Text(title.toString(), style: const TextStyle(fontWeight: FontWeight.w700)),
               subtitle: Text(summary, maxLines: 3, overflow: TextOverflow.ellipsis),
-              trailing: PopupMenuButton<String>(onSelected: (v) { if (v == 'edit') edit(row); if (v == 'delete') remove(row); }, itemBuilder: (_) => const [
+              trailing: readOnly ? const Icon(Icons.chevron_right_rounded) : PopupMenuButton<String>(onSelected: (v) { if (v == 'edit') edit(row); if (v == 'delete') remove(row); }, itemBuilder: (_) => const [
                 PopupMenuItem(value: 'edit', child: Text('Edit')),
                 PopupMenuItem(value: 'delete', child: Text('Delete')),
               ]),
