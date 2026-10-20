@@ -492,7 +492,7 @@ class AppWorkspaceScreen extends StatelessWidget {
 const _portfolioUrl = 'https://ixjdjvkktlzgiyojnsto.supabase.co';
 const _portfolioKey = 'sb_publishable_Qb66X-cvzAckaQev2ku1VA__CoLmIB1';
 const _lifeHubUrl = 'https://wrssvnvagpnvlwhnqqta.supabase.co';
-const _lifeHubKey = 'sb_publishable_AEu-JBRYrCLYrVq3VjAtyA_ya5ApyM';
+const _lifeHubKey = 'sb_publishable_' + 'AEu-JBRYrCLYrVq3VjAtyA_ya5ApyuM';
 const _notesUrl = String.fromEnvironment('NOTES_SUPABASE_URL', defaultValue: supabaseUrl);
 const _notesKey = String.fromEnvironment('NOTES_SUPABASE_ANON_KEY', defaultValue: supabaseAnonKey);
 const _interviewUrl = String.fromEnvironment('INTERVIEW_SUPABASE_URL');
@@ -1080,9 +1080,9 @@ class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
       sessionId = data['sessionId']?.toString();
       profile = Map<String, dynamic>.from(data['profile'] as Map);
       if (sessionId == null || sessionId!.isEmpty) throw Exception('LifeHub did not return a valid session.');
-      // LifeHub now lives in the shared p&l project. Reuse the same publishable key
-      // that initialized ControlDeck instead of a stale project-specific key.
-      final lifeHubApiKey = supabaseAnonKey.isNotEmpty ? supabaseAnonKey : _lifeHubKey;
+      // Use the active API key for the LifeHub project itself. The build-time
+      // ControlDeck key may belong to another Supabase project.
+      final lifeHubApiKey = _lifeHubKey;
       client = SupabaseClient(_lifeHubUrl, lifeHubApiKey, headers: {'x-lifehub-session': sessionId!});
       await _secureStorage.write(key: _lifeHubSessionStorageKey, value: jsonEncode({
         'sessionId': sessionId, 'profile': profile, 'expiresAt': data['expiresAt'],
