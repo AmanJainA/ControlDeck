@@ -1265,46 +1265,104 @@ class InterviewNativeScreen extends StatefulWidget {
 }
 class _InterviewNativeScreenState extends State<InterviewNativeScreen> {
   SupabaseClient? client;
-  final email = TextEditingController(), password = TextEditingController();
   bool busy = false;
   String? error;
   Map<String,dynamic>? profile;
   List<Map<String,dynamic>> questions = [];
-  @override void initState() { super.initState(); if (_interviewUrl.isNotEmpty && _interviewKey.isNotEmpty) client = SupabaseClient(_interviewUrl, _interviewKey); }
-  @override void dispose() { email.dispose(); password.dispose(); super.dispose(); }
-  Future<void> login() async {
-    if (client == null) return;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_interviewUrl.isNotEmpty && _interviewKey.isNotEmpty) {
+      client = SupabaseClient(_interviewUrl, _interviewKey);
+      _restoreInterviewSession();
+    } else {
+      error = 'Interview database configuration is missing.';
+    }
+  }
+
+  Future<void> _restoreInterviewSession() async {
+    if (client == null || !mounted) return;
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      setState(() {
+        error = 'Your ControlDeck session has expired. Sign in to ControlDeck again.';
+        busy = false;
+      });
+      return;
+    }
     setState(() { busy = true; error = null; });
     try {
-      final rows = await client!.schema('interview').rpc('login_user', params: {'p_email': email.text.trim(), 'p_password': password.text});
-      if ((rows as List).isEmpty) throw Exception('Incorrect email or password.');
-      if (mounted) setState(() { profile = Map<String,dynamic>.from(rows.first as Map); busy = false; });
+      final result = await Supabase.instance.client.functions.invoke(
+        'controldeck-sso',
+        headers: {'Authorization': 'Bearer ${session.accessToken}'},
+        body: {'app': 'interview', 'page': '/'},
+      );
+      final data = Map<String, dynamic>.from(result.data as Map);
+      if (result.status >= 400 || data['error'] != null || data['ok'] != true) {
+        throw Exception((data['error'] ?? 'Interview shared sign-in failed.').toString());
+      }
+      final linkedProfile = Map<String, dynamic>.from(data['profile'] as Map);
+      if (mounted) setState(() { profile = linkedProfile; busy = false; });
       await loadQuestions();
-    } catch (e) { if (mounted) setState(() { error = e.toString().replaceFirst('Exception: ', ''); busy = false; }); }
+    } catch (e) {
+      if (mounted) setState(() {
+        error = e.toString().replaceFirst('Exception: ', '');
+        busy = false;
+      });
+    }
   }
+
   Future<void> loadQuestions() async {
     if (client == null) return;
     try {
-      final rows = await client!.schema('interview').from('questions').select('id,assessment_type,question_text,option_a,option_b,option_c,option_d,marks').order('sort_order');
+      final rows = await client!.schema('interview').from('questions')
+          .select('id,assessment_type,question_text,option_a,option_b,option_c,option_d,marks')
+          .order('sort_order');
       if (mounted) setState(() => questions = List<Map<String,dynamic>>.from(rows));
-    } catch (e) { if (mounted) setState(() => error = e.toString()); }
+    } catch (e) {
+      if (mounted) setState(() => error = 'Signed in, but questions could not load: $e');
+    }
   }
-  @override Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: const Text('Interview')),
-    body: client == null ? _ConnectionNotice(title: 'Connect your Interview database', detail: 'The Interview main branch reads VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY from local environment variables. Run ControlDeck with --dart-define=INTERVIEW_SUPABASE_URL=... and --dart-define=INTERVIEW_SUPABASE_ANON_KEY=... to connect it.') :
-    profile == null ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(22), children: [
-      const _WorkspaceHero(title: 'Assessment portal', subtitle: 'Sign in to continue to your interview workspace.', icon: Icons.quiz_rounded),
-      const SizedBox(height: 18), TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email')),
-      const SizedBox(height: 12), TextField(controller: password, obscureText: true, onSubmitted: (_) => login(), decoration: const InputDecoration(labelText: 'Password')),
-      if (error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-      const SizedBox(height: 16), FilledButton(onPressed: busy ? null : login, child: busy ? const CircularProgressIndicator() : const Text('Sign in')),
-    ]))) : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 960), child: ListView(padding: const EdgeInsets.all(20), children: [
-      _WorkspaceHero(title: 'Welcome, ${profile!['name'] ?? 'User'}', subtitle: 'Signed in · ${profile!['usertype'] ?? 'user'} account', icon: Icons.account_circle_rounded),
-      const SizedBox(height: 18),
-      _DataSection(title: 'Available assessment questions', rows: questions.map((q) => {'question':q['question_text'],'type':q['assessment_type'],'marks':q['marks']}).toList()),
-      if (error != null) Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-      OutlinedButton.icon(onPressed: () => setState(() { profile = null; questions = []; password.clear(); }), icon: const Icon(Icons.logout_rounded), label: const Text('Sign out')),
-    ]))),
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
+      title: const Text('Interview'),
+    ),
+    body: client == null
+        ? _ConnectionNotice(title: 'Interview connection unavailable', detail: error ?? 'Check the Interview database configuration.')
+        : profile == null
+            ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 480), child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.all(22),
+                children: [
+                  const _WorkspaceHero(title: 'Interview workspace', subtitle: 'Using your ControlDeck account for secure sign-in.', icon: Icons.verified_user_rounded),
+                  if (busy) const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
+                  if (error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: busy ? null : _restoreInterviewSession,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Retry secure sign-in'),
+                  ),
+                ],
+              )))
+            : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 960), child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  _WorkspaceHero(title: 'Welcome, ${profile!['name'] ?? 'User'}', subtitle: 'Signed in · ${profile!['usertype'] ?? 'user'} account', icon: Icons.account_circle_rounded),
+                  const SizedBox(height: 18),
+                  _DataSection(title: 'Available assessment questions', rows: questions.map((q) => {'question':q['question_text'],'type':q['assessment_type'],'marks':q['marks']}).toList()),
+                  if (error != null) Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: const Text('Back to ControlDeck'),
+                  ),
+                ],
+              ))),
   );
 }
 
