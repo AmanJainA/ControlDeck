@@ -369,7 +369,7 @@ class _DeckHomeState extends State<DeckHome> {
               final cols = box.maxWidth > 1000 ? 4 : box.maxWidth > 540 ? 2 : 1;
               return GridView.count(crossAxisCount: cols, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 12, crossAxisSpacing: 12,
                 childAspectRatio: cols == 1 ? 4.2 : 2.1, children: [
-                  _MetricCard(label: 'Connected apps', value: connectedCount.toString(), caption: 'Ready to launch', icon: Icons.grid_view_rounded),
+                  _MetricCard(label: 'App workspaces', value: apps.length.toString(), caption: 'Ready to open', icon: Icons.grid_view_rounded),
                   _MetricCard(label: 'Personal', value: personal.toString(), caption: 'Life and productivity', icon: Icons.home_work_rounded),
                   _MetricCard(label: 'Professional', value: professional.toString(), caption: 'Work and operations', icon: Icons.work_outline_rounded),
                   _MetricCard(label: 'Favourites', value: apps.where((a) => a.favorite).length.toString(), caption: 'Quick access shortcuts', icon: Icons.star_rounded),
