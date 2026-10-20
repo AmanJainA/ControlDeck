@@ -27,16 +27,19 @@ This is a native Flutter migration in progress, not a claim that every React wor
 
 ## Configuration
 
-ControlDeck uses its central Supabase Auth project for sign-in and optional cloud sync uses `public.controldeck_apps`. Configure the project first; the app shows a setup screen instead of silently bypassing authentication when these values are absent. To enable cloud sync, run `supabase/controldeck_schema.sql` in a dedicated Supabase project and launch with:
+Supabase connections are configured statically in [`lib/supabase_config.dart`](lib/supabase_config.dart), so ordinary runs no longer need `--dart-define` values:
+
+- **Project 1** (`wrssvnvagpnvlwhnqqta`): ControlDeck sign-in, LifeHub, Notes and Interview.
+- **Project 2** (`drcxxbymdonyfjtkiouf`): Portfolio and Railways data.
+
+Run the app with:
 
 ```bash
 flutter pub get
-flutter run \
-  --dart-define=SUPABASE_URL=https://YOUR_CONTROLDECK_PROJECT.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=YOUR_CONTROLDECK_PUBLISHABLE_OR_ANON_KEY
+flutter run
 ```
 
-The project-specific data connections are separate from ControlDeck's own shortcut sync. Notes configuration and policy steps are documented in [docs/NOTES_NATIVE_INTEGRATION.md](docs/NOTES_NATIVE_INTEGRATION.md) and [docs/NOTES_ADMIN_POLICIES.sql](docs/NOTES_ADMIN_POLICIES.sql).
+Run `supabase/controldeck_schema.sql` in the project used for ControlDeck's `public.controldeck_apps` sync. The two projects remain separate databases; static configuration does not merge their data or automatically provide cross-project SSO. Notes configuration and policy steps are documented in [docs/NOTES_NATIVE_INTEGRATION.md](docs/NOTES_NATIVE_INTEGRATION.md) and [docs/NOTES_ADMIN_POLICIES.sql](docs/NOTES_ADMIN_POLICIES.sql).
 
 ### LifeHub
 
