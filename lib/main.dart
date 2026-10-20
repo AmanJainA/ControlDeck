@@ -88,17 +88,17 @@ class DeckApp {
 
 // Use the bundled Font Awesome icon font for the app launcher icons. These
 // glyphs are supplied by font_awesome_flutter and do not depend on remote assets.
-FaIconData iconFor(String key) {
+Widget iconFor(String key) {
   switch (key) {
-    case 'lifehub': return FontAwesomeIcons.house;
-    case 'notes': return FontAwesomeIcons.noteSticky;
-    case 'railways': return FontAwesomeIcons.train;
-    case 'interview': return FontAwesomeIcons.clipboardQuestion;
-    case 'portfolio': return FontAwesomeIcons.globe;
-    case 'admin': return FontAwesomeIcons.userShield;
-    case 'analytics': return FontAwesomeIcons.chartLine;
-    case 'code': return FontAwesomeIcons.code;
-    default: return FontAwesomeIcons.grip;
+    case 'lifehub': return const FaIcon(FontAwesomeIcons.house);
+    case 'notes': return const FaIcon(FontAwesomeIcons.noteSticky);
+    case 'railways': return const FaIcon(FontAwesomeIcons.train);
+    case 'interview': return const FaIcon(FontAwesomeIcons.clipboardQuestion);
+    case 'portfolio': return const FaIcon(FontAwesomeIcons.globe);
+    case 'admin': return const FaIcon(FontAwesomeIcons.userShield);
+    case 'analytics': return const FaIcon(FontAwesomeIcons.chartLine);
+    case 'code': return const FaIcon(FontAwesomeIcons.code);
+    default: return const FaIcon(FontAwesomeIcons.grip);
   }
 }
 
@@ -728,7 +728,7 @@ class _NativeFeatureScreen extends StatelessWidget {
   });
 
   final String title, subtitle;
-  final IconData icon;
+  final Widget icon;
   final List<String> features;
 
   @override
@@ -805,7 +805,7 @@ class _WorkspaceHero extends StatelessWidget {
               color: accent.withValues(alpha: .18),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(icon, color: accent, size: 28),
+            child: IconTheme(data: const IconThemeData(color: accent, size: 28), child: icon),
           ),
           const SizedBox(height: 18),
           Text(title, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
@@ -1540,7 +1540,7 @@ class _AppCard extends StatelessWidget {
     return Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onOpen, child: Padding(padding: const EdgeInsets.all(18),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Container(width: 48, height: 48, decoration: BoxDecoration(color: tint.withValues(alpha: .15), borderRadius: BorderRadius.circular(15)), child: FaIcon(iconFor(app.iconKey), color: tint, size: 25)),
+          Container(width: 48, height: 48, decoration: BoxDecoration(color: tint.withValues(alpha: .15), borderRadius: BorderRadius.circular(15)), child: IconTheme(data: IconThemeData(color: tint, size: 25), child: iconFor(app.iconKey))),
           const Spacer(), IconButton(tooltip: app.favorite ? 'Remove favourite' : 'Add favourite', onPressed: onFavorite,
             icon: Icon(app.favorite ? Icons.star_rounded : Icons.star_border_rounded, color: app.favorite ? accent : theme.colorScheme.onSurfaceVariant)),
           PopupMenuButton<String>(tooltip: 'App options', onSelected: (v) { if (v == 'edit') onEdit(); if (v == 'delete') onDelete(); },
