@@ -10,16 +10,16 @@ The editable iOS/Android screen concept is in [Figma](https://www.figma.com/desi
 
 - **Responsive dashboard:** mobile/tablet/desktop layouts, dark/light themes, favourites, categories, editable shortcuts, local storage and optional Supabase sync.
 - **Animated search:** the search control expands smoothly from the app bar and filters the workspace list as you type. The toolbar adapts to narrow screens.
-- **LifeHub:** native sign-in, session-aware Supabase connection, and task list/add flow.
+- **LifeHub:** native sign-in, securely persisted custom-auth session, session-aware Supabase connection, and task list/add flow.
 - **Portfolio:** native public portfolio view for profile, skills, projects, work experience, education, languages, and social links.
-- **Portfolio Admin:** native admin sign-in and CRUD screens for languages, skills, projects, education, work experience, and social links, using the existing admin_login, admin_get_all, admin_upsert, admin_delete, and admin_logout database RPCs.
+- **Portfolio Admin:** native admin sign-in and CRUD screens for languages, skills, projects, education, work experience, and social links, using the existing admin_login, admin_get_all, admin_upsert, admin_delete, and admin_logout database RPCs. The admin session token is stored in platform secure storage and revalidated by the backend on restore.
 - **Notes:** native language/topic/lesson browser backed by the Notes schema, with support for heading, subheading, paragraph, code, ordered/unordered lists, image, note, table, and divider content blocks.
 - **Interview:** native sign-in and question catalogue backed by the Interview schema.
 - **Railways:** native module map for My Data, Nangia, NR Dashboard, File Viewer, Approvals, Work Tracker, Administration, and Activity/History; secure data loading and role-aware workflows remain to be ported.
 
 ## Shared sign-in and security
 
-The requested single sign-in is the intended product experience, but the source projects currently use different authentication systems: ControlDeck/Portfolio Supabase Auth or admin RPCs, LifeHub custom-auth Edge Functions, Notes custom-auth/session handling, Interview custom login RPCs, and Railways table-based username/password checks. A single screen does not create secure SSO by itself. A central identity/session bridge must be deployed and tested for each backend before the app can promise one login across all workspaces. Do not hardcode the supplied password or commit service-role credentials.
+The requested single sign-in is the intended product experience, but **full cross-project SSO is not complete yet**. This phase adds secure persistence for LifeHub and Portfolio Admin tokens, and their backends still validate those tokens. The projects use different authentication systems: ControlDeck Supabase Auth, LifeHub/Notes custom-auth, Interview custom login RPCs, Portfolio admin RPCs, and Railways legacy role-based authentication. A central identity/session bridge must be deployed and tested for each backend before the app can promise one login across all workspaces. Current status and blockers are in [docs/SSO_IMPLEMENTATION_STATUS.md](docs/SSO_IMPLEMENTATION_STATUS.md). Do not hardcode passwords or commit service-role credentials.
 
 ## Important feature-parity status
 
