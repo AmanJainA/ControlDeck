@@ -76,3 +76,12 @@ flutter test
 ```
 
 A successful GitHub commit does not by itself mean the iOS/Android builds or every migrated workflow have been tested.
+
+## Working workspace access
+
+- **Railways:** the Railway workspace tiles open the existing Railway portal so its real login, menus, records and permissions remain in effect. The Flutter app does not bypass Railway access controls or pretend to be a native rewrite of every Railway screen.
+- **Portfolio:** open the Portfolio card's admin action to use the Portfolio CMS. It supports profile, languages, skills, projects, education, work experience, social links and contact-message management through the existing `portfolio` schema admin RPCs.
+- **Profile:** the dashboard includes a Profile destination for updating the ControlDeck display name and password through Supabase Auth.
+- **Settings:** theme selection is persisted on the device; settings also provides profile/security navigation and sign-out.
+
+After pulling the latest source, run `flutter pub get` because ControlDeck now uses `url_launcher`.
