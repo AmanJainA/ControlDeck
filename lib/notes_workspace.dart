@@ -21,10 +21,10 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   static const storage = FlutterSecureStorage();
   SupabaseClient? publicClient, client;
   bool busy = false, loading = false, signUpMode = false;
-  String page = 'Dashboard', query = '';
+  String page = 'Home', query = '';
   String? error, notice, token;
   Map<String,dynamic>? profile, language, topic;
-  List<Map<String,dynamic>> languages = [], topics = [], progress = [], profiles = [], onlineUsers = [], loginActivity = [], pageVisits = [];
+  List<Map<String,dynamic>> languages = [], topics = [], allTopics = [], progress = [], profiles = [], onlineUsers = [], loginActivity = [], pageVisits = [];
   String activityTab = 'Online';
   List<dynamic> blocks = [];
   final email = TextEditingController(text: _notesAdminEmail);
@@ -43,7 +43,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       publicClient = SupabaseClient(notesWorkspaceUrl, notesWorkspaceKey,
         authOptions: const AuthClientOptions(autoRefreshToken: false));
       client = publicClient;
-      if (notesWorkspaceUrl == controlDeckWorkspaceUrl && controlDeckWorkspaceUrl.isNotEmpty && controlDeckWorkspaceKey.isNotEmpty && Supabase.instance.client.auth.currentUser != null) {
+      if (usesSharedControlDeckAuth) {
         initializeSharedNotes();
       } else {
         restore();
@@ -59,7 +59,18 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     final auth = Supabase.instance.client.auth;
     var session = auth.currentSession;
     if (session == null) {
-      await restore();
+      try {
+        final refreshed = await auth.refreshSession();
+        session = refreshed.session ?? auth.currentSession;
+      } catch (_) {
+        session = auth.currentSession;
+      }
+    }
+    if (session == null) {
+      if (mounted) setState(() {
+        loading = false;
+        error = 'Your ControlDeck session is unavailable. Return to ControlDeck and sign in once; Notes will reuse that session.';
+      });
       return;
     }
     setState(() => {loading=true,error=null,notice=null});
@@ -209,8 +220,14 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   Future<void> loadLanguages() async {
     if(client==null)return;
     setState(()=>{loading=true,error=null});
-    try { final rows=await client!.schema('notes').from('languages').select('*').order('sort_order').order('name'); if(mounted)languages=List<Map<String,dynamic>>.from(rows); }
-    catch(e){if(mounted)setState(()=>error=friendly(e));}
+    try {
+      final rows = await client!.schema('notes').from('languages').select('*').order('sort_order').order('name');
+      final topicRows = await client!.schema('notes').from('topics').select('*').order('sort_order').order('title');
+      if (mounted) {
+        languages = List<Map<String,dynamic>>.from(rows);
+        allTopics = List<Map<String,dynamic>>.from(topicRows);
+      }
+    } catch(e) { if(mounted)setState(()=>error=friendly(e)); }
     finally{if(mounted)setState(()=>loading=false);}
   }
   Future<void> loadTopics(Map<String,dynamic> item) async {
@@ -221,8 +238,15 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   }
   Future<void> loadLesson(Map<String,dynamic> item) async {
     setState(()=>{topic=item,blocks=[],loading=true,error=null});
-    try { final row=await client!.schema('notes').from('topic_content').select('content').eq('topic_id',item['id']).maybeSingle(); if(mounted)setState(()=>{blocks=List<dynamic>.from(row?['content'] as List? ?? const []),page='Lesson'}); }
-    catch(e){if(mounted)setState(()=>error=friendly(e));}
+    try {
+      final row = await client!.schema('notes').from('topic_content').select('content').eq('topic_id',item['id']).maybeSingle();
+      final rawContent = row?['content'];
+      final decodedContent = rawContent is String ? jsonDecode(rawContent) : rawContent;
+      if (mounted) setState(() {
+        blocks = decodedContent is List ? List<dynamic>.from(decodedContent) : <dynamic>[];
+        page = 'Lesson';
+      });
+    } catch(e) { if(mounted)setState(()=>error=friendly(e)); }
     finally{if(mounted)setState(()=>loading=false);}
   }
   Future<void> loadProgress() async {
@@ -319,19 +343,105 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     try{await client!.schema('notes').from(table).delete().eq('id',row['id']);if(table=='languages')await loadLanguages();else await loadTopics(language??languages.first);}
     catch(e){if(mounted)setState(()=>error=friendly(e));}
   }
+  int get _selectedNavIndex => switch (page) {
+    'Home' => 0,
+    'Dashboard' || 'Lessons' || 'Lesson' => 1,
+    'Progress' => 2,
+    'Profile' => 3,
+    _ => 0,
+  };
+
+  void _selectNav(int index) {
+    setState(() {
+      error = null;
+      notice = null;
+      switch (index) {
+        case 0:
+          language = null; topic = null; blocks = []; page = 'Home';
+          break;
+        case 1:
+          topic = null; blocks = [];
+          page = language == null ? 'Dashboard' : 'Lessons';
+          break;
+        case 2:
+          page = 'Progress';
+          break;
+        case 3:
+          page = 'Profile';
+          break;
+      }
+    });
+  }
+
   @override Widget build(BuildContext context) {
     final ready=publicClient!=null; final theme=Theme.of(context);
-    return Scaffold(appBar:AppBar(leading:IconButton(onPressed:(){if(topic!=null)setState(()=>{topic=null,blocks=[],page='Lessons'});else if(language!=null)setState(()=>{language=null,page='Dashboard'});else Navigator.of(context).maybePop();},icon:const Icon(Icons.arrow_back_rounded)),title:const Text('Notes'),actions:[
-      if(profile!=null)IconButton(tooltip:'Profile',onPressed:()=>setState(()=>page='Profile'),icon:const Icon(Icons.account_circle_outlined)),
-      if(profile!=null)IconButton(tooltip:'Sign out',onPressed:signOut,icon:const Icon(Icons.logout_rounded)),const SizedBox(width:8)]),
-      body:!ready?const Center(child:Padding(padding:EdgeInsets.all(24),child:Text('Configure NOTES_SUPABASE_URL and NOTES_SUPABASE_ANON_KEY to connect your Notes Supabase project.'))):
-      profile==null && !usesSharedControlDeckAuth?authView(theme):loading?const Center(child:CircularProgressIndicator()):ListView(padding:const EdgeInsets.all(18),children:[
-        if(error!=null)message(error!,true),
-        if(profile==null && usesSharedControlDeckAuth)Align(alignment:Alignment.centerLeft,child:FilledButton.icon(onPressed:initializeSharedNotes,icon:const Icon(Icons.refresh_rounded),label:const Text('Retry ControlDeck sign-in'))),
-        if(notice!=null)message(notice!,false),
-        if(page=='Dashboard')...dashboard(theme),if(page=='Lessons')...lessonList(theme),if(page=='Lesson')...lessonView(theme),
-        if(page=='About')...aboutView(),if(page=='Contact')...contactView(),if(page=='Profile')...profileView(theme),if(page=='Admin')...adminView(theme),if(page=='Activity')...activityView(theme),
-      ]));
+    return Scaffold(appBar:AppBar(
+      leading: IconButton(
+        onPressed: () {
+          if (topic != null) setState(() { topic = null; blocks = []; page = 'Lessons'; });
+          else if (language != null) setState(() { language = null; page = 'Dashboard'; });
+          else Navigator.of(context).maybePop();
+        },
+        icon: const Icon(Icons.arrow_back_rounded),
+      ),
+      title: const Text('Notes'),
+      actions: [
+        if (profile != null) PopupMenuButton<String>(
+          tooltip: 'More Notes sections',
+          onSelected: (value) {
+            if (value == 'about') setState(() => page = 'About');
+            if (value == 'contact') setState(() => page = 'Contact');
+            if (value == 'admin') loadAdmin();
+            if (value == 'activity') loadActivity();
+          },
+          itemBuilder: (_) => [
+            const PopupMenuItem(value: 'about', child: Text('About Notes')),
+            const PopupMenuItem(value: 'contact', child: Text('Contact')),
+            if (isAdmin) const PopupMenuItem(value: 'admin', child: Text('Admin management')),
+            if (isAdmin) const PopupMenuItem(value: 'activity', child: Text('Activity monitor')),
+          ],
+        ),
+        if (profile != null) IconButton(tooltip: 'Profile', onPressed: () => setState(() => page = 'Profile'), icon: const Icon(Icons.account_circle_outlined)),
+        if (profile != null) IconButton(tooltip: usesSharedControlDeckAuth ? 'Back to ControlDeck' : 'Sign out', onPressed: signOut, icon: Icon(usesSharedControlDeckAuth ? Icons.arrow_back_rounded : Icons.logout_rounded)),
+        const SizedBox(width: 8),
+      ],
+    ),
+      body: !ready
+          ? const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Configure NOTES_SUPABASE_URL and NOTES_SUPABASE_ANON_KEY to connect your Notes Supabase project.')))
+          : profile == null && !usesSharedControlDeckAuth
+              ? authView(theme)
+              : loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView(padding: const EdgeInsets.all(18), children: [
+                      if (error != null) message(error!, true),
+                      if (profile == null && usesSharedControlDeckAuth)
+                        Align(alignment: Alignment.centerLeft, child: FilledButton.icon(
+                          onPressed: initializeSharedNotes,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Retry shared session'),
+                        )),
+                      if (notice != null) message(notice!, false),
+                      if (page == 'Home') ...homeView(theme),
+                      if (page == 'Dashboard') ...dashboard(theme),
+                      if (page == 'Lessons') ...lessonList(theme),
+                      if (page == 'Lesson') ...lessonView(theme),
+                      if (page == 'Progress') ...progressView(theme),
+                      if (page == 'About') ...aboutView(),
+                      if (page == 'Contact') ...contactView(),
+                      if (page == 'Profile') ...profileView(theme),
+                      if (page == 'Admin') ...adminView(theme),
+                      if (page == 'Activity') ...activityView(theme),
+                    ]),
+      bottomNavigationBar: profile == null ? null : NavigationBar(
+        selectedIndex: _selectedNavIndex,
+        onDestinationSelected: _selectNav,
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_rounded), selectedIcon: Icon(Icons.home_filled), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.menu_book_rounded), label: 'Learn'),
+          NavigationDestination(icon: Icon(Icons.insights_rounded), label: 'Progress'),
+          NavigationDestination(icon: Icon(Icons.account_circle_outlined), label: 'Profile'),
+        ],
+      ),
   }
   Widget authView(ThemeData theme)=>Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:470),child:ListView(shrinkWrap:true,padding:const EdgeInsets.all(22),children:[
     const _NotesHero(title:'Coding Notes',subtitle:'Programming lessons, learning progress and resources in one place.'),
@@ -345,6 +455,69 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     if(!signUpMode)TextButton(onPressed:resendVerification,child:const Text('Resend verification email')),
     TextButton(onPressed:()=>setState(()=>{signUpMode=!signUpMode,error=null,notice=null}),child:Text(signUpMode?'Already registered? Sign in':'Create account')),
   ])));
+  List<Widget> homeView(ThemeData theme) => [
+    const _NotesHero(title: 'Welcome to Notes', subtitle: 'Your coding curriculum, lessons and learning progress in one place.'),
+    LayoutBuilder(builder: (context, constraints) {
+      final columns = constraints.maxWidth > 700 ? 3 : 1;
+      return GridView.count(
+        crossAxisCount: columns,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: columns == 1 ? 3.4 : 1.6,
+        children: [
+          _NotesStatCard(label: 'Languages', value: languages.length.toString(), icon: Icons.code_rounded),
+          _NotesStatCard(label: 'Topics', value: allTopics.length.toString(), icon: Icons.menu_book_rounded),
+          _NotesStatCard(label: 'Completed', value: progress.where((p) => p['completed'] == true).length.toString(), icon: Icons.check_circle_outline_rounded),
+        ],
+      );
+    }),
+    const SizedBox(height: 14),
+    FilledButton.icon(onPressed: () => _selectNav(1), icon: const Icon(Icons.school_rounded), label: const Text('Browse all programming languages')),
+    OutlinedButton.icon(onPressed: () => setState(() => page = 'Progress'), icon: const Icon(Icons.insights_rounded), label: const Text('View learning progress')),
+    OutlinedButton.icon(onPressed: () => setState(() => page = 'Contact'), icon: const Icon(Icons.mail_outline_rounded), label: const Text('Contact Notes')),
+  ];
+
+  List<Widget> progressView(ThemeData theme) {
+    final doneIds = progress.where((p) => p['completed'] == true).map((p) => p['topic_id'].toString()).toSet();
+    final doneTopics = allTopics.where((t) => doneIds.contains(t['id'].toString())).toList();
+    final total = allTopics.length;
+    final count = doneTopics.length;
+    final percent = total == 0 ? 0.0 : count / total;
+    return [
+      const _NotesHero(title: 'Learning progress', subtitle: 'Your completed lessons sync to your Notes account.'),
+      Card(child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('$count of $total lessons completed', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 12),
+          LinearProgressIndicator(value: percent, minHeight: 8),
+          const SizedBox(height: 8),
+          Text((percent * 100).round().toString() + '% complete'),
+        ]),
+      )),
+      const SizedBox(height: 12),
+      if (doneTopics.isEmpty)
+        const _NotesNotice(title: 'No completed lessons yet', detail: 'Open a topic and choose Mark complete to start tracking your progress.')
+      else
+        for (final t in doneTopics)
+          Card(child: ListTile(
+            leading: const Icon(Icons.check_circle_rounded, color: Colors.green),
+            title: Text(t['title'].toString()),
+            subtitle: Text(languages.firstWhere((l) => l['id'].toString() == t['language_id'].toString(), orElse: () => <String,dynamic>{'name':'Language'})['name'].toString()),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () async {
+              final lang = languages.where((l) => l['id'].toString() == t['language_id'].toString()).toList();
+              if (lang.isNotEmpty) {
+                await loadTopics(lang.first);
+                await loadLesson(t);
+              }
+            },
+          )),
+    ];
+  }
+
   List<Widget> dashboard(ThemeData theme){
     final q=query.toLowerCase();final visible=languages.where((l)=>q.isEmpty||[l['name'],l['description'],l['slug']].any((v)=>(v??'').toString().toLowerCase().contains(q))).toList();
     return [const _NotesHero(title:'Coding Notes',subtitle:'Database-driven coding notes for BCA/MCA students.'),
@@ -452,6 +625,24 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     const _NotesNotice(title:'Database policy required',detail:'Admin writes are enforced by Supabase RLS. Apply docs/NOTES_ADMIN_POLICIES.sql in the Notes project before using admin edit controls.'),
   ];
   Widget message(String text,bool isError)=>Container(margin:const EdgeInsets.only(bottom:10),padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:(isError?Theme.of(context).colorScheme.error:Colors.green).withValues(alpha:.12),borderRadius:BorderRadius.circular(12)),child:Text(text,style:TextStyle(color:isError?Theme.of(context).colorScheme.error:Colors.green)));
+}
+
+class _NotesStatCard extends StatelessWidget {
+  const _NotesStatCard({required this.label, required this.value, required this.icon});
+  final String label, value;
+  final IconData icon;
+  @override Widget build(BuildContext context) => Card(child: Padding(
+    padding: const EdgeInsets.all(16),
+    child: Row(children: [
+      Icon(icon, size: 28, color: Theme.of(context).colorScheme.primary),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+        Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        const SizedBox(height: 4),
+        Text(value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+      ])),
+    ]),
+  ));
 }
 
 class _NotesHero extends StatelessWidget {
