@@ -315,7 +315,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       title:Text(title),
       actions:[
         if(user!=null)IconButton(tooltip:'Refresh',onPressed:view=='files'?(heading==null?openMyData:()=>openMenu(menu!)):view=='menus'?()=>openHeading(heading!):view=='pending'?openPendingApprovals:view=='nr'?openNRDashboard:loadHeadings,icon:const Icon(Icons.refresh_rounded)),
-        if(user!=null)IconButton(tooltip:'Sign out',onPressed:()=>setState(() { user = null; headings = []; menus = []; files = []; view = 'login'; error = null; }),icon:const Icon(Icons.logout_rounded)),
+        if(user!=null)IconButton(tooltip:'Sign out',onPressed:signOut,icon:const Icon(Icons.logout_rounded)),
       ],
     ),body:user==null?loginView():workspaceView());
   }
