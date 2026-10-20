@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'lifehub_workspace.dart';
 import 'notes_workspace.dart';
+import 'supabase_config.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -8,9 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const accent = Color(0xFF8FA600);
-const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
-const cloudEnabled = supabaseUrl != '' && supabaseAnonKey != '';
+const supabaseUrl = SupabaseConfig.primaryUrl;
+const supabaseAnonKey = SupabaseConfig.primaryKey;
+const cloudEnabled = true;
 const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 const String _lifeHubSessionStorageKey = 'controldeck.lifehub.session.v1';
 const String _notesSessionStorageKey = 'controldeck.notes.session.v1';
@@ -493,14 +494,14 @@ class AppWorkspaceScreen extends StatelessWidget {
   }
 }
 
-const _portfolioUrl = 'https://ixjdjvkktlzgiyojnsto.supabase.co';
-const _portfolioKey = 'sb_publishable_Qb66X-cvzAckaQev2ku1VA__CoLmIB1';
-const _lifeHubUrl = 'https://wrssvnvagpnvlwhnqqta.supabase.co';
-const _lifeHubKey = 'sb_publishable_' + 'AEu-JBRYrCLYrVq3VjAtyA_ya5ApyuM';
-const _notesUrl = String.fromEnvironment('NOTES_SUPABASE_URL', defaultValue: supabaseUrl);
-const _notesKey = String.fromEnvironment('NOTES_SUPABASE_ANON_KEY', defaultValue: supabaseAnonKey);
-const _interviewUrl = String.fromEnvironment('INTERVIEW_SUPABASE_URL');
-const _interviewKey = String.fromEnvironment('INTERVIEW_SUPABASE_ANON_KEY');
+const _portfolioUrl = SupabaseConfig.professionalUrl;
+const _portfolioKey = SupabaseConfig.professionalKey;
+const _lifeHubUrl = SupabaseConfig.primaryUrl;
+const _lifeHubKey = SupabaseConfig.primaryKey;
+const _notesUrl = SupabaseConfig.primaryUrl;
+const _notesKey = SupabaseConfig.primaryKey;
+const _interviewUrl = SupabaseConfig.primaryUrl;
+const _interviewKey = SupabaseConfig.primaryKey;
 
 class RailwaysNativeScreen extends StatelessWidget {
   const RailwaysNativeScreen({super.key});
