@@ -978,7 +978,11 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
     for (final field in fields) {
       final key = field['key'].toString();
       if (field['bool'] == true) boolValues[key] = old?[key] as bool? ?? true;
-      else controllers[key] = TextEditingController(text: old?[key]?.toString() ?? '');
+      else {
+        final existing = old?[key];
+        final text = existing is List ? existing.join(field['multi'] == true ? '\n' : ', ') : existing?.toString() ?? '';
+        controllers[key] = TextEditingController(text: text);
+      }
     }
     final accepted = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
       title: Text((old == null ? 'Add ' : 'Edit ') + resource['label'].toString()),
@@ -1052,7 +1056,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
         ])),
         if (message != null) Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), child: Text(message!, style: TextStyle(color: theme.colorScheme.error))),
         Expanded(child: busy ? const Center(child: CircularProgressIndicator()) : ListView(padding: const EdgeInsets.all(16), children: [
-          Row(children: [Expanded(child: Text(current['label'].toString(), style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))), FilledButton.icon(onPressed: () => editRecord(current), icon: const Icon(Icons.add_rounded), label: const Text('Add'))]),
+          Row(children: [Expanded(child: Text(current['label'].toString(), style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))), if (current['key'] != 'profile' || rows.isEmpty) FilledButton.icon(onPressed: () => editRecord(current), icon: const Icon(Icons.add_rounded), label: const Text('Add'))]),
           const SizedBox(height: 12),
           if (rows.isEmpty) const _Notice(text: 'No records yet. Add the first record to this collection.', icon: Icons.inbox_outlined),
           for (final row in rows) Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1060,7 +1064,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
             const SizedBox(height: 4), Text(row.entries.where((e) => e.key != 'id' && e.value != null && e.value.toString().trim().isNotEmpty).take(5).map((e) => e.key + ': ' + e.value.toString()).join(' · '), maxLines: 3, overflow: TextOverflow.ellipsis),
             Align(alignment: Alignment.centerRight, child: Wrap(spacing: 4, children: [
               IconButton(tooltip: 'Edit', onPressed: () => editRecord(current, row), icon: const Icon(Icons.edit_outlined)),
-              IconButton(tooltip: 'Delete', onPressed: () => deleteRecord(current, row), icon: const Icon(Icons.delete_outline_rounded)),
+              if (current['key'] != 'profile') IconButton(tooltip: 'Delete', onPressed: () => deleteRecord(current, row), icon: const Icon(Icons.delete_outline_rounded)),
             ])),
           ]))),
         ])),
