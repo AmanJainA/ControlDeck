@@ -40,7 +40,7 @@ The project-specific data connections are separate from ControlDeck's own shortc
 
 ### LifeHub
 
-The LifeHub URL and publishable key use the public configuration already present in LifeHub's main-branch client. LifeHub login uses its custom-auth Edge Function and the returned session header for data requests.
+The native LifeHub workspace uses the LifeHub project's public publishable key and exchanges the verified ControlDeck session through `controldeck-sso`. Data requests carry the server-issued opaque LifeHub session as `x-lifehub-session`; the app never embeds the service-role key or a password. The original web app's custom-auth flow remains in its own repository.
 
 ### Notes and Interview
 
