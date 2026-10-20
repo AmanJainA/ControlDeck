@@ -119,7 +119,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   }
 
   Future<void> openMenu(Map<String,dynamic> m) async {
-    setState(() { menu = m; view = 'files'; files = []; folders = []; selectedFolderId = null; search.clear(); busy = true; error = null; });
+    setState(() { menu = m; view = 'files'; files = []; folders = []; selectedFolderId = null; typeFilter = 'all'; search.clear(); busy = true; error = null; });
     try{
       final folderRows = await db.from('folder_master').select('id,foldername,menu_id,main_heading_id,status').eq('menu_id', m['id']).eq('status', '1').order('id');
       final rows=await db.from('datacollection').select('id,name,type,links,menuname,folder,folder_id,menu_id,status,remark,uploaded_by,uploaded_at')
@@ -500,21 +500,12 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         const SizedBox(height:12),
         TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search_rounded),labelText:'Search approved documents')),
         const SizedBox(height:8),
-        for(final f in files.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())))Card(child:ListTile(leading:fileIcon((f['type']??'').toString()),title:Text((f['name']??'Document').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text((f['menuname']??'').toString()+' • '+(f['folder']??'').toString(),maxLines:2,overflow:TextOverflow.ellipsis),trailing:const Icon(Icons.open_in_new_rounded),onTap:()=>showFile(f))),
+        if(files.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).isEmpty)const EmptyRailway(title:'No documents found',detail:'No approved documents match this search.'),
+        if(files.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).isNotEmpty)Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columns:const [DataColumn(label:Text('Document')),DataColumn(label:Text('Menu')),DataColumn(label:Text('Folder')),DataColumn(label:Text('Uploaded by')),DataColumn(label:Text('Uploaded at')),DataColumn(label:Text('Open'))],rows:files.where((f)=>'${f['name']??''} ${f['menuname']??''} ${f['folder']??''}'.toLowerCase().contains(search.text.toLowerCase())).map((f)=>DataRow(onSelectChanged:(_)=>showFile(f),cells:[DataCell(SizedBox(width:220,child:Text((f['name']??'Document').toString(),maxLines:2,overflow:TextOverflow.ellipsis))),DataCell(Text((f['menuname']??'—').toString())),DataCell(Text((f['folder']??'—').toString())),DataCell(Text((f['uploaded_by']??'—').toString())),DataCell(Text((f['uploaded_at']??'—').toString())),DataCell(IconButton(tooltip:'Open details',onPressed:()=>showFile(f),icon:const Icon(Icons.open_in_new_rounded)))])).toList()))),
       ]else if(view=='pending')...[
         hero('Pending Approvals', 'Approve or reject documents submitted by Railway users.', Icons.fact_check_outlined),
-        if (files.isEmpty) const EmptyRailway(title: 'No pending documents', detail: 'There are no submissions waiting for approval.'),
-        for (final f in files) Card(child: ListTile(
-          leading: fileIcon((f['type'] ?? '').toString()),
-          title: Text((f['name'] ?? 'Document').toString(), style: const TextStyle(fontWeight: FontWeight.w700)),
-          subtitle: Text('Uploaded by: ' + (f['uploaded_by'] ?? 'Unknown').toString() + '\\n' + (f['menuname'] ?? '').toString() + ' • ' + (f['uploaded_at'] ?? '').toString(), maxLines: 2, overflow: TextOverflow.ellipsis),
-          isThreeLine: true,
-          trailing: PopupMenuButton<String>(onSelected: (v) { if (v == 'approve') updateApproval(f, 1); if (v == 'reject') updateApproval(f, 2); }, itemBuilder: (_) => const [
-            PopupMenuItem(value: 'approve', child: Text('Approve')),
-            PopupMenuItem(value: 'reject', child: Text('Reject')),
-          ]),
-          onTap: () => showFile(f),
-        )),
+        if(files.isEmpty)const EmptyRailway(title:'No pending documents',detail:'There are no submissions waiting for approval.'),
+        if(files.isNotEmpty)Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columns:const [DataColumn(label:Text('Document')),DataColumn(label:Text('Menu')),DataColumn(label:Text('Uploaded by')),DataColumn(label:Text('Uploaded at')),DataColumn(label:Text('Decision'))],rows:files.map((f)=>DataRow(onSelectChanged:(_)=>showFile(f),cells:[DataCell(SizedBox(width:220,child:Text((f['name']??'Document').toString(),maxLines:2,overflow:TextOverflow.ellipsis))),DataCell(Text((f['menuname']??'—').toString())),DataCell(Text((f['uploaded_by']??'—').toString())),DataCell(Text((f['uploaded_at']??'—').toString())),DataCell(PopupMenuButton<String>(tooltip:'Review submission',onSelected:(v){if(v=='approve')updateApproval(f,1);if(v=='reject')updateApproval(f,2);},itemBuilder:(_)=>const [PopupMenuItem(value:'approve',child:Text('Approve')),PopupMenuItem(value:'reject',child:Text('Reject'))],child:const Icon(Icons.more_horiz_rounded)))])).toList()))),
       ]else if(view=='tracking')...[
         trackingContent(),
       ]else if(view=='menus')...[
