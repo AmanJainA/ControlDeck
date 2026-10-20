@@ -88,7 +88,7 @@ class DeckApp {
 
 // Use the bundled Font Awesome icon font for the app launcher icons. These
 // glyphs are supplied by font_awesome_flutter and do not depend on remote assets.
-IconData iconFor(String key) {
+FaIconData iconFor(String key) {
   switch (key) {
     case 'lifehub': return FontAwesomeIcons.house;
     case 'notes': return FontAwesomeIcons.noteSticky;
@@ -1540,7 +1540,7 @@ class _AppCard extends StatelessWidget {
     return Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onOpen, child: Padding(padding: const EdgeInsets.all(18),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Container(width: 48, height: 48, decoration: BoxDecoration(color: tint.withValues(alpha: .15), borderRadius: BorderRadius.circular(15)), child: Icon(iconFor(app.iconKey), color: tint, size: 25)),
+          Container(width: 48, height: 48, decoration: BoxDecoration(color: tint.withValues(alpha: .15), borderRadius: BorderRadius.circular(15)), child: FaIcon(iconFor(app.iconKey), color: tint, size: 25)),
           const Spacer(), IconButton(tooltip: app.favorite ? 'Remove favourite' : 'Add favourite', onPressed: onFavorite,
             icon: Icon(app.favorite ? Icons.star_rounded : Icons.star_border_rounded, color: app.favorite ? accent : theme.colorScheme.onSurfaceVariant)),
           PopupMenuButton<String>(tooltip: 'App options', onSelected: (v) { if (v == 'edit') onEdit(); if (v == 'delete') onDelete(); },
