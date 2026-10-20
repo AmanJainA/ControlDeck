@@ -117,6 +117,24 @@ class ControlDeckApp extends StatefulWidget {
 
 class _ControlDeckAppState extends State<ControlDeckApp> {
   bool dark = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTheme();
+  }
+
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) setState(() => dark = prefs.getBool('controldeck.darkTheme') ?? true);
+  }
+
+  Future<void> _setTheme(bool value) async {
+    setState(() => dark = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('controldeck.darkTheme', value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = ColorScheme.fromSeed(seedColor: accent, brightness: dark ? Brightness.dark : Brightness.light);
@@ -130,7 +148,7 @@ class _ControlDeckAppState extends State<ControlDeckApp> {
         cardTheme: const CardThemeData(color: Color(0xFF151A22), elevation: 0, margin: EdgeInsets.zero),
         inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: const Color(0xFF1A202A),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none))),
-      home: cloudEnabled ? AuthGate(dark: dark, onTheme: (v) => setState(() => dark = v))
+      home: cloudEnabled ? AuthGate(dark: dark, onTheme: _setTheme)
         : const _AuthSetupRequiredScreen(),
     );
   }
