@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -453,33 +452,74 @@ class _NotesLanguageIcon extends StatelessWidget {
   const _NotesLanguageIcon({required this.language, this.size = 36});
   final Map<String, dynamic> language;
   final double size;
+
   @override
   Widget build(BuildContext context) {
-    final name = (language['name'] ?? '').toString().toLowerCase();
-    final slug = (language['slug'] ?? '').toString().toLowerCase();
+    final name = (language['name'] ?? '').toString().trim().toLowerCase();
+    final slug = (language['slug'] ?? '').toString().trim().toLowerCase();
     final key = '$name $slug';
-    IconData? icon;
+    String mark = 'CODE';
     Color color = const Color(0xFF64748B);
-    String? mark;
-    if (key.contains('c++') || key.contains('cpp')) { mark = 'C++'; color = const Color(0xFF00599C); }
-    else if (name == 'c' || slug == 'c' || name.startsWith('c language')) { mark = 'C'; color = const Color(0xFF283593); }
-    else if (key.contains('javascript') || slug == 'js' || slug == 'javascript' || name == 'js') { icon = FontAwesomeIcons.js; color = const Color(0xFFF0DB4F); }
-    else if (key.contains('html')) { icon = FontAwesomeIcons.html5; color = const Color(0xFFE34F26); }
-    else if (key.contains('css')) { icon = FontAwesomeIcons.css3Alt; color = const Color(0xFF1572B6); }
-    else if (key.contains('bootstrap')) { icon = FontAwesomeIcons.bootstrap; color = const Color(0xFF7952B3); }
-    else if (key.contains('php')) { icon = FontAwesomeIcons.php; color = const Color(0xFF777BB4); }
-    else if (key.contains('java')) { icon = FontAwesomeIcons.java; color = const Color(0xFFED8B00); }
-    else if (key.contains('python')) { icon = FontAwesomeIcons.python; color = const Color(0xFF3776AB); }
-    else if (key.contains('react')) { icon = FontAwesomeIcons.react; color = const Color(0xFF61DAFB); }
-    else if (key.contains('node')) { icon = FontAwesomeIcons.nodeJs; color = const Color(0xFF339933); }
-    else if (key.contains('sql') || key.contains('database') || key.contains('mysql') || key.contains('postgres')) { icon = FontAwesomeIcons.database; color = const Color(0xFF4479A1); }
-    else if (key.contains('git')) { icon = FontAwesomeIcons.gitAlt; color = const Color(0xFFF05032); }
-    else if (key.contains('dart') || key.contains('flutter')) { mark = key.contains('flutter') ? 'Fl' : 'D'; color = const Color(0xFF02569B); }
-    else if (key.contains('c#') || key.contains('csharp')) { mark = 'C#'; color = const Color(0xFF68217A); }
-    else if (key.contains('typescript')) { mark = 'TS'; color = const Color(0xFF3178C6); }
-    else { icon = FontAwesomeIcons.code; }
-    return Container(width: size + 22, height: size + 22, alignment: Alignment.center,
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(15), border: Border.all(color: color.withValues(alpha: 0.24))),
-      child: mark != null ? Text(mark, style: TextStyle(color: color, fontSize: mark.length > 2 ? size * 0.36 : size * 0.52, fontWeight: FontWeight.w900, letterSpacing: -1.2)) : FaIcon(icon, size: size, color: color));
+
+    if (key.contains('c++') || key.contains('cpp')) {
+      mark = 'C++'; color = const Color(0xFF00599C);
+    } else if (name == 'c' || slug == 'c' || name.startsWith('c language')) {
+      mark = 'C'; color = const Color(0xFF283593);
+    } else if (key.contains('javascript') || slug == 'js' || name == 'js') {
+      mark = 'JS'; color = const Color(0xFFF0DB4F);
+    } else if (key.contains('typescript')) {
+      mark = 'TS'; color = const Color(0xFF3178C6);
+    } else if (key.contains('html')) {
+      mark = 'HTML'; color = const Color(0xFFE34F26);
+    } else if (key.contains('css')) {
+      mark = 'CSS'; color = const Color(0xFF1572B6);
+    } else if (key.contains('bootstrap')) {
+      mark = 'B'; color = const Color(0xFF7952B3);
+    } else if (key.contains('php')) {
+      mark = 'PHP'; color = const Color(0xFF777BB4);
+    } else if (key.contains('java')) {
+      mark = 'Java'; color = const Color(0xFFED8B00);
+    } else if (key.contains('python')) {
+      mark = 'Py'; color = const Color(0xFF3776AB);
+    } else if (key.contains('react')) {
+      mark = '⚛'; color = const Color(0xFF149ECA);
+    } else if (key.contains('node')) {
+      mark = 'Node'; color = const Color(0xFF339933);
+    } else if (key.contains('postgres') || key.contains('mysql') || key.contains('sql') || key.contains('database')) {
+      mark = 'SQL'; color = const Color(0xFF4479A1);
+    } else if (key.contains('git')) {
+      mark = 'Git'; color = const Color(0xFFF05032);
+    } else if (key.contains('flutter')) {
+      mark = 'Fl'; color = const Color(0xFF02569B);
+    } else if (key.contains('dart')) {
+      mark = 'D'; color = const Color(0xFF02569B);
+    } else if (key.contains('c#') || key.contains('csharp')) {
+      mark = 'C#'; color = const Color(0xFF68217A);
+    }
+
+    final compact = mark.length >= 4;
+    return Container(
+      width: size + 22,
+      height: size + 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.13),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: color.withOpacity(0.35), width: 1.2),
+      ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          mark,
+          maxLines: 1,
+          style: TextStyle(
+            color: color,
+            fontSize: compact ? size * 0.30 : size * 0.46,
+            fontWeight: FontWeight.w900,
+            letterSpacing: compact ? -0.5 : -0.8,
+          ),
+        ),
+      ),
+    );
   }
 }
