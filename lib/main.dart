@@ -1080,7 +1080,10 @@ class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
       sessionId = data['sessionId']?.toString();
       profile = Map<String, dynamic>.from(data['profile'] as Map);
       if (sessionId == null || sessionId!.isEmpty) throw Exception('LifeHub did not return a valid session.');
-      client = SupabaseClient(_lifeHubUrl, _lifeHubKey, headers: {'x-lifehub-session': sessionId!});
+      // LifeHub now lives in the shared p&l project. Reuse the same publishable key
+      // that initialized ControlDeck instead of a stale project-specific key.
+      final lifeHubApiKey = supabaseAnonKey.isNotEmpty ? supabaseAnonKey : _lifeHubKey;
+      client = SupabaseClient(_lifeHubUrl, lifeHubApiKey, headers: {'x-lifehub-session': sessionId!});
       await _secureStorage.write(key: _lifeHubSessionStorageKey, value: jsonEncode({
         'sessionId': sessionId, 'profile': profile, 'expiresAt': data['expiresAt'],
       }));
