@@ -678,7 +678,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       ),
       const SizedBox(height: 8),
       if (rows.isEmpty)
-        const _NotesNotice(
+        _NotesNotice(
           title: activityErrors[activityTab] == null ? 'No activity rows available' : 'Could not load activity data',
           detail: activityErrors[activityTab] ?? 'No records were returned for this tab. Check whether there are records to display.',
         )
