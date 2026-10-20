@@ -921,6 +921,9 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
       {'key':'period','label':'Period'},{'key':'company','label':'Company'},{'key':'title','label':'Title'},{'key':'details','label':'Details','multi':true},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
     {'key':'social_links','label':'Social Platforms','resource':'social','fields':[
       {'key':'label','label':'Label'},{'key':'url','label':'URL'},{'key':'icon_class','label':'Icon class'},{'key':'sort_order','label':'Order','number':true},{'key':'is_visible','label':'Visible','bool':true}]},
+    {'key':'contact','label':'Contact messages','resource':'contact','fields':[
+      {'key':'created_at','label':'Received at'},{'key':'name','label':'Name'},{'key':'email','label':'Email'},
+      {'key':'subject','label':'Subject'},{'key':'message','label':'Message','multi':true}]},
   ];
 
   @override void initState() { super.initState(); _restoreAdminSession(); }
@@ -1056,14 +1059,14 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
         ])),
         if (message != null) Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), child: Text(message!, style: TextStyle(color: theme.colorScheme.error))),
         Expanded(child: busy ? const Center(child: CircularProgressIndicator()) : ListView(padding: const EdgeInsets.all(16), children: [
-          Row(children: [Expanded(child: Text(current['label'].toString(), style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))), if (current['key'] != 'profile' || rows.isEmpty) FilledButton.icon(onPressed: () => editRecord(current), icon: const Icon(Icons.add_rounded), label: const Text('Add'))]),
+          Row(children: [Expanded(child: Text(current['label'].toString(), style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))), if (current['key'] != 'contact' && (current['key'] != 'profile' || rows.isEmpty)) FilledButton.icon(onPressed: () => editRecord(current), icon: const Icon(Icons.add_rounded), label: const Text('Add'))]),
           const SizedBox(height: 12),
           if (rows.isEmpty) const _Notice(text: 'No records yet. Add the first record to this collection.', icon: Icons.inbox_outlined),
           for (final row in rows) Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text((row['title'] ?? row['name'] ?? row['label'] ?? row['company'] ?? 'Untitled record').toString(), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            Text((row['title'] ?? row['subject'] ?? row['name'] ?? row['label'] ?? row['company'] ?? 'Untitled record').toString(), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4), Text(row.entries.where((e) => e.key != 'id' && e.value != null && e.value.toString().trim().isNotEmpty).take(5).map((e) => e.key + ': ' + e.value.toString()).join(' · '), maxLines: 3, overflow: TextOverflow.ellipsis),
             Align(alignment: Alignment.centerRight, child: Wrap(spacing: 4, children: [
-              IconButton(tooltip: 'Edit', onPressed: () => editRecord(current, row), icon: const Icon(Icons.edit_outlined)),
+              if (current['key'] != 'contact') IconButton(tooltip: 'Edit', onPressed: () => editRecord(current, row), icon: const Icon(Icons.edit_outlined)),
               if (current['key'] != 'profile') IconButton(tooltip: 'Delete', onPressed: () => deleteRecord(current, row), icon: const Icon(Icons.delete_outline_rounded)),
             ])),
           ]))),
