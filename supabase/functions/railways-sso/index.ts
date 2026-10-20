@@ -74,11 +74,12 @@ Deno.serve(async (req: Request) => {
   const { data: railwayUser, error: railwayLookupError } = await railwayAdmin
     .from("users")
     .select("id,username,email,role,dept,project")
-    .ilike("email", railwayEmail)
+    .eq("email", railwayEmail)
+    .eq("username", "Admin")
     .maybeSingle();
 
   if (railwayLookupError) {
-    console.error("[railways-sso] account lookup failed", { code: railwayLookupError.code });
+    console.error("[railways-sso] account lookup failed", { code: railwayLookupError.code, message: railwayLookupError.message });
     return json({ error: "Could not verify the existing Railways account." }, 500);
   }
   if (!railwayUser) {
