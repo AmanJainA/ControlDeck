@@ -111,7 +111,11 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
           payload[key] = num.tryParse(value);
         } else if (numericKeys.contains(key)) {
           final parsed = num.tryParse(value);
-          if (parsed == null) throw Exception('Enter a valid number for undefined.');
+          if (parsed == null) {
+            if (mounted) setState(() => error = 'Enter a valid number for ' + f['label'].toString() + '.');
+            for (final controller in controllers.values) { controller.dispose(); }
+            return;
+          }
           payload[key] = parsed;
         } else {
           payload[key] = value;
