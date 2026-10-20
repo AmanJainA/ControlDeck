@@ -269,7 +269,7 @@ class _DeckHomeState extends State<DeckHome> {
       content: SizedBox(width: 460, child: SingleChildScrollView(child: Form(key: formKey, child: Column(mainAxisSize: MainAxisSize.min, children: [
         TextFormField(controller: name, decoration: const InputDecoration(labelText: 'App name'), validator: (v) => v == null || v.trim().isEmpty ? 'Enter a name' : null),
         const SizedBox(height: 10), TextFormField(controller: description, decoration: const InputDecoration(labelText: 'Description')),
-        const SizedBox(height: 10), TextFormField(controller: url, decoration: const InputDecoration(labelText: 'App URL'), keyboardType: TextInputType.url, validator: (v) => v == null || v.trim().isEmpty ? 'Enter the app URL' : null),
+        const SizedBox(height: 10), TextFormField(controller: url, decoration: const InputDecoration(labelText: 'App URL (optional if using admin only)'), keyboardType: TextInputType.url, validator: (v) => (v == null || v.trim().isEmpty) && adminUrl.text.trim().isEmpty ? 'Enter an app URL or an admin URL' : null),
         const SizedBox(height: 10), TextFormField(controller: adminUrl, decoration: const InputDecoration(labelText: 'Admin URL (optional)'), keyboardType: TextInputType.url),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(value: categories.contains(cat) && cat != 'All apps' ? cat : 'Other', decoration: const InputDecoration(labelText: 'Category'),
@@ -461,7 +461,7 @@ class _AppCard extends StatelessWidget {
         const SizedBox(height: 14), Text(app.name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height: 7),
         _StatusPill(label: app.isConnected ? 'Connected' : 'Not connected', icon: app.isConnected ? Icons.link_rounded : Icons.link_off_rounded, color: app.isConnected ? accent : theme.colorScheme.onSurfaceVariant),
-        const SizedBox(height: 5), Expanded(child: Text(app.description.isEmpty ? 'Open this tool from your workspace.' : app.description,
+        const SizedBox(height: 5), Expanded(child: Text(app.isConnected ? (app.description.isEmpty ? 'Open this tool from your workspace.' : app.description) : 'Connection slot ready. Add your preferred app destination when you are ready.',
           maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.4))),
         Row(children: [
           Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)), child: Text(app.category, style: theme.textTheme.labelSmall)),
