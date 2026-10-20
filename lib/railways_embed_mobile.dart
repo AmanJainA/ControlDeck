@@ -39,14 +39,6 @@ class _RailwaysMobileEmbedState extends State<_RailwaysMobileEmbed> {
       ..loadRequest(Uri.parse(_railwaysUrl));
   }
 
-  Future<bool> _handleBack() async {
-    if (await _controller.canGoBack()) {
-      await _controller.goBack();
-      return false;
-    }
-    return true;
-  }
-
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_canGoBack,
