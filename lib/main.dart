@@ -4,6 +4,7 @@ import 'notes_workspace.dart';
 import 'supabase_config.dart';
 
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -85,17 +86,19 @@ class DeckApp {
   );
 }
 
+// Use the bundled Font Awesome icon font for the app launcher icons. These
+// glyphs are supplied by font_awesome_flutter and do not depend on remote assets.
 IconData iconFor(String key) {
   switch (key) {
-    case 'lifehub': return Icons.home_work_rounded;
-    case 'notes': return Icons.sticky_note_2_rounded;
-    case 'railways': return Icons.train_rounded;
-    case 'interview': return Icons.quiz_rounded;
-    case 'portfolio': return Icons.language_rounded;
-    case 'admin': return Icons.admin_panel_settings_rounded;
-    case 'analytics': return Icons.query_stats_rounded;
-    case 'code': return Icons.code_rounded;
-    default: return Icons.apps_rounded;
+    case 'lifehub': return FontAwesomeIcons.house;
+    case 'notes': return FontAwesomeIcons.noteSticky;
+    case 'railways': return FontAwesomeIcons.train;
+    case 'interview': return FontAwesomeIcons.clipboardQuestion;
+    case 'portfolio': return FontAwesomeIcons.globe;
+    case 'admin': return FontAwesomeIcons.userShield;
+    case 'analytics': return FontAwesomeIcons.chartLine;
+    case 'code': return FontAwesomeIcons.code;
+    default: return FontAwesomeIcons.grip;
   }
 }
 
