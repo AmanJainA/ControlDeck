@@ -724,6 +724,45 @@ class RailwaysNativeScreen extends StatelessWidget {
   Widget build(BuildContext context) => railways_embed.buildRailwaysEmbed(context);
 }
 
+class _WorkspaceHero extends StatelessWidget {
+  const _WorkspaceHero({required this.title, required this.subtitle, required this.icon});
+  final String title, subtitle;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          colors: [accent.withValues(alpha: .18), theme.colorScheme.surfaceContainerHighest],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: .18),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: accent, size: 28),
+          ),
+          const SizedBox(height: 18),
+          Text(title, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text(subtitle, style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        ],
+      ),
+    );
+  }
+}
+
 class PortfolioNativeScreen extends StatefulWidget {
   const PortfolioNativeScreen({super.key, this.admin = false});
   final bool admin;
