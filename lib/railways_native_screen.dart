@@ -111,6 +111,11 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
             if (v != null) {
               final raw = await db.from('menu_master').select('id,menuname').eq('main_heading_id', v).eq('status', '1').order('id');
               availableMenus = List<Map<String,dynamic>>.from(raw);
+              if (!admin) {
+                final access = await db.from('user_menu_access').select('menu_id').eq('user_id', user!['id']);
+                final allowed = access.map((x) => (x['menu_id'] as num).toInt()).toSet();
+                availableMenus = availableMenus.where((m) => allowed.contains((m['id'] as num).toInt())).toList();
+              }
             }
             setDialog(() {});
           }),
