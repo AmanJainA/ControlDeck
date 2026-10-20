@@ -47,11 +47,12 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Your ControlDeck session is invalid or your email is not verified. Sign in again." }, 401);
   }
 
-  const schema = app === "lifehub" ? "public" : "notes";
-  const { data: profile, error: profileError } = await admin
-    .schema(schema)
-    .from("profiles")
-    .select("id, full_name, email, email_verified, is_active, account_status, notes_enabled")
+  const profileQuery = app === "lifehub"
+    ? admin.schema("public").from("profiles")
+        .select("id, full_name, email, email_verified, is_active, account_status")
+    : admin.schema("notes").from("profiles")
+        .select("id, full_name, email, email_verified, account_status, notes_enabled");
+  const { data: profile, error: profileError } = await profileQuery
     .ilike("email", email)
     .maybeSingle();
 
