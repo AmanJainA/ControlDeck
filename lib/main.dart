@@ -281,7 +281,6 @@ class _DeckHomeState extends State<DeckHome> {
   List<DeckApp> apps = starterApps();
   String category = 'All apps', page = 'Overview';
   bool favoritesOnly = false, loading = true, cloudError = false, searchExpanded = false;
-  static const categories = ['All apps', 'Personal', 'Professional', 'Creative', 'Administration', 'Other'];
 
   @override void initState() { super.initState(); search.addListener(_refresh); _load(); }
   @override void dispose() { search.removeListener(_refresh); search.dispose(); super.dispose(); }
@@ -407,8 +406,6 @@ class _DeckHomeState extends State<DeckHome> {
     final wide = screenWidth >= 850;
     final compact = screenWidth < 360;
     final items = shown;
-    final personal = apps.where((a) => a.category == 'Personal').length;
-    final professional = apps.where((a) => a.category == 'Professional').length;
     return Scaffold(
       appBar: AppBar(title: compact ? const SizedBox(width: 4) : (wide ? const _BrandMark() : const Text('ControlDeck', style: TextStyle(fontWeight: FontWeight.w800))), actions: [
         AnimatedContainer(
@@ -469,26 +466,9 @@ class _DeckHomeState extends State<DeckHome> {
                 style: FilledButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16))),
             ]),
             const SizedBox(height: 24),
-            LayoutBuilder(builder: (context, box) {
-              final cols = box.maxWidth > 1000 ? 4 : box.maxWidth > 540 ? 2 : 1;
-              return GridView.count(crossAxisCount: cols, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 12, crossAxisSpacing: 12,
-                childAspectRatio: cols == 1 ? 4.2 : 2.1, children: [
-                  _MetricCard(label: 'App workspaces', value: apps.length.toString(), caption: 'Ready to open', icon: Icons.grid_view_rounded),
-                  _MetricCard(label: 'Personal', value: personal.toString(), caption: 'Life and productivity', icon: Icons.home_work_rounded),
-                  _MetricCard(label: 'Professional', value: professional.toString(), caption: 'Work and operations', icon: Icons.work_outline_rounded),
-                  _MetricCard(label: 'Favourites', value: apps.where((a) => a.favorite).length.toString(), caption: 'Quick access shortcuts', icon: Icons.star_rounded),
-                ]);
-            }),
-            const SizedBox(height: 28),
             if (cloudError) const Padding(padding: EdgeInsets.only(bottom: 16), child: _Notice(text: 'Cloud setup is incomplete. Run supabase/controldeck_schema.sql in your selected Supabase project, then restart ControlDeck.', icon: Icons.info_outline_rounded)),
             Row(children: [Expanded(child: Text('App library', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))),
               Text(items.length.toString() + ' shown', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant))]),
-            const SizedBox(height: 14),
-            const SizedBox(height: 12),
-            SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [
-              for (final c in categories) Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(c), selected: category == c, onSelected: (_) => setState(() { category = c; favoritesOnly = false; }))),
-              Padding(padding: const EdgeInsets.only(right: 8), child: FilterChip(label: const Text('Favourites'), avatar: const Icon(Icons.star_rounded, size: 16), selected: favoritesOnly, onSelected: (v) => setState(() => favoritesOnly = v))),
-            ])),
             const SizedBox(height: 16),
             if (loading) const Padding(padding: EdgeInsets.all(36), child: Center(child: CircularProgressIndicator()))
             else if (items.isEmpty) _EmptyState(onAdd: () => editApp())
@@ -1636,7 +1616,7 @@ class _AppCard extends StatelessWidget {
     return Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onOpen, child: Padding(padding: const EdgeInsets.all(14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Container(width: 42, height: 42, decoration: BoxDecoration(color: tint.withValues(alpha: .15), borderRadius: BorderRadius.circular(13)), child: IconTheme(data: IconThemeData(color: tint, size: 23), child: iconFor(app.iconKey))),
+          Container(width: 42, height: 42, alignment: Alignment.center, decoration: BoxDecoration(color: tint.withValues(alpha: .15), borderRadius: BorderRadius.circular(13)), child: IconTheme(data: IconThemeData(color: tint, size: 23), child: iconFor(app.iconKey))),
           const Spacer(), IconButton(visualDensity: VisualDensity.compact, tooltip: app.favorite ? 'Remove favourite' : 'Add favourite', onPressed: onFavorite,
             icon: Icon(app.favorite ? Icons.star_rounded : Icons.star_border_rounded, color: app.favorite ? accent : theme.colorScheme.onSurfaceVariant)),
           PopupMenuButton<String>(tooltip: 'App options', onSelected: (v) { if (v == 'edit') onEdit(); if (v == 'delete') onDelete(); },
@@ -1650,7 +1630,6 @@ class _AppCard extends StatelessWidget {
           maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.3)),
         const Spacer(),
         Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center, spacing: 6, runSpacing: 2, children: [
-          Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)), child: Text(app.category, style: theme.textTheme.labelSmall)),
           if (onAdmin != null) IconButton(visualDensity: VisualDensity.compact, tooltip: app.adminUrl.trim().isEmpty ? 'Configure Portfolio admin' : 'Open admin', onPressed: onAdmin, icon: const Icon(Icons.admin_panel_settings_outlined, size: 19)),
           FilledButton.tonalIcon(onPressed: onOpen, icon: const Icon(Icons.arrow_forward_rounded, size: 16), label: const Text('Open workspace')),
         ]),
