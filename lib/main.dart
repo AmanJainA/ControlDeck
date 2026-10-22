@@ -233,25 +233,38 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 440),
-      child: Padding(padding: const EdgeInsets.all(24), child: Card(child: Padding(padding: const EdgeInsets.all(28),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const _BrandMark(), const SizedBox(height: 24),
-          Text(creating ? 'Create your account' : 'Welcome back', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8), Text('Sign in to sync your app hub across devices.', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-          const SizedBox(height: 22),
-          TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email address', prefixIcon: Icon(Icons.mail_outline_rounded))),
-          const SizedBox(height: 12),
-          TextField(controller: password, obscureText: !showPassword, onSubmitted: (_) => submit(), decoration: InputDecoration(labelText: 'Password', prefixIcon: const Icon(Icons.lock_outline_rounded), suffixIcon: IconButton(tooltip: showPassword ? 'Hide password' : 'Show password', onPressed: () => setState(() => showPassword = !showPassword), icon: Icon(showPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded)))),
-          if (errorText != null) ...[const SizedBox(height: 12), Text(errorText!, style: TextStyle(color: theme.colorScheme.error))],
-          const SizedBox(height: 18),
-          FilledButton(onPressed: busy ? null : submit, style: FilledButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 16)),
-            child: busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : Text(creating ? 'Create account' : 'Sign in')),
-          TextButton(onPressed: () => setState(() { creating = !creating; errorText = null; }),
-            child: Text(creating ? 'Already have an account? Sign in' : 'New to ControlDeck? Create account')),
-          Align(alignment: Alignment.centerRight, child: IconButton(onPressed: () => widget.onTheme(!widget.dark),
-            tooltip: 'Toggle theme', icon: Icon(widget.dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded))),
-        ])))))));
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: LayoutBuilder(builder: (context, constraints) => SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.viewInsetsOf(context).bottom + 20),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 40),
+            child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 440),
+              child: Card(child: Padding(padding: const EdgeInsets.all(24),
+                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  const _BrandMark(), const SizedBox(height: 20),
+                  Text(creating ? 'Create your account' : 'Welcome back', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 8), Text('Sign in to sync your app hub across devices.', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                  const SizedBox(height: 18),
+                  TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email address', prefixIcon: Icon(Icons.mail_outline_rounded))),
+                  const SizedBox(height: 12),
+                  TextField(controller: password, obscureText: !showPassword, onSubmitted: (_) => submit(), decoration: InputDecoration(labelText: 'Password', prefixIcon: const Icon(Icons.lock_outline_rounded), suffixIcon: IconButton(tooltip: showPassword ? 'Hide password' : 'Show password', onPressed: () => setState(() => showPassword = !showPassword), icon: Icon(showPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded)))),
+                  if (errorText != null) ...[const SizedBox(height: 12), Text(errorText!, style: TextStyle(color: theme.colorScheme.error))],
+                  const SizedBox(height: 14),
+                  FilledButton(onPressed: busy ? null : submit, style: FilledButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14)),
+                    child: busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : Text(creating ? 'Create account' : 'Sign in')),
+                  TextButton(onPressed: () => setState(() { creating = !creating; errorText = null; }),
+                    child: Text(creating ? 'Already have an account? Sign in' : 'New to ControlDeck? Create account')),
+                  Align(alignment: Alignment.centerRight, child: IconButton(onPressed: () => widget.onTheme(!widget.dark),
+                    tooltip: 'Toggle theme', icon: Icon(widget.dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded))),
+                ])),
+            )),
+          ),
+        )),
+      ),
+    );
   }
 }
 
@@ -482,7 +495,7 @@ class _DeckHomeState extends State<DeckHome> {
             else LayoutBuilder(builder: (context, box) {
               final cols = box.maxWidth > 1120 ? 3 : box.maxWidth > 680 ? 2 : 1;
               return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: items.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, crossAxisSpacing: 14, mainAxisSpacing: 14, mainAxisExtent: 244),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, crossAxisSpacing: 14, mainAxisSpacing: 14, mainAxisExtent: 270),
                 itemBuilder: (context, i) => _AppCard(app: items[i], onOpen: () => openApp(items[i]),
                   onAdmin: items[i].adminUrl.isEmpty && items[i].name.toLowerCase() != 'portfolio' ? null : () => openApp(items[i], admin: true),
                   onFavorite: () => toggleFavorite(items[i]), onEdit: () => editApp(items[i]), onDelete: () => removeApp(items[i])));
@@ -1620,23 +1633,25 @@ class _AppCard extends StatelessWidget {
   final DeckApp app; final VoidCallback onOpen, onFavorite, onEdit, onDelete; final VoidCallback? onAdmin;
   @override Widget build(BuildContext context) {
     final theme = Theme.of(context); final tint = Color(app.accentHex);
-    return Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onOpen, child: Padding(padding: const EdgeInsets.all(18),
+    return Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onOpen, child: Padding(padding: const EdgeInsets.all(14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Container(width: 48, height: 48, decoration: BoxDecoration(color: tint.withValues(alpha: .15), borderRadius: BorderRadius.circular(15)), child: IconTheme(data: IconThemeData(color: tint, size: 25), child: iconFor(app.iconKey))),
-          const Spacer(), IconButton(tooltip: app.favorite ? 'Remove favourite' : 'Add favourite', onPressed: onFavorite,
+          Container(width: 42, height: 42, decoration: BoxDecoration(color: tint.withValues(alpha: .15), borderRadius: BorderRadius.circular(13)), child: IconTheme(data: IconThemeData(color: tint, size: 23), child: iconFor(app.iconKey))),
+          const Spacer(), IconButton(visualDensity: VisualDensity.compact, tooltip: app.favorite ? 'Remove favourite' : 'Add favourite', onPressed: onFavorite,
             icon: Icon(app.favorite ? Icons.star_rounded : Icons.star_border_rounded, color: app.favorite ? accent : theme.colorScheme.onSurfaceVariant)),
           PopupMenuButton<String>(tooltip: 'App options', onSelected: (v) { if (v == 'edit') onEdit(); if (v == 'delete') onDelete(); },
             itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('Edit shortcut')), PopupMenuItem(value: 'delete', child: Text('Remove shortcut'))]),
         ]),
-        const SizedBox(height: 14), Text(app.name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 7),
+        const SizedBox(height: 8), Text(app.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
         _StatusPill(label: 'Native workspace', icon: Icons.dashboard_rounded, color: accent),
-        const SizedBox(height: 5), Expanded(child: Text(app.description.isEmpty ? 'Open this workspace inside ControlDeck.' : app.description,
-          maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.4))),
-        Row(children: [
+        const SizedBox(height: 5),
+        Text(app.description.isEmpty ? 'Open this workspace inside ControlDeck.' : app.description,
+          maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.3)),
+        const Spacer(),
+        Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center, spacing: 6, runSpacing: 2, children: [
           Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)), child: Text(app.category, style: theme.textTheme.labelSmall)),
-          const Spacer(), if (onAdmin != null) IconButton(tooltip: app.adminUrl.trim().isEmpty ? 'Configure Portfolio admin' : 'Open admin', onPressed: onAdmin, icon: const Icon(Icons.admin_panel_settings_outlined, size: 19)),
+          if (onAdmin != null) IconButton(visualDensity: VisualDensity.compact, tooltip: app.adminUrl.trim().isEmpty ? 'Configure Portfolio admin' : 'Open admin', onPressed: onAdmin, icon: const Icon(Icons.admin_panel_settings_outlined, size: 19)),
           FilledButton.tonalIcon(onPressed: onOpen, icon: const Icon(Icons.arrow_forward_rounded, size: 16), label: const Text('Open workspace')),
         ]),
       ]))));
