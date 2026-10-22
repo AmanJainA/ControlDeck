@@ -1592,22 +1592,6 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, required this.value, required this.caption, required this.icon});
-  final String label, value, caption; final IconData icon;
-  @override Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(children: [
-      Container(width: 44, height: 44, decoration: BoxDecoration(color: accent.withValues(alpha: .13), borderRadius: BorderRadius.circular(14)), child: Icon(icon, color: accent)),
-      const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        const SizedBox(height: 3), Text(value, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-        Text(caption, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-      ])),
-    ])));
-  }
-}
-
 class _AppCard extends StatelessWidget {
   const _AppCard({required this.app, required this.onOpen, required this.onAdmin, required this.onFavorite, required this.onEdit, required this.onDelete});
   final DeckApp app; final VoidCallback onOpen, onFavorite, onEdit, onDelete; final VoidCallback? onAdmin;
