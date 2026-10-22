@@ -690,8 +690,9 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
           crossAxisCount:cols,
           mainAxisSpacing:12,
           crossAxisSpacing:12,
-          // Give the icon and language title enough vertical room on phones and tablets.
-          childAspectRatio:cols==1?2.7:cols==2?1.22:1.0,
+          // Cards are deliberately taller on narrow screens so the icon, title,
+          // description and action remain inside the card on compact iPhones.
+          childAspectRatio:cols==1?1.3:cols==2?0.98:0.92,
           children:visible.map((l)=>Card(
             clipBehavior:Clip.antiAlias,
             child:InkWell(
@@ -710,7 +711,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
                     const SizedBox(height:12),
                     Text(l['name']?.toString()??'Programming',maxLines:1,overflow:TextOverflow.ellipsis,style:theme.textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),
                     const SizedBox(height:4),
-                    Expanded(child:Text(l['description']?.toString().trim().isNotEmpty==true?l['description'].toString():'Explore lessons, examples and practice notes.',maxLines:3,overflow:TextOverflow.ellipsis,style:theme.textTheme.bodySmall)),
+                    Text(l['description']?.toString().trim().isNotEmpty==true?l['description'].toString():'Explore lessons, examples and practice notes.',maxLines:3,overflow:TextOverflow.ellipsis,style:theme.textTheme.bodySmall),
                     const SizedBox(height:6),
                     Text('Explore lessons  →',style:theme.textTheme.labelLarge?.copyWith(color:theme.colorScheme.primary,fontWeight:FontWeight.w700)),
                   ],
