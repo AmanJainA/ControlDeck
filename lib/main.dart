@@ -473,31 +473,26 @@ class _DeckHomeState extends State<DeckHome> {
               Text(items.length.toString() + ' shown', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant))]),
             const SizedBox(height: 16),
             if (loading) const Padding(padding: EdgeInsets.all(36), child: Center(child: CircularProgressIndicator()))
-            else if (items.isEmpty) _EmptyState(onAdd: () => editApp())
+            else if (items.isEmpty) const _EmptyState()
             else LayoutBuilder(builder: (context, box) {
               final cols = box.maxWidth > 1120 ? 3 : box.maxWidth > 680 ? 2 : 1;
               return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: items.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, crossAxisSpacing: 14, mainAxisSpacing: 14, mainAxisExtent: 270),
                 itemBuilder: (context, i) => _AppCard(app: items[i], onOpen: () => openApp(items[i]),
-                  onAdmin: items[i].adminUrl.isEmpty && items[i].name.toLowerCase() != 'portfolio' ? null : () => openApp(items[i], admin: true),
-                  onFavorite: () => toggleFavorite(items[i]), onEdit: () => editApp(items[i]), onDelete: () => removeApp(items[i])));
+                  onAdmin: items[i].adminUrl.isEmpty && items[i].name.toLowerCase() != 'portfolio' ? null : () => openApp(items[i], admin: true)));
             }),
-            if (!wide) ...[const SizedBox(height: 24), OutlinedButton.icon(onPressed: () => editApp(), icon: const Icon(Icons.add_rounded), label: const Text('Add app shortcut'))],
-            const SizedBox(height: 24),
-            _Notice(text: widget.cloudUserId != null ? 'Your shortcuts sync through Supabase. One ControlDeck sign-in opens your modules; each module keeps its own data and permissions.' : 'Local mode is active. Configure Supabase to sync your workspace across devices.', icon: Icons.shield_outlined),
+
           ]))),
         ])),
       ]),
-      bottomNavigationBar: wide ? null : NavigationBar(selectedIndex: page == 'Favourites' ? 1 : 0,
+      bottomNavigationBar: wide ? null : NavigationBar(selectedIndex: 0,
         onDestinationSelected: (i) {
           if (i == 0) setState(() { page = 'Overview'; favoritesOnly = false; category = 'All apps'; });
-          if (i == 1) setState(() { page = 'Favourites'; favoritesOnly = true; });
-          if (i == 2) Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AccountProfileScreen()));
-          if (i == 3) Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => AccountSettingsScreen(dark: widget.dark, onTheme: widget.onTheme)));
+          if (i == 1) Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AccountProfileScreen()));
+          if (i == 2) Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => AccountSettingsScreen(dark: widget.dark, onTheme: widget.onTheme)));
         },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard_rounded), label: 'Overview'),
-          NavigationDestination(icon: Icon(Icons.star_rounded), label: 'Favourites'),
           NavigationDestination(icon: Icon(Icons.account_circle_outlined), label: 'Profile'),
           NavigationDestination(icon: Icon(Icons.tune_rounded), label: 'Settings'),
         ]),
@@ -1573,7 +1568,6 @@ class _SideNav extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 20, 12, 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(padding: const EdgeInsets.only(left: 12, bottom: 10), child: Text('WORKSPACE', style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 1.4, color: theme.colorScheme.onSurfaceVariant))),
         _NavItem(icon: Icons.dashboard_rounded, label: 'Overview', selected: page == 'Overview', onTap: () => onSelect('Overview')),
-        _NavItem(icon: Icons.star_rounded, label: 'Favourites', selected: page == 'Favourites', onTap: () => onSelect('Favourites')),
         _NavItem(icon: Icons.apps_rounded, label: 'All apps', selected: page == 'All apps', onTap: () => onSelect('All apps')),
         _NavItem(icon: Icons.account_circle_outlined, label: 'Profile', selected: page == 'Profile', onTap: () => onSelect('Profile')),
         const Spacer(), _NavItem(icon: Icons.tune_rounded, label: 'Settings', selected: page == 'Settings', onTap: () => onSelect('Settings')),
@@ -1595,18 +1589,16 @@ class _NavItem extends StatelessWidget {
 }
 
 class _AppCard extends StatelessWidget {
-  const _AppCard({required this.app, required this.onOpen, required this.onAdmin, required this.onFavorite, required this.onEdit, required this.onDelete});
-  final DeckApp app; final VoidCallback onOpen, onFavorite, onEdit, onDelete; final VoidCallback? onAdmin;
+  const _AppCard({required this.app, required this.onOpen, required this.onAdmin});
+  final DeckApp app;
+  final VoidCallback onOpen;
+  final VoidCallback? onAdmin;
   @override Widget build(BuildContext context) {
     final theme = Theme.of(context); final tint = Color(app.accentHex);
     return Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onOpen, child: Padding(padding: const EdgeInsets.all(14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(width: 42, height: 42, alignment: Alignment.center, decoration: BoxDecoration(color: tint.withValues(alpha: .15), borderRadius: BorderRadius.circular(13)), child: IconTheme(data: IconThemeData(color: tint, size: 23), child: iconFor(app.iconKey))),
-          const Spacer(), IconButton(visualDensity: VisualDensity.compact, tooltip: app.favorite ? 'Remove favourite' : 'Add favourite', onPressed: onFavorite,
-            icon: Icon(app.favorite ? Icons.star_rounded : Icons.star_border_rounded, color: app.favorite ? accent : theme.colorScheme.onSurfaceVariant)),
-          PopupMenuButton<String>(tooltip: 'App options', onSelected: (v) { if (v == 'edit') onEdit(); if (v == 'delete') onDelete(); },
-            itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('Edit shortcut')), PopupMenuItem(value: 'delete', child: Text('Remove shortcut'))]),
         ]),
         const SizedBox(height: 8), Text(app.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
@@ -1614,11 +1606,10 @@ class _AppCard extends StatelessWidget {
         const SizedBox(height: 5),
         Text(app.description.isEmpty ? 'Open this workspace inside ControlDeck.' : app.description,
           maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.3)),
-        const Spacer(),
-        Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center, spacing: 6, runSpacing: 2, children: [
-          if (onAdmin != null) IconButton(visualDensity: VisualDensity.compact, tooltip: app.adminUrl.trim().isEmpty ? 'Configure Portfolio admin' : 'Open admin', onPressed: onAdmin, icon: const Icon(Icons.admin_panel_settings_outlined, size: 19)),
-          FilledButton.tonalIcon(onPressed: onOpen, icon: const Icon(Icons.arrow_forward_rounded, size: 16), label: const Text('Open workspace')),
-        ]),
+        if (onAdmin != null) ...[
+          const SizedBox(height: 8),
+          Align(alignment: Alignment.centerRight, child: IconButton(visualDensity: VisualDensity.compact, tooltip: app.adminUrl.trim().isEmpty ? 'Configure Portfolio admin' : 'Open admin', onPressed: onAdmin, icon: const Icon(Icons.admin_panel_settings_outlined, size: 19))),
+        ],
       ]))));
   }
 }
@@ -1644,12 +1635,15 @@ class _Notice extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onAdd});
-  final VoidCallback onAdd;
-  @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.all(30), child: Column(children: [
-    const Icon(Icons.widgets_outlined, size: 42), const SizedBox(height: 12),
-    const Text('Nothing here yet', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-    const SizedBox(height: 6), const Text('Try another filter or add an app shortcut.'), const SizedBox(height: 14),
-    OutlinedButton.icon(onPressed: onAdd, icon: const Icon(Icons.add_rounded), label: const Text('Add app')),
-  ]));
+  const _EmptyState();
+  @override Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.all(30),
+    child: Column(children: [
+      Icon(Icons.widgets_outlined, size: 42),
+      SizedBox(height: 12),
+      Text('Nothing here yet', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+      SizedBox(height: 6),
+      Text('No apps are available to display.'),
+    ]),
+  );
 }
