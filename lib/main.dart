@@ -12,6 +12,7 @@ import 'railways_native_screen.dart';
 import 'interview_native_screen.dart';
 
 const accent = Color(0xFF8FA600);
+const List<String> categories = ['All apps', 'Personal', 'Professional', 'Creative', 'Other'];
 const supabaseUrl = SupabaseConfig.primaryUrl;
 const supabaseAnonKey = SupabaseConfig.primaryKey;
 const cloudEnabled = true;
@@ -263,6 +264,7 @@ class _SignInScreenState extends State<SignInScreen> {
             )),
           ),
         )),
+      ),
       ),
     );
   }
