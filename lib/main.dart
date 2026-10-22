@@ -475,11 +475,10 @@ class _DeckHomeState extends State<DeckHome> {
             if (loading) const Padding(padding: EdgeInsets.all(36), child: Center(child: CircularProgressIndicator()))
             else if (items.isEmpty) const _EmptyState()
             else LayoutBuilder(builder: (context, box) {
-              final cols = box.maxWidth > 1120 ? 3 : box.maxWidth > 680 ? 2 : 1;
+              final cols = box.maxWidth > 1120 ? 3 : 2;
               return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: items.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, crossAxisSpacing: 14, mainAxisSpacing: 14, mainAxisExtent: 270),
-                itemBuilder: (context, i) => _AppCard(app: items[i], onOpen: () => openApp(items[i]),
-                  onAdmin: items[i].adminUrl.isEmpty && items[i].name.toLowerCase() != 'portfolio' ? null : () => openApp(items[i], admin: true)));
+                itemBuilder: (context, i) => _AppCard(app: items[i], onOpen: () => openApp(items[i])));
             }),
 
           ]))),
@@ -1589,10 +1588,9 @@ class _NavItem extends StatelessWidget {
 }
 
 class _AppCard extends StatelessWidget {
-  const _AppCard({required this.app, required this.onOpen, required this.onAdmin});
+  const _AppCard({required this.app, required this.onOpen});
   final DeckApp app;
   final VoidCallback onOpen;
-  final VoidCallback? onAdmin;
   @override Widget build(BuildContext context) {
     final theme = Theme.of(context); final tint = Color(app.accentHex);
     return Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onOpen, child: Padding(padding: const EdgeInsets.all(14),
@@ -1606,10 +1604,6 @@ class _AppCard extends StatelessWidget {
         const SizedBox(height: 5),
         Text(app.description.isEmpty ? 'Open this workspace inside ControlDeck.' : app.description,
           maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.3)),
-        if (onAdmin != null) ...[
-          const SizedBox(height: 8),
-          Align(alignment: Alignment.centerRight, child: IconButton(visualDensity: VisualDensity.compact, tooltip: app.adminUrl.trim().isEmpty ? 'Configure Portfolio admin' : 'Open admin', onPressed: onAdmin, icon: const Icon(Icons.admin_panel_settings_outlined, size: 19))),
-        ],
       ]))));
   }
 }
