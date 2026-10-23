@@ -21,6 +21,8 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   Map<String,dynamic>? user, heading, menu;
   List<Map<String,dynamic>> headings=[], menus=[], folders=[], files=[], trackingRows=[];
   Map<int,int> menuFolderCounts = {};
+  Map<String, int> dashboardCounts = {'mydata': 0, 'nangia': 0, 'nr': 0};
+  List<Map<String, dynamic>> latestMenus = [];
   int? selectedFolderId;
   int? dashboardHeadingId;
   String typeFilter='all', trackingTab='online';
@@ -82,6 +84,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       // Keep the existing Railways schema and access tables unchanged.
       await _storage.write(key: _sessionKey, value: jsonEncode(row));
       await loadHeadings();
+      await loadDashboardSummary();
     } catch (e) {
       if (mounted) setState(() { user = null; view = 'login'; error = message(e); });
     } finally {
@@ -103,6 +106,69 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       if(mounted)setState(() { headings = result; view = 'home'; });
     }catch(e){if(mounted)setState(()=>error=message(e));}
     finally{if(mounted)setState(()=>busy=false);}
+  }
+
+  Future<void> loadDashboardSummary() async {
+    try {
+      final raw = await db.from('datacollection')
+          .select('id,menuname,menu_id,main_heading_id,type,links,folder');
+      final rows = List<Map<String, dynamic>>.from(raw);
+      var myDataCount = 0;
+      var nangiaCount = 0;
+      final grouped = <String, Map<String, dynamic>>{};
+      for (final row in rows) {
+        final name = (row['menuname'] ?? '').toString().trim();
+        final normalized = name.toLowerCase().replaceAll(RegExp(r'[ _-]'), '');
+        if (normalized == 'mydata') myDataCount++;
+        if (normalized == 'nangia') nangiaCount++;
+        if (name.isEmpty || normalized == 'mydata' || normalized == 'nangia') continue;
+        final menuId = (row['menu_id'] as num?)?.toInt();
+        final headingId = (row['main_heading_id'] as num?)?.toInt();
+        final key = menuId != null ? 'menu:$menuId' : 'heading:${headingId ?? 0}:${normalized}';
+        grouped.putIfAbsent(key, () => {
+          'name': name,
+          'menu_id': menuId,
+          'main_heading_id': headingId,
+          'count': 0,
+        });
+        grouped[key]!['count'] = (grouped[key]!['count'] as int) + 1;
+      }
+      final recent = grouped.values.toList()
+        ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+      if (!mounted) return;
+      setState(() {
+        dashboardCounts = {
+          'mydata': myDataCount,
+          'nangia': nangiaCount,
+          'nr': rows.length - myDataCount - nangiaCount,
+        };
+        latestMenus = recent.take(8).toList();
+      });
+    } catch (_) {
+      // Keep the workspace usable if dashboard-wide counts are restricted by RLS.
+    }
+  }
+
+  Future<void> openDashboardMenu(Map<String, dynamic> item) async {
+    final menuId = (item['menu_id'] as num?)?.toInt();
+    final headingId = (item['main_heading_id'] as num?)?.toInt();
+    if (menuId == null || headingId == null) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This menu is not linked to an active workspace.')),
+      );
+      return;
+    }
+    try {
+      final headingRow = await db.from('main_heading_master')
+          .select('id,headingname,status').eq('id', headingId).maybeSingle();
+      final menuRow = await db.from('menu_master')
+          .select('id,menuname,status,main_heading_id').eq('id', menuId).maybeSingle();
+      if (headingRow == null || menuRow == null) throw Exception('The selected menu is no longer available.');
+      await openHeading(Map<String, dynamic>.from(headingRow));
+      await openMenu(Map<String, dynamic>.from(menuRow));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message(e))));
+    }
   }
 
   Future<void> openHeading(Map<String,dynamic> h) async {
@@ -543,9 +609,22 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         hero('Welcome, ${user?['username']??'Railway user'}','${user?['dept']??'Railway workspace'} · ${user?['role']??'User'}',Icons.train_rounded),
         const SizedBox(height:16),
         LayoutBuilder(builder:(ctx,c){final cols=c.maxWidth>700?3:c.maxWidth>460?2:1;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:cols,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:cols==1?4:2.3,children:[
-          metric('Workspaces',headings.length.toString(),Icons.account_tree_rounded),metric('Role',(user?['role']??'User').toString(),Icons.verified_user_outlined),metric('Project',(user?['project']??'Railways').toString(),Icons.business_center_outlined)
+          metric('Workspaces',headings.length.toString(),Icons.account_tree_rounded),metric('My Data',(dashboardCounts['mydata']??0).toString(),Icons.folder_copy_outlined),metric('Nangia',(dashboardCounts['nangia']??0).toString(),Icons.business_center_outlined),metric('NR Data',(dashboardCounts['nr']??0).toString(),Icons.description_outlined),metric('Role',(user?['role']??'User').toString(),Icons.verified_user_outlined),metric('Project',(user?['project']??'Railways').toString(),Icons.business_center_outlined)
         ]);}),
         const SizedBox(height:18),
+        if(latestMenus.isNotEmpty)...[
+          Text('Latest Folder',style:Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),
+          const SizedBox(height:8),
+          for(final item in latestMenus)
+            Card(child:ListTile(
+              leading:const CircleAvatar(child:Icon(Icons.folder_open_rounded)),
+              title:Text((item['name']??'Menu').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),
+              subtitle:Text('${item['count']} files'),
+              trailing:const Icon(Icons.chevron_right_rounded),
+              onTap:()=>openDashboardMenu(item),
+            )),
+          const SizedBox(height:12),
+        ],
         Row(children:[Expanded(child:Text('Workspaces',style:Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800))),TextButton.icon(onPressed:openMyData,icon:const Icon(Icons.folder_copy_outlined),label:const Text('My Data'))]),
         if(headings.isEmpty)const EmptyRailway(title:'No workspaces assigned',detail:'Ask your administrator to grant access.'),
         for(final h in headings)Card(child:ListTile(leading:const CircleAvatar(child:Icon(Icons.account_tree_rounded)),title:Text((h['headingname']??'Workspace').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:const Text('Open menus and documents'),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>openHeading(h))),
