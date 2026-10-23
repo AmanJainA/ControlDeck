@@ -3,10 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Native CRUD screens for the management tables used by the Railways repository.
 class RailwaysDataManager extends StatefulWidget {
-  const RailwaysDataManager({super.key, required this.db, required this.user, required this.table, required this.title});
+  const RailwaysDataManager({super.key, required this.db, required this.user, required this.table, required this.title, this.embedded = false});
   final SupabaseClient db;
   final Map<String, dynamic> user;
   final String table, title;
+  final bool embedded;
   @override State<RailwaysDataManager> createState() => _RailwaysDataManagerState();
 }
 
@@ -168,7 +169,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
   @override Widget build(BuildContext context) {
     final filtered = rows.where((r) => r.values.any((v) => v != null && v.toString().toLowerCase().contains(search.text.toLowerCase()))).toList();
     return Scaffold(
-      appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: Text(widget.title), actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh_rounded))]),
+      appBar: widget.embedded ? null : AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: Text(widget.title), actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh_rounded))]),
       body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1100), child: Column(children: [
         if (error != null) Padding(padding: const EdgeInsets.all(12), child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
         Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 6), child: Row(children: [
