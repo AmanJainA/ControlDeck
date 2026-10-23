@@ -591,6 +591,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       bottomNavigationBar: profile == null ? null : NavigationBar(
         selectedIndex: _selectedNavIndex,
         onDestinationSelected: _selectNav,
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_rounded), selectedIcon: Icon(Icons.home_filled), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.menu_book_rounded), label: 'Learn'),
@@ -678,6 +679,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     return [const _NotesHero(title:'Coding Notes',subtitle:'Database-driven coding notes for BCA/MCA students.'),
       Row(children:[Expanded(child:Text('${languages.length} languages',style:theme.textTheme.titleMedium)),Text('${progress.where((p)=>p['completed']==true).length} completed')]),
       TextField(controller:search,onChanged:(v)=>setState(()=>query=v),decoration:const InputDecoration(labelText:'Search languages',prefixIcon:Icon(Icons.search_rounded))),
+      const SizedBox(height:5),
       LayoutBuilder(builder:(context,box){
         final cols=box.maxWidth>760?3:box.maxWidth>460?2:1;
         return GridView.count(
