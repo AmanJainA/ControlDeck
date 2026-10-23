@@ -573,7 +573,7 @@ class _DeckHomeState extends State<DeckHome> {
               final cols = box.maxWidth > 1120 ? 3 : 2;
               return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: items.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, crossAxisSpacing: 14, mainAxisSpacing: 14, mainAxisExtent: 160),
-                itemBuilder: (context, i) => _AppCard(app: items[i], onOpen: () => openApp(items[i])));
+                itemBuilder: (context, i) => _AppCard(app: items[i], onOpen: () => openApp(items[i], admin: items[i].id.toLowerCase() == 'portfolio')));
             }),
 
           ]))),
