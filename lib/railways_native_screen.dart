@@ -292,6 +292,34 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
 
 
 
+  Future<void> openNangia() async {
+    setState(() {
+      menu = {'menuname': 'Nangia'};
+      heading = null;
+      view = 'nangia';
+      files = [];
+      folders = [];
+      selectedFolderId = null;
+      typeFilter = 'all';
+      search.clear();
+      busy = true;
+      error = null;
+    });
+    try {
+      // Match the web portal's Nangia register: documents are grouped by
+      // the exact "Nangia" menu label and newest records appear first.
+      final rows = await db.from('datacollection')
+          .select('id,name,type,links,menuname,folder,folder_id,menu_id,status,remark,uploaded_by,uploaded_at,source_type')
+          .eq('menuname', 'Nangia')
+          .order('id', ascending: false);
+      if (mounted) setState(() { files = List<Map<String, dynamic>>.from(rows); });
+    } catch (e) {
+      if (mounted) setState(() => error = message(e));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   Future<void> changePassword() async {
     final oldPassword = TextEditingController();
     final newPassword = TextEditingController();
@@ -395,7 +423,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
 
   void back(){
     if(view=='files'&&heading!=null){openHeading(heading!);return;}
-    if(view=='files'||view=='menus'||view=='pending'||view=='nr'||view=='tracking'){setState(() { view = 'home'; heading = null; menu = null; });return;}
+    if(view=='files'||view=='menus'||view=='nangia'||view=='pending'||view=='nr'||view=='tracking'){setState(() { view = 'home'; heading = null; menu = null; });return;}
     Navigator.of(context).maybePop();
   }
 
@@ -527,6 +555,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         Card(child: ListTile(leading: const Icon(Icons.cloud_upload_outlined), title: const Text('Upload Files'), subtitle: const Text('Submit a document or cloud link'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => uploadLink())),
         Card(child: ListTile(leading: const Icon(Icons.lock_reset_rounded), title: const Text('Change Password'), subtitle: const Text('Update your Railway account password'), trailing: const Icon(Icons.chevron_right_rounded), onTap: changePassword)),
         Card(child: ListTile(leading: const Icon(Icons.folder_copy_outlined), title: const Text('My Data'), subtitle: const Text('View your submissions'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openMyData)),
+        Card(child: ListTile(leading: const Icon(Icons.business_center_outlined), title: const Text('Nangia'), subtitle: const Text('Browse Nangia documents and project files'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openNangia)),
         if (canApprove) Card(child: ListTile(leading: const Icon(Icons.fact_check_outlined), title: const Text('Pending Approvals'), subtitle: const Text('Approve or reject submitted files'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openPendingApprovals)),
         if (admin) ...[
           Card(child: ListTile(leading: const Icon(Icons.file_present_outlined), title: const Text('Manage Uploads'), subtitle: const Text('Edit or delete document metadata'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('datacollection', 'Manage Uploads'))),
@@ -570,6 +599,24 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
               onTap:()=>openMenu(m),
             ));
           }),
+      ]else if(view=='nangia')...[
+        hero('Nangia', 'Browse the Nangia document register, search files and open project documents.', Icons.business_center_outlined),
+        const SizedBox(height:12),
+        TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search_rounded),labelText:'Search Nangia documents')),
+        const SizedBox(height:10),
+        if(!busy && filtered.isEmpty)const EmptyRailway(title:'No Nangia documents found',detail:'No records match the Nangia menu or your search.'),
+        for(final f in filtered)
+          Card(clipBehavior:Clip.antiAlias,child:ListTile(
+            leading:fileIcon((f['type']??'').toString()),
+            title:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w700)),
+            subtitle:Text([
+              (f['type']??'FILE').toString().toUpperCase(),
+              if((f['uploaded_by']??'').toString().isNotEmpty) 'Uploaded by ${f['uploaded_by']}',
+              if((f['uploaded_at']??'').toString().isNotEmpty) (f['uploaded_at']??'').toString(),
+            ].join(' · '),maxLines:2,overflow:TextOverflow.ellipsis),
+            trailing:IconButton(tooltip:'Open document',onPressed:()=>openDocument(f),icon:const Icon(Icons.open_in_new_rounded)),
+            onTap:()=>showFile(f),
+          )),
       ]else if(view=='pending')...[
         hero('Pending Approvals', 'Approve or reject documents submitted by Railway users.', Icons.fact_check_outlined),
         if(files.isEmpty)const EmptyRailway(title:'No pending documents',detail:'There are no submissions waiting for approval.'),
