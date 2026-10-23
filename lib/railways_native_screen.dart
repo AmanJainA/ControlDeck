@@ -602,6 +602,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   ])));
 
   Widget workspaceView(){
+    if(view=='users'&&admin) return RailwaysDataManager(key:const ValueKey('railways-user-access-tab'),db:db,user:user!,table:'users',title:'User Access',embedded:true);
     final filtered=files.where((f){
       final type=(f['type']??'').toString().toLowerCase();
       final typeMatch=typeFilter=='all'||(typeFilter=='img'?['png','jpg','jpeg','gif','svg','webp'].any(type.contains):typeFilter=='pdf'?type.contains('pdf'):typeFilter=='doc'?type.contains('doc'):typeFilter=='xls'?type.contains('xls')||type.contains('csv'):true);
@@ -610,9 +611,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     return Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:1100),child:ListView(padding:const EdgeInsets.all(20),children:[
       if(error!=null)Card(color:Theme.of(context).colorScheme.errorContainer,child:Padding(padding:const EdgeInsets.all(14),child:Text(error!))),
       if(busy)const LinearProgressIndicator(),
-      if(view=='users'&&admin)...[
-         RailwaysDataManager(key:const ValueKey('railways-user-access-tab'),db:db,user:user!,table:'users',title:'User Access',embedded:true),
-       ]else if(view=='home')...[
+      if(view=='home')...[
         hero('Welcome, ${user?['username']??'Railway user'}','${user?['dept']??'Railway workspace'} · ${user?['role']??'User'}',Icons.train_rounded),
         const SizedBox(height:16),
         LayoutBuilder(builder:(ctx,c){final cols=c.maxWidth>900?3:2;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:cols,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:cols==2?1.55:2.3,children:[
