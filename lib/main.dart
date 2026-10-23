@@ -578,11 +578,11 @@ class _AccountProfileScreenState extends State<AccountProfileScreen> {
         // Some installations do not have every optional profile table/column, so
         // each schema is attempted independently without blocking the main update.
         final syncs = <Future<void> Function()>[
-          () async => db.from('profiles').update({'full_name': displayName, 'name': displayName, 'username': displayName}).eq('email', userEmail),
-          () async => db.schema('notes').from('profiles').update({'full_name': displayName}).eq('email', userEmail),
-          () async => db.schema('interview').from('users').update({'full_name': displayName}).eq('email', userEmail),
-          () async => db.from('users').update({'full_name': displayName}).eq('email', userEmail),
-          () async => db.schema('portfolio').from('site_profile').update({'full_name': displayName}).eq('email', userEmail),
+          () async { await db.from('profiles').update({'full_name': displayName, 'name': displayName, 'username': displayName}).eq('email', userEmail); },
+          () async { await db.schema('notes').from('profiles').update({'full_name': displayName}).eq('email', userEmail); },
+          () async { await db.schema('interview').from('users').update({'full_name': displayName}).eq('email', userEmail); },
+          () async { await db.from('users').update({'full_name': displayName}).eq('email', userEmail); },
+          () async { await db.schema('portfolio').from('site_profile').update({'full_name': displayName}).eq('email', userEmail); },
         ];
         for (final sync in syncs) {
           try { await sync(); } catch (_) { /* Optional schema or RLS policy may not support this table. */ }
