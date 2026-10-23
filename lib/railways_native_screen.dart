@@ -549,20 +549,23 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         onDestinationSelected: _selectMainTab,
         destinations:[
           const NavigationDestination(icon:Icon(Icons.home_rounded),label:'Home'),
-          const NavigationDestination(icon:Icon(Icons.dashboard_rounded),label:'Dashboard'),
-          const NavigationDestination(icon:Icon(Icons.folder_copy_rounded),label:'My Data'),
-          if(canApprove) const NavigationDestination(icon:Icon(Icons.fact_check_rounded),label:'Approvals'),
+          const NavigationDestination(icon:Icon(Icons.cloud_upload_outlined),label:'Upload Files'),
+          if(admin) const NavigationDestination(icon:Icon(Icons.manage_accounts_outlined),label:'User Access'),
+          if(admin) const NavigationDestination(icon:Icon(Icons.monitor_heart_outlined),label:'Manage Tracking'),
         ],
       ));
   }
 
-  int get _selectedMainTab => view=='nr'?1:(view=='files'&&heading==null)?2:view=='pending'&&canApprove?3:0;
+  int get _selectedMainTab {
+    if (view == 'tracking' && admin) return 3;
+    return 0;
+  }
 
   void _selectMainTab(int index){
     if(index==0){setState(()=>view='home');loadHeadings();}
-    else if(index==1)openNRDashboard();
-    else if(index==2)openMyData();
-    else if(index==3&&canApprove)openPendingApprovals();
+    else if(index==1)uploadLink();
+    else if(index==2&&admin)openNativeManager('users', 'User Access');
+    else if(index==3&&admin)loadTracking('online');
   }
 
   Widget openingDashboardView()=>Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:1100),child:ListView(padding:const EdgeInsets.all(20),children:[
@@ -612,27 +615,12 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
           metric('Workspaces',headings.length.toString(),Icons.account_tree_rounded),metric('My Data',(dashboardCounts['mydata']??0).toString(),Icons.folder_copy_outlined),metric('Nangia',(dashboardCounts['nangia']??0).toString(),Icons.business_center_outlined),metric('NR Data',(dashboardCounts['nr']??0).toString(),Icons.description_outlined),metric('Role',(user?['role']??'User').toString(),Icons.verified_user_outlined),metric('Project',(user?['project']??'Railways').toString(),Icons.business_center_outlined)
         ]);}),
         const SizedBox(height:18),
-        if(latestMenus.isNotEmpty)...[
-          Text('Latest Folder',style:Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),
-          const SizedBox(height:8),
-          for(final item in latestMenus)
-            Card(child:ListTile(
-              leading:const CircleAvatar(child:Icon(Icons.folder_open_rounded)),
-              title:Text((item['name']??'Menu').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),
-              subtitle:Text('${item['count']} files'),
-              trailing:const Icon(Icons.chevron_right_rounded),
-              onTap:()=>openDashboardMenu(item),
-            )),
-          const SizedBox(height:12),
-        ],
         Row(children:[Expanded(child:Text('Workspaces',style:Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800))),TextButton.icon(onPressed:openMyData,icon:const Icon(Icons.folder_copy_outlined),label:const Text('My Data'))]),
         if(headings.isEmpty)const EmptyRailway(title:'No workspaces assigned',detail:'Ask your administrator to grant access.'),
         for(final h in headings)Card(child:ListTile(leading:const CircleAvatar(child:Icon(Icons.account_tree_rounded)),title:Text((h['headingname']??'Workspace').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:const Text('Open menus and documents'),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>openHeading(h))),
         const SizedBox(height:20),
         Text('Railway tools', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height:8),
-        Card(child: ListTile(leading: const Icon(Icons.cloud_upload_outlined), title: const Text('Upload Files'), subtitle: const Text('Submit a document or cloud link'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => uploadLink())),
-        Card(child: ListTile(leading: const Icon(Icons.lock_reset_rounded), title: const Text('Change Password'), subtitle: const Text('Update your Railway account password'), trailing: const Icon(Icons.chevron_right_rounded), onTap: changePassword)),
         Card(child: ListTile(leading: const Icon(Icons.folder_copy_outlined), title: const Text('My Data'), subtitle: const Text('View your submissions'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openMyData)),
         Card(child: ListTile(leading: const Icon(Icons.business_center_outlined), title: const Text('Nangia'), subtitle: const Text('Browse Nangia documents and project files'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openNangia)),
         if (canApprove) Card(child: ListTile(leading: const Icon(Icons.fact_check_outlined), title: const Text('Pending Approvals'), subtitle: const Text('Approve or reject submitted files'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openPendingApprovals)),
@@ -641,12 +629,10 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
           Card(child: ListTile(leading: const Icon(Icons.account_tree_outlined), title: const Text('Main Headings'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('main_heading_master', 'Main Headings'))),
           Card(child: ListTile(leading: const Icon(Icons.menu_open_rounded), title: const Text('Manage Menus'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('menu_master', 'Manage Menus'))),
           Card(child: ListTile(leading: const Icon(Icons.folder_outlined), title: const Text('Manage Folders'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('folder_master', 'Manage Folders'))),
-          Card(child: ListTile(leading: const Icon(Icons.manage_accounts_outlined), title: const Text('Users & Access'), subtitle: const Text('Manage Railway accounts'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('users', 'Users & Access'))),
           Card(child: ListTile(leading: const Icon(Icons.key_outlined), title: const Text('Heading Access'), subtitle: const Text('Assign users to workspaces'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('user_main_heading_access', 'Heading Access'))),
           Card(child: ListTile(leading: const Icon(Icons.admin_panel_settings_outlined), title: const Text('Menu Access'), subtitle: const Text('Assign users to menus'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('user_menu_access', 'Menu Access'))),
           Card(child: ListTile(leading: const Icon(Icons.task_alt_rounded), title: const Text('Work Tracker'), subtitle: const Text('Manage tasks, reports and due dates'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('work_items', 'Work Tracker'))),
           Card(child: ListTile(leading: const Icon(Icons.link_rounded), title: const Text('Work Item Links'), subtitle: const Text('Connect tasks with Railway documents'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('work_item_links', 'Work Item Links'))),
-          Card(child: ListTile(leading: const Icon(Icons.monitor_heart_outlined), title: const Text('Manage Tracking'), subtitle: const Text('Currently Online, Login History and Page Activity'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => loadTracking('online'))),
         ],
       ]else if(view=='nr')...[
         hero('NR Data Dashboard','Your dashboard and menus in one workspace.',Icons.dashboard_customize_outlined),
