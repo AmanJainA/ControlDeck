@@ -1020,6 +1020,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
   String? message;
   String? token;
   String section = 'projects';
+  String searchQuery = '';
   Map<String, dynamic> data = {};
 
   static const resources = <Map<String, dynamic>>[
@@ -1135,6 +1136,58 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
     if (old != null) { try { await client.schema('portfolio').rpc('admin_logout', params: {'p_token': old}); } catch (_) {} }
   }
 
+  String _recordTitle(Map<String, dynamic> row) {
+    for (final key in ['title', 'full_name', 'subject', 'name', 'label', 'company', 'username']) {
+      final value = row[key]?.toString().trim() ?? '';
+      if (value.isNotEmpty) return value;
+    }
+    return 'Untitled record';
+  }
+
+  String _recordSummary(Map<String, dynamic> row) {
+    for (final key in ['summary', 'description', 'hero_role', 'period', 'email', 'url', 'location', 'category', 'level', 'message']) {
+      final value = row[key];
+      if (value != null && value.toString().trim().isNotEmpty) return value is List ? value.join(' · ') : value.toString();
+    }
+    return row.entries.where((e) => e.key != 'id' && e.value != null && e.value.toString().trim().isNotEmpty)
+        .map((e) => '${e.key.replaceAll('_', ' ')}: ${e.value is List ? (e.value as List).join(', ') : e.value}').take(2).join(' · ');
+  }
+
+  Future<void> viewRecord(Map<String, dynamic> resource, Map<String, dynamic> row) async {
+    final fields = List<Map<String, dynamic>>.from(resource['fields'] as List);
+    await showDialog<void>(context: context, builder: (ctx) => Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+      child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 620, maxHeight: 760), child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: double.infinity, padding: const EdgeInsets.all(22), decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [Theme.of(ctx).colorScheme.primaryContainer, Theme.of(ctx).colorScheme.surfaceContainerHighest]),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          CircleAvatar(radius: 25, child: Icon(resource['key'] == 'projects' ? Icons.rocket_launch_rounded : resource['key'] == 'experience' ? Icons.work_history_rounded : resource['key'] == 'education' ? Icons.school_rounded : Icons.article_rounded)),
+          const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(_recordTitle(row), style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4), Text(resource['label'].toString(), style: Theme.of(ctx).textTheme.bodyMedium),
+          ])),
+          IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close_rounded)),
+        ])),
+        Flexible(child: ListView(padding: const EdgeInsets.all(20), children: [
+          for (final field in fields)
+            if (row[field['key']] != null && row[field['key']].toString().trim().isNotEmpty)
+              Container(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.all(14), decoration: BoxDecoration(
+                color: Theme.of(ctx).colorScheme.surfaceContainerLow, borderRadius: BorderRadius.circular(14),
+              ), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(field['label'].toString(), style: Theme.of(ctx).textTheme.labelMedium?.copyWith(color: Theme.of(ctx).colorScheme.primary, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 5),
+                Text(row[field['key']] is List ? (row[field['key']] as List).join(field['multi'] == true ? '\n' : ', ') : row[field['key']].toString(), style: Theme.of(ctx).textTheme.bodyMedium),
+              ])),
+        ])),
+        Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 18), child: Row(children: [
+          Expanded(child: OutlinedButton.icon(onPressed: () { Navigator.pop(ctx); editRecord(resource, row); }, icon: const Icon(Icons.edit_rounded), label: const Text('Edit record'))),
+          const SizedBox(width: 10), FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
+        ])),
+      ])),
+    ));
+  }
+
   Future<void> editRecord(Map<String, dynamic> resource, [Map<String, dynamic>? old]) async {
     final fields = List<Map<String, dynamic>>.from(resource['fields'] as List);
     final controllers = <String, TextEditingController>{};
@@ -1148,17 +1201,77 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
         controllers[key] = TextEditingController(text: text);
       }
     }
-    final accepted = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
-      title: Text((old == null ? 'Add ' : 'Edit ') + resource['label'].toString()),
-      content: SizedBox(width: 520, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        for (final field in fields)
-          if (field['bool'] == true)
-            CheckboxListTile(contentPadding: EdgeInsets.zero, title: Text(field['label'].toString()), value: boolValues[field['key']] ?? true, onChanged: (v) => setDialog(() => boolValues[field['key'].toString()] = v ?? false))
-          else
-            Padding(padding: const EdgeInsets.only(bottom: 10), child: TextField(controller: controllers[field['key']], minLines: field['multi'] == true ? 2 : 1, maxLines: field['multi'] == true ? 4 : 1, keyboardType: field['number'] == true ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text, decoration: InputDecoration(labelText: field['label'].toString()))),
-      ]))),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save'))],
-    )));
+    final accepted = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) {
+      final cs = Theme.of(ctx).colorScheme;
+      return Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 760, maxHeight: 820), child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: double.infinity, padding: const EdgeInsets.fromLTRB(22, 20, 14, 20), decoration: BoxDecoration(
+            color: cs.primaryContainer, borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ), child: Row(children: [
+            CircleAvatar(backgroundColor: cs.primary, foregroundColor: cs.onPrimary, child: Icon(old == null ? Icons.add_rounded : Icons.edit_rounded)),
+            const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(old == null ? 'Add ${resource['label']}' : 'Edit ${resource['label']}', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 3), Text('Update the details below, then save your changes.', style: Theme.of(ctx).textTheme.bodySmall),
+            ])),
+            IconButton(onPressed: () => Navigator.pop(ctx, false), icon: const Icon(Icons.close_rounded)),
+          ])),
+          Flexible(child: ListView(padding: const EdgeInsets.fromLTRB(20, 18, 20, 18), children: [
+            Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: cs.surfaceContainerLow, borderRadius: BorderRadius.circular(14)), child: Row(children: [
+              Icon(Icons.tips_and_updates_outlined, color: cs.primary), const SizedBox(width: 10),
+              Expanded(child: Text('Tip: Keep titles clear and descriptions concise. For lists, separate items with commas or put each item on a new line.', style: Theme.of(ctx).textTheme.bodySmall)),
+            ])),
+            const SizedBox(height: 16),
+            LayoutBuilder(builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 560;
+              final widgets = <Widget>[];
+              for (final field in fields) {
+                if (field['bool'] == true) {
+                  widgets.add(Container(margin: const EdgeInsets.only(bottom: 10), decoration: BoxDecoration(border: Border.all(color: cs.outlineVariant), borderRadius: BorderRadius.circular(14)), child: CheckboxListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                    title: Text(field['label'].toString(), style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: const Text('Turn on or off for this item'),
+                    value: boolValues[field['key']] ?? true,
+                    onChanged: (v) => setDialog(() => boolValues[field['key'].toString()] = v ?? false),
+                  )));
+                } else {
+                  final multi = field['multi'] == true;
+                  final array = field['array'] == true;
+                  widgets.add(Padding(padding: const EdgeInsets.only(bottom: 14), child: TextField(
+                    controller: controllers[field['key']],
+                    minLines: multi ? 3 : 1,
+                    maxLines: multi ? 5 : 1,
+                    keyboardType: field['number'] == true ? const TextInputType.numberWithOptions(decimal: true) : (field['key'] == 'email' ? TextInputType.emailAddress : field['key'].toString().contains('url') || field['key'] == 'link' || field['key'] == 'repo_url' ? TextInputType.url : TextInputType.text),
+                    decoration: InputDecoration(
+                      labelText: field['label'].toString(),
+                      hintText: array ? (multi ? 'One item per line' : 'Separate items with commas') : null,
+                      alignLabelWithHint: multi,
+                      prefixIcon: Icon(field['number'] == true ? Icons.numbers_rounded : multi ? Icons.notes_rounded : field['key'].toString().contains('url') || field['key'] == 'link' || field['key'] == 'repo_url' ? Icons.link_rounded : Icons.edit_note_rounded),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  )));
+                }
+              }
+              if (!wide) return Column(children: widgets);
+              final output = <Widget>[];
+              for (var i = 0; i < widgets.length; i += 2) {
+                final a = widgets[i];
+                final b = i + 1 < widgets.length ? widgets[i + 1] : const SizedBox.shrink();
+                output.add(Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(child: a), const SizedBox(width: 12), Expanded(child: b),
+                ]));
+              }
+              return Column(children: output);
+            }),
+          ])),
+          Padding(padding: const EdgeInsets.fromLTRB(20, 12, 20, 18), child: Row(children: [
+            Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel'))),
+            const SizedBox(width: 12),
+            Expanded(child: FilledButton.icon(onPressed: () => Navigator.pop(ctx, true), icon: const Icon(Icons.save_rounded), label: const Text('Save changes'))),
+          ])),
+        ])),
+      );
+    }));
     if (accepted == true && token != null) {
       final payload = <String, dynamic>{if (old?['id'] != null) 'id': old!['id']};
       for (final field in fields) {
@@ -1178,7 +1291,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
         final result = await client.schema('portfolio').rpc(resource['key'] == 'contact' ? 'admin_contact_upsert' : resource['key'] == 'profile' ? 'admin_profile_upsert' : 'admin_upsert', params: {'p_token': token, if (resource['key'] != 'contact' && resource['key'] != 'profile') 'p_resource': resource['resource'], 'p_data': payload});
         if (result is Map && result['ok'] != true) throw Exception((result['message'] ?? 'Portfolio record could not be saved.').toString());
         await loadData();
-        if (mounted && message == null) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Portfolio record saved.')));
+        if (mounted && message == null) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Portfolio record saved successfully.')));
       } catch (e) { if (mounted) setState(() { busy = false; message = e.toString().replaceFirst('Exception: ', ''); }); }
     }
     for (final controller in controllers.values) { controller.dispose(); }
@@ -1220,28 +1333,147 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
         : rawRows is Map
             ? <Map<String, dynamic>>[Map<String, dynamic>.from(rawRows)]
             : <Map<String, dynamic>>[];
+    final allResources = resources.where((r) => r['key'] != 'contact').toList();
+    final totalItems = allResources.fold<int>(0, (sum, r) {
+      final value = data[r['key']];
+      return sum + (value is List ? value.length : value is Map && value.isNotEmpty ? 1 : 0);
+    });
+    final visibleItems = rows.where((row) {
+      final q = searchQuery.trim().toLowerCase();
+      if (q.isEmpty) return true;
+      return row.entries.any((entry) => entry.value != null && entry.value.toString().toLowerCase().contains(q));
+    }).toList();
     return Scaffold(
-      appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: const Text('Portfolio Admin'), actions: [
-        IconButton(tooltip: 'Refresh', onPressed: busy ? null : loadData, icon: const Icon(Icons.refresh_rounded)),
-        IconButton(tooltip: 'Sign out', onPressed: signOut, icon: const Icon(Icons.logout_rounded)), const SizedBox(width: 8)]),
-      body: Column(children: [
-        SingleChildScrollView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), child: Row(children: [
-          for (final r in resources) Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(r['label'].toString()), selected: section == r['key'], onSelected: (_) => setState(() => section = r['key'].toString()))),
-        ])),
-        if (message != null) Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), child: Text(message!, style: TextStyle(color: theme.colorScheme.error))),
-        Expanded(child: busy ? const Center(child: CircularProgressIndicator()) : ListView(padding: const EdgeInsets.all(16), children: [
-          Row(children: [Expanded(child: Text(current['label'].toString(), style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))), if (current['key'] != 'profile' || rows.isEmpty) FilledButton.icon(onPressed: () => editRecord(current), icon: const Icon(Icons.add_rounded), label: const Text('Add'))]),
-          const SizedBox(height: 12),
-          if (rows.isEmpty) const _Notice(text: 'No records yet. Add the first record to this collection.', icon: Icons.inbox_outlined),
-          for (final row in rows) Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text((row['title'] ?? row['subject'] ?? row['name'] ?? row['label'] ?? row['company'] ?? 'Untitled record').toString(), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4), Text(row.entries.where((e) => e.key != 'id' && e.value != null && e.value.toString().trim().isNotEmpty).take(5).map((e) => e.key + ': ' + e.value.toString()).join(' · '), maxLines: 3, overflow: TextOverflow.ellipsis),
-            Align(alignment: Alignment.centerRight, child: Wrap(spacing: 4, children: [
-              IconButton(tooltip: 'Edit', onPressed: () => editRecord(current, row), icon: const Icon(Icons.edit_outlined)),
-              if (current['key'] != 'profile') IconButton(tooltip: 'Delete', onPressed: () => deleteRecord(current, row), icon: const Icon(Icons.delete_outline_rounded)),
+      appBar: AppBar(
+        leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
+        title: const Text('Portfolio Studio', style: TextStyle(fontWeight: FontWeight.w800)),
+        actions: [
+          IconButton(tooltip: 'Refresh data', onPressed: busy ? null : loadData, icon: const Icon(Icons.refresh_rounded)),
+          IconButton(tooltip: 'Sign out', onPressed: signOut, icon: const Icon(Icons.logout_rounded)),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: Stack(children: [
+        Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1180), child: ListView(padding: const EdgeInsets.fromLTRB(18, 12, 18, 32), children: [
+          Container(padding: const EdgeInsets.all(22), decoration: BoxDecoration(
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [theme.colorScheme.primaryContainer, theme.colorScheme.surfaceContainerHighest]),
+            borderRadius: BorderRadius.circular(24),
+          ), child: LayoutBuilder(builder: (context, constraints) => Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Icon(Icons.dashboard_customize_rounded, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text('PORTFOLIO WORKSPACE', style: theme.textTheme.labelMedium?.copyWith(letterSpacing: 1.4, fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
+              ]),
+              const SizedBox(height: 10),
+              Text('Manage your portfolio', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
+              const SizedBox(height: 6),
+              Text('Create, review and update everything visitors see on your website.', style: theme.textTheme.bodyMedium),
             ])),
+            if (constraints.maxWidth > 460) ...[
+              const SizedBox(width: 12),
+              Container(width: 68, height: 68, decoration: BoxDecoration(color: theme.colorScheme.surface.withValues(alpha: .7), borderRadius: BorderRadius.circular(20)), child: Icon(Icons.auto_awesome_rounded, size: 34, color: theme.colorScheme.primary)),
+            ],
           ]))),
-        ])),
+          const SizedBox(height: 16),
+          LayoutBuilder(builder: (context, constraints) {
+            final compact = constraints.maxWidth < 520;
+            final statWidth = (constraints.maxWidth - (compact ? 10 : 24)) / (compact ? 2 : 3);
+            Widget stat(String label, String value, IconData icon) => Container(width: statWidth, padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerLow, borderRadius: BorderRadius.circular(18), border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: .6))), child: Row(children: [
+              Container(width: 40, height: 40, decoration: BoxDecoration(color: theme.colorScheme.primaryContainer, borderRadius: BorderRadius.circular(13)), child: Icon(icon, color: theme.colorScheme.primary)),
+              const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(value, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+                Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelSmall),
+              ])),
+            ]));
+            final stats = <Widget>[
+              stat('Portfolio items', totalItems.toString(), Icons.inventory_2_outlined),
+              stat('Content sections', allResources.length.toString(), Icons.grid_view_rounded),
+              stat('Contact messages', ((data['contact'] is List) ? (data['contact'] as List).length : 0).toString(), Icons.mark_email_unread_outlined),
+            ];
+            return Wrap(spacing: 12, runSpacing: 12, children: stats);
+          }),
+          const SizedBox(height: 22),
+          Text('Choose a section', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 10),
+          SizedBox(height: 98, child: ListView.separated(scrollDirection: Axis.horizontal, itemCount: resources.length, separatorBuilder: (_, __) => const SizedBox(width: 10), itemBuilder: (context, index) {
+            final r = resources[index];
+            final selected = section == r['key'];
+            final value = data[r['key']];
+            final count = value is List ? value.length : value is Map && value.isNotEmpty ? 1 : 0;
+            final icon = r['key'] == 'profile' ? Icons.person_outline_rounded : r['key'] == 'projects' ? Icons.rocket_launch_outlined : r['key'] == 'skills' ? Icons.psychology_alt_outlined : r['key'] == 'experience' ? Icons.work_history_outlined : r['key'] == 'education' ? Icons.school_outlined : r['key'] == 'languages' ? Icons.translate_rounded : r['key'] == 'social_links' ? Icons.link_rounded : Icons.mark_email_unread_outlined;
+            return SizedBox(width: 154, child: Material(color: selected ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerLow, borderRadius: BorderRadius.circular(17), child: InkWell(borderRadius: BorderRadius.circular(17), onTap: () => setState(() { section = r['key'].toString(); searchQuery = ''; }), child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Row(children: [Icon(icon, size: 21, color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant), const Spacer(), Text(count.toString(), style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800))]),
+              Text(r['label'].toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700)),
+            ]))));
+          })),
+          const SizedBox(height: 24),
+          Row(children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(current['label'].toString(), style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
+              const SizedBox(height: 3),
+              Text(current['key'] == 'contact' ? 'Review messages sent through your website.' : current['key'] == 'profile' ? 'Manage the main details shown on your portfolio.' : 'View and manage the content in this section.', style: theme.textTheme.bodySmall),
+            ])),
+            if (current['key'] != 'contact' && (current['key'] != 'profile' || rows.isEmpty))
+              FilledButton.icon(onPressed: busy ? null : () => editRecord(current), icon: const Icon(Icons.add_rounded), label: const Text('Add new')),
+          ]),
+          const SizedBox(height: 14),
+          TextField(
+            onChanged: (value) => setState(() => searchQuery = value),
+            decoration: InputDecoration(
+              hintText: 'Search ${current['label'].toString().toLowerCase()}…',
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: searchQuery.isEmpty ? null : IconButton(onPressed: () => setState(() => searchQuery = ''), icon: const Icon(Icons.close_rounded)),
+              filled: true, fillColor: theme.colorScheme.surfaceContainerLow,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (visibleItems.isEmpty)
+            Container(padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 34), decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerLow, borderRadius: BorderRadius.circular(20), border: Border.all(color: theme.colorScheme.outlineVariant)), child: Column(children: [
+              Icon(searchQuery.isNotEmpty ? Icons.search_off_rounded : Icons.inbox_outlined, size: 42, color: theme.colorScheme.primary),
+              const SizedBox(height: 10),
+              Text(searchQuery.isNotEmpty ? 'No matching records' : 'Nothing here yet', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 5),
+              Text(searchQuery.isNotEmpty ? 'Try another search term.' : current['key'] == 'contact' ? 'New website messages will appear here.' : 'Add your first item to get started.', textAlign: TextAlign.center, style: theme.textTheme.bodySmall),
+              if (searchQuery.isEmpty && current['key'] != 'contact' && (current['key'] != 'profile' || rows.isEmpty)) ...[
+                const SizedBox(height: 14),
+                FilledButton.icon(onPressed: () => editRecord(current), icon: const Icon(Icons.add_rounded), label: const Text('Create first item')),
+              ],
+            ]))
+          else
+            LayoutBuilder(builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 850 ? 3 : constraints.maxWidth >= 560 ? 2 : 1;
+              return GridView.builder(
+                shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: columns, crossAxisSpacing: 12, mainAxisSpacing: 12, mainAxisExtent: 230),
+                itemCount: visibleItems.length,
+                itemBuilder: (context, index) {
+                  final row = visibleItems[index];
+                  final title = _recordTitle(row);
+                  final summary = _recordSummary(row);
+                  final isVisible = row['is_visible'];
+                  return Card(clipBehavior: Clip.antiAlias, elevation: 0, color: theme.colorScheme.surfaceContainerLow, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(19), side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: .65))), child: Padding(padding: const EdgeInsets.all(15), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Container(width: 42, height: 42, decoration: BoxDecoration(color: theme.colorScheme.primaryContainer, borderRadius: BorderRadius.circular(13)), child: Icon(current['key'] == 'projects' ? Icons.rocket_launch_rounded : current['key'] == 'experience' ? Icons.work_history_rounded : current['key'] == 'education' ? Icons.school_rounded : current['key'] == 'skills' ? Icons.psychology_alt_rounded : current['key'] == 'profile' ? Icons.person_rounded : current['key'] == 'social_links' ? Icons.link_rounded : Icons.article_rounded, color: theme.colorScheme.primary)),
+                      const SizedBox(width: 10), Expanded(child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
+                      if (isVisible is bool) Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: isVisible ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(20)), child: Text(isVisible ? 'Live' : 'Hidden', style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800))),
+                    ]),
+                    const SizedBox(height: 10),
+                    Expanded(child: Text(summary.isEmpty ? 'No summary added yet.' : summary, maxLines: 3, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(height: 1.4))),
+                    const Divider(height: 18),
+                    Row(children: [
+                      TextButton.icon(onPressed: () => viewRecord(current, row), icon: const Icon(Icons.visibility_outlined, size: 18), label: const Text('View')),
+                      const Spacer(),
+                      IconButton(tooltip: 'Edit record', onPressed: () => editRecord(current, row), icon: const Icon(Icons.edit_outlined)),
+                      if (current['key'] != 'profile') IconButton(tooltip: 'Delete record', onPressed: () => deleteRecord(current, row), icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error)),
+                    ]),
+                  ])));
+                },
+              );
+            }),
+        ]))),
+        if (busy) Positioned.fill(child: ColoredBox(color: theme.colorScheme.scrim.withValues(alpha: .10), child: const Center(child: Card(child: Padding(padding: EdgeInsets.all(22), child: CircularProgressIndicator()))))),
       ]),
     );
   }
