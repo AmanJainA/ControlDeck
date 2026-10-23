@@ -14,6 +14,8 @@ import 'interview_native_screen.dart';
 
 const accent = Color(0xFF8FA600);
 const List<String> categories = ['All apps', 'Personal', 'Professional', 'Creative', 'Other'];
+const List<String> _weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const List<String> _monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const supabaseUrl = SupabaseConfig.primaryUrl;
 const supabaseAnonKey = SupabaseConfig.primaryKey;
 const cloudEnabled = true;
@@ -538,15 +540,28 @@ class _DeckHomeState extends State<DeckHome> {
         ]),
       body: Row(children: [
         if (wide) _SideNav(page: page, onSelect: (v) { setState(() { page = v; favoritesOnly = false; if (v == 'All apps' || v == 'Overview') category = 'All apps'; }); }),
-        Expanded(child: page == 'Profile' ? const AccountProfileScreen(embedded: true) : page == 'Settings' ? AccountSettingsScreen(dark: widget.dark, onTheme: widget.onTheme, embedded: true) : CustomScrollView(slivers: [SliverPadding(padding: EdgeInsets.fromLTRB(wide ? 30 : 18, 20, wide ? 30 : 18, 32),
+        Expanded(child: page == 'Profile' ? const AccountProfileScreen(embedded: true) : page == 'Settings' ? AccountSettingsScreen(dark: widget.dark, onTheme: widget.onTheme, embedded: true) : CustomScrollView(slivers: [SliverPadding(padding: EdgeInsets.fromLTRB(wide ? 30 : 18, 20, wide ? 30 : 18, 10),
           sliver: SliverList(delegate: SliverChildListDelegate([
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(page == 'Overview' ? 'ControlDeck' : page, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -1)),
-                const SizedBox(height: 8), Text('Your apps, tools, and workspaces — all inside one native experience.', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              ])),
-
-            ]),
+            if (page == 'Overview')
+              Builder(builder: (context) {
+                final user = Supabase.instance.client.auth.currentUser;
+                final metadata = user?.userMetadata ?? const <String, dynamic>{};
+                final metadataName = (metadata['full_name'] ?? metadata['name'] ?? metadata['display_name'] ?? '').toString().trim();
+                final emailName = user?.email?.split('@').first.replaceAll(RegExp(r'[._-]+'), ' ').trim() ?? '';
+                final displayName = metadataName.isNotEmpty ? metadataName : (emailName.isNotEmpty ? emailName : 'there');
+                final now = DateTime.now();
+                final date = _weekdayNames[now.weekday - 1] + ', ' + _monthNames[now.month - 1] + ' ' + now.day.toString();
+                final time = TimeOfDay.fromDateTime(now).format(context);
+                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Welcome, ' + displayName, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -1)),
+                  const SizedBox(height: 6),
+                  Text(date + '  ·  ' + time, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                  const SizedBox(height: 12),
+                  Text('“Small steps every day lead to meaningful progress.”', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic)),
+                ]);
+              })
+            else
+              Text(page, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -1)),
             const SizedBox(height: 24),
 
             Row(children: [Expanded(child: Text('App library', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))),
@@ -1670,7 +1685,6 @@ class _SideNav extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 20, 12, 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(padding: const EdgeInsets.only(left: 12, bottom: 10), child: Text('WORKSPACE', style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 1.4, color: theme.colorScheme.onSurfaceVariant))),
         _NavItem(icon: Icons.dashboard_rounded, label: 'Overview', selected: page == 'Overview', onTap: () => onSelect('Overview')),
-        _NavItem(icon: Icons.apps_rounded, label: 'All apps', selected: page == 'All apps', onTap: () => onSelect('All apps')),
         _NavItem(icon: Icons.account_circle_outlined, label: 'Profile', selected: page == 'Profile', onTap: () => onSelect('Profile')),
         const Spacer(), _NavItem(icon: Icons.tune_rounded, label: 'Settings', selected: page == 'Settings', onTap: () => onSelect('Settings')),
         const SizedBox(height: 8), Padding(padding: const EdgeInsets.all(12), child: Text('ONE HUB. YOUR TOOLS.', style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 1.1, color: theme.colorScheme.onSurfaceVariant))),
