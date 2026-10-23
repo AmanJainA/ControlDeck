@@ -1380,41 +1380,65 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
           ]))),
           const SizedBox(height: 16),
           LayoutBuilder(builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 700 ? 3 : constraints.maxWidth >= 440 ? 2 : 1;
-            final statWidth = (constraints.maxWidth - (12 * (columns - 1))) / columns;
-            Widget stat(String label, String value, IconData icon) => Container(width: statWidth, padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerLow, borderRadius: BorderRadius.circular(18), border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: .6))), child: Row(children: [
-              Container(width: 40, height: 40, decoration: BoxDecoration(color: theme.colorScheme.primaryContainer, borderRadius: BorderRadius.circular(13)), child: Icon(icon, color: theme.colorScheme.primary)),
-              const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(value, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
-                Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelSmall),
-              ])),
-            ]));
+            final compact = constraints.maxWidth < 420;
+            final gap = compact ? 6.0 : 12.0;
+            final statWidth = (constraints.maxWidth - (gap * 2)) / 3;
+            Widget stat(String label, String value, IconData icon) => Container(
+              width: statWidth,
+              padding: EdgeInsets.all(compact ? 8 : 12),
+              decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerLow, borderRadius: BorderRadius.circular(16), border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: .6))),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Icon(icon, size: compact ? 18 : 22, color: theme.colorScheme.primary),
+                const SizedBox(height: 6),
+                Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: (compact ? theme.textTheme.titleMedium : theme.textTheme.titleLarge)?.copyWith(fontWeight: FontWeight.w900)),
+                Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: (compact ? theme.textTheme.labelSmall : theme.textTheme.bodySmall)),
+              ]),
+            );
             final stats = <Widget>[
               stat('Portfolio items', totalItems.toString(), Icons.inventory_2_outlined),
               stat('Content sections', allResources.length.toString(), Icons.grid_view_rounded),
               stat('Contact messages', ((data['contact'] is List) ? (data['contact'] as List).length : 0).toString(), Icons.mark_email_unread_outlined),
             ];
-            return Wrap(spacing: 12, runSpacing: 12, children: stats);
+            return Row(children: [
+              for (var i = 0; i < stats.length; i++) ...[
+                if (i > 0) SizedBox(width: gap),
+                stats[i],
+              ],
+            ]);
           }),
           const SizedBox(height: 22),
-          Text('Choose a section', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 10),
           LayoutBuilder(builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 700 ? 4 : constraints.maxWidth >= 440 ? 2 : 1;
-            final tabWidth = (constraints.maxWidth - (10 * (columns - 1))) / columns;
-            return Wrap(spacing: 10, runSpacing: 10, children: resources.map((r) {
-              final selected = section == r['key'];
-              final value = data[r['key']];
-              final count = value is List ? value.length : value is Map && value.isNotEmpty ? 1 : 0;
-              final icon = r['key'] == 'profile' ? Icons.person_outline_rounded : r['key'] == 'projects' ? Icons.rocket_launch_outlined : r['key'] == 'skills' ? Icons.psychology_alt_outlined : r['key'] == 'experience' ? Icons.work_history_outlined : r['key'] == 'education' ? Icons.school_outlined : r['key'] == 'languages' ? Icons.translate_rounded : r['key'] == 'social_links' ? Icons.link_rounded : Icons.mark_email_unread_outlined;
-              return SizedBox(width: tabWidth, height: 58, child: Material(color: selected ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerLow, borderRadius: BorderRadius.circular(15), child: InkWell(borderRadius: BorderRadius.circular(15), onTap: () => setState(() { section = r['key'].toString(); searchQuery = ''; }), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9), child: Row(children: [
-                Icon(icon, size: 20, color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Expanded(child: Text(r['label'].toString(), maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700))),
-                const SizedBox(width: 6),
-                Text(count.toString(), style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800)),
-              ])))));
-            }).toList());
+            final selectedResource = resources.firstWhere((r) => r['key'] == section, orElse: () => resources.first);
+            return Row(children: [
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Choose a section', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                Text('Open the portfolio area you want to manage.', style: theme.textTheme.bodySmall),
+              ])),
+              const SizedBox(width: 12),
+              Flexible(child: PopupMenuButton<String>(
+                tooltip: 'Choose a section',
+                initialValue: section,
+                onSelected: (key) => setState(() { section = key; searchQuery = ''; }),
+                itemBuilder: (context) => resources.map((r) => PopupMenuItem<String>(
+                  value: r['key'].toString(),
+                  child: Row(children: [
+                    Expanded(child: Text(r['label'].toString())),
+                    if (section == r['key']) Icon(Icons.check_rounded, size: 18, color: theme.colorScheme.primary),
+                  ]),
+                )).toList(),
+                child: Container(
+                  constraints: BoxConstraints(maxWidth: constraints.maxWidth * .56),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(color: theme.colorScheme.primaryContainer, borderRadius: BorderRadius.circular(14), border: Border.all(color: theme.colorScheme.outlineVariant)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Flexible(child: Text(selectedResource['label'].toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800))),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.keyboard_arrow_down_rounded),
+                  ]),
+                ),
+              )),
+            ]);
           }),
           const SizedBox(height: 24),
           Row(children: [
