@@ -1155,7 +1155,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
 
   Future<void> viewRecord(Map<String, dynamic> resource, Map<String, dynamic> row) async {
     final fields = List<Map<String, dynamic>>.from(resource['fields'] as List);
-    await showDialog<void>(context: context, builder: (ctx) => Dialog(
+    final editRequested = await showDialog<bool>(context: context, builder: (ctx) => Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
       child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 620, maxHeight: 760), child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(width: double.infinity, padding: const EdgeInsets.all(22), decoration: BoxDecoration(
@@ -1167,7 +1167,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
             Text(_recordTitle(row), style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 4), Text(resource['label'].toString(), style: Theme.of(ctx).textTheme.bodyMedium),
           ])),
-          IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close_rounded)),
+          IconButton(onPressed: () => Navigator.pop(ctx, false), icon: const Icon(Icons.close_rounded)),
         ])),
         Flexible(child: ListView(padding: const EdgeInsets.all(20), children: [
           for (final field in fields)
@@ -1177,15 +1177,18 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
               ), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(field['label'].toString(), style: Theme.of(ctx).textTheme.labelMedium?.copyWith(color: Theme.of(ctx).colorScheme.primary, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 5),
-                Text(row[field['key']] is List ? (row[field['key']] as List).join(field['multi'] == true ? '\n' : ', ') : row[field['key']].toString(), style: Theme.of(ctx).textTheme.bodyMedium),
+                Text(row[field['key']] is List ? (row[field['key']] as List).join(field['multi'] == true ? '\\n' : ', ') : row[field['key']].toString(), style: Theme.of(ctx).textTheme.bodyMedium),
               ])),
         ])),
         Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 18), child: Row(children: [
-          Expanded(child: OutlinedButton.icon(onPressed: () { Navigator.pop(ctx); editRecord(resource, row); }, icon: const Icon(Icons.edit_rounded), label: const Text('Edit record'))),
-          const SizedBox(width: 10), FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
+          Expanded(child: OutlinedButton.icon(onPressed: () => Navigator.pop(ctx, true), icon: const Icon(Icons.edit_rounded), label: const Text('Edit record'))),
+          const SizedBox(width: 10), FilledButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Done')),
         ])),
       ])),
     ));
+    if (editRequested == true && mounted) {
+      await editRecord(resource, row);
+    }
   }
 
   Future<void> editRecord(Map<String, dynamic> resource, [Map<String, dynamic>? old]) async {
