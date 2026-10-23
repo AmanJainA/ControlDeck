@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -690,7 +691,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
           crossAxisSpacing:12,
           // Cards are deliberately taller on narrow screens so the icon, title,
           // description and action remain inside the card on compact iPhones.
-          childAspectRatio:cols==1?1.3:cols==2?0.98:0.92,
+          childAspectRatio:cols==1?0.82:cols==2?0.98:0.92,
           children:visible.map((l)=>Card(
             clipBehavior:Clip.antiAlias,
             child:InkWell(
@@ -712,6 +713,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
                     Text(l['description']?.toString().trim().isNotEmpty==true?l['description'].toString():'Explore lessons, examples and practice notes.',maxLines:3,overflow:TextOverflow.ellipsis,style:theme.textTheme.bodySmall),
                     const SizedBox(height:6),
                     Text('Explore lessons  →',style:theme.textTheme.labelLarge?.copyWith(color:theme.colorScheme.primary,fontWeight:FontWeight.w700)),
+                    if(cols==1) const SizedBox(height:140),
                   ],
                 ),
               ),
@@ -732,8 +734,48 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     Wrap(spacing:8,children:[FilledButton.tonalIcon(onPressed:toggleProgress,icon:Icon(completed(topic?['id']?.toString()??'')?Icons.check_circle:Icons.check_circle_outline),label:Text(completed(topic?['id']?.toString()??'')?'Mark incomplete':'Mark complete')),]),
     if(blocks.isEmpty)const _NotesNotice(title:'No lesson content yet',detail:'This topic has no content blocks in the database yet.'),for(final b in blocks)if(b is Map)_NotesBlock(block:Map<String,dynamic>.from(b)),
   ];
-  List<Widget> aboutView()=>[const _NotesHero(title:'About Us',subtitle:'Welcome to Notes App, a clean, database-driven platform built to help students learn programming languages the practical way.'),const Text('We believe learning to code should not mean digging through a hundred scattered files. Everything here lives in one consistent, easy-to-navigate structure.'),const SizedBox(height:14),const Text('Our Vision',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800)),const Text('To be the go-to companion for students learning C, C++, Java, PHP, HTML, CSS, JavaScript and Bootstrap — a place where every topic is explained clearly enough to build something with it, not just pass an exam.'),const SizedBox(height:12),const Text('Our Mission',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800)),const Text('• Keep every lesson clear, practical, and example-driven.\n• Track your progress across languages, automatically.\n• Make new lessons and languages easy to add, with content stored in a database.\n• Keep it fast, simple, and free of clutter.'),const SizedBox(height:16),const _NotesHero(title:'Built By',subtitle:'Founder & Lead Developer: Aman Jain\nEmail: amanjain033@gmail.com\nBuilt for students who want a single, well-organized place to learn to code.')];
-  List<Widget> contactView()=>[const _NotesHero(title:'Contact Notes',subtitle:'Send a question or feedback message.'),TextField(controller:contactName,decoration:const InputDecoration(labelText:'Name *')),TextField(controller:contactEmail,decoration:const InputDecoration(labelText:'Email *')),TextField(controller:contactSubject,decoration:const InputDecoration(labelText:'Subject')),TextField(controller:contactMessage,minLines:4,maxLines:8,decoration:const InputDecoration(labelText:'Message *')),const SizedBox(height:10),FilledButton.icon(onPressed:sendContact,icon:const Icon(Icons.send),label:const Text('Send message')),const SizedBox(height:18),const _NotesHero(title:'Contact Information',subtitle:'Address: Parasnath Colony, Baral Road, Bijainagar [Ajmer]\nPhone: +91 8290367908\nEmail: amanjain033@gmail.com\nResponse time: We usually reply within 1–2 business days.')];
+  Future<void> openContactMap() async {
+    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=Parasnath%20Colony%2C%20Baral%20Road%2C%20Bijainagar%2C%20Ajmer%2C%20Rajasthan');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open Google Maps.')));
+    }
+  }
+
+  List<Widget> aboutView()=>[
+    const _NotesHero(title:'About Notes',subtitle:'A practical, database-driven learning space for programming lessons, examples and progress.'),
+    Center(child:ClipRRect(borderRadius:BorderRadius.circular(90),child:Image.network('https://github.com/AmanJainA.png',width:150,height:150,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const CircleAvatar(radius:75,child:Icon(Icons.person,size:64))))),
+    const SizedBox(height:14),
+    const Text('We believe learning to code should not mean digging through scattered files. Notes keeps lessons organized by language and topic, with examples and a simple way to track completed lessons.'),
+    const SizedBox(height:14),
+    const _NotesHero(title:'Our Vision',subtitle:'Help students learn C, C++, Java, PHP, HTML, CSS, JavaScript and Bootstrap through clear explanations and practical examples.'),
+    const Text('Our Mission',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
+    const Text('• Keep every lesson clear, practical, and example-driven.\n• Track learning progress across languages.\n• Make lessons easy to add and maintain.\n• Keep the experience fast, simple and accessible.'),
+    const SizedBox(height:12),
+    const _NotesHero(title:'Built By',subtitle:'Aman Jain · Founder & Lead Developer\nEmail: aman jain033@gmail.com'.replaceFirst('aman jain','aman')),
+    Card(child:ListTile(leading:const Icon(Icons.code_rounded),title:const Text('Learn, build and grow'),subtitle:const Text('Explore language cards, open lessons and use the progress section to keep track of learning.'),trailing:const Icon(Icons.arrow_forward_rounded),onTap:()=>setState(()=>page='Dashboard'))),
+    const SizedBox(height:12),
+    Card(clipBehavior:Clip.antiAlias,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Image.network('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80',height:190,width:double.infinity,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const SizedBox(height:100,child:Center(child:Icon(Icons.laptop_mac_rounded,size:48)))),
+      const Padding(padding:EdgeInsets.all(14),child:Text('Built for practical learning, one topic at a time.')),
+    ])),
+    const SizedBox(height:12),
+    FilledButton.tonalIcon(onPressed:openContactMap,icon:const Icon(Icons.map_outlined),label:const Text('View location in Google Maps')),
+  ];
+  List<Widget> contactView()=>[
+    const _NotesHero(title:'Contact Notes',subtitle:'Questions, suggestions or feedback? Send a message and we will get back to you.'),
+    Card(clipBehavior:Clip.antiAlias,child:Image.network('https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1200&q=80',height:180,width:double.infinity,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const SizedBox(height:100,child:Center(child:Icon(Icons.support_agent_rounded,size:48))))),
+    TextField(controller:contactName,decoration:const InputDecoration(labelText:'Name *')),
+    TextField(controller:contactEmail,keyboardType:TextInputType.emailAddress,decoration:const InputDecoration(labelText:'Email *')),
+    TextField(controller:contactSubject,decoration:const InputDecoration(labelText:'Subject')),
+    TextField(controller:contactMessage,minLines:4,maxLines:8,decoration:const InputDecoration(labelText:'Message *')),
+    const SizedBox(height:10),
+    FilledButton.icon(onPressed:sendContact,icon:const Icon(Icons.send),label:const Text('Send message')),
+    const SizedBox(height:18),
+    const _NotesHero(title:'Contact Information',subtitle:'Address: Parasnath Colony, Baral Road, Bijainagar, Ajmer, Rajasthan\nPhone: +91 8290367908\nEmail: amanjain033@gmail.com\nResponse time: We usually reply within 1–2 business days.'),
+    Card(child:ListTile(leading:const Icon(Icons.phone_outlined),title:const Text('Call'),subtitle:const Text('+91 8290367908'),onTap:()=>launchUrl(Uri.parse('tel:+918290367908')))),
+    Card(child:ListTile(leading:const Icon(Icons.email_outlined),title:const Text('Email'),subtitle:const Text('amanjain033@gmail.com'),onTap:()=>launchUrl(Uri.parse('mailto:amanjain033@gmail.com')))),
+    Card(child:ListTile(leading:const Icon(Icons.map_outlined),title:const Text('Location and directions'),subtitle:const Text('Parasnath Colony, Baral Road, Bijainagar, Ajmer, Rajasthan'),trailing:const Icon(Icons.open_in_new_rounded),onTap:openContactMap)),
+  ];
   List<Widget> profileView(ThemeData theme)=>[const _NotesHero(title:'My Notes profile',subtitle:'Account and learning progress.'),Card(child:ListTile(leading:const Icon(Icons.account_circle),title:Text(profile?['full_name']?.toString()??profile?['name']?.toString()??'Notes user'),subtitle:Text(profile?['email']?.toString()??''))),Text('${progress.where((p)=>p['completed']==true).length} lessons completed'),FilledButton.tonalIcon(onPressed:changePassword,icon:const Icon(Icons.password),label:const Text('Change password')),if(notesWorkspaceUrl != controlDeckWorkspaceUrl)OutlinedButton.icon(onPressed:signOut,icon:const Icon(Icons.logout),label:const Text('Sign out')) else const _NotesNotice(title:'Shared ControlDeck sign-in',detail:'This Notes workspace uses your existing ControlDeck session. Sign out from the main ControlDeck account menu to end the shared session.')];
   Future<void> changePassword() async {
     final current=TextEditingController(),next=TextEditingController();
