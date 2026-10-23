@@ -1016,6 +1016,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
   final email = TextEditingController();
   final password = TextEditingController();
   bool busy = false;
+  bool restoring = true;
   String? message;
   String? token;
   String section = 'projects';
@@ -1053,12 +1054,50 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
   Future<void> _restoreAdminSession() async {
     try {
       final savedToken = await _secureStorage.read(key: _portfolioAdminSessionStorageKey);
-      if (!mounted || savedToken == null || savedToken.isEmpty) return;
-      setState(() { token = savedToken; busy = true; });
-      await loadData();
-    } catch (_) {
-      if (mounted) setState(() { token = null; data = {}; busy = false; });
+      if (!mounted) return;
+      if (savedToken != null && savedToken.isNotEmpty) {
+        setState(() { token = savedToken; busy = true; message = null; });
+        await loadData();
+        if (!mounted) return;
+        if (token != null) {
+          setState(() { restoring = false; });
+          return;
+        }
+      }
+
+      // Reuse the already-authenticated ControlDeck session. The server verifies
+      // that session and only issues a Portfolio admin token for an active admin
+      // row with the same email in portfolio.users.
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session != null) {
+        if (mounted) setState(() { busy = true; message = null; });
+        final response = await Supabase.instance.client.functions.invoke(
+          'controldeck-sso',
+          headers: {'Authorization': 'Bearer ${session.accessToken}'},
+          body: {'app': 'portfolio'},
+        );
+        final result = response.data is Map
+            ? Map<String, dynamic>.from(response.data as Map)
+            : <String, dynamic>{};
+        if (response.status >= 400 || result['ok'] != true || result['token'] == null) {
+          throw Exception((result['error'] ?? 'Could not restore your Portfolio admin session.').toString());
+        }
+        token = result['token'].toString();
+        await _secureStorage.write(key: _portfolioAdminSessionStorageKey, value: token);
+        await loadData();
+      }
+    } catch (e) {
       await _secureStorage.delete(key: _portfolioAdminSessionStorageKey);
+      if (mounted) setState(() {
+        token = null;
+        data = {};
+        busy = false;
+        message = Supabase.instance.client.auth.currentSession == null
+            ? null
+            : e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) setState(() { restoring = false; busy = false; });
     }
   }
 
@@ -1160,6 +1199,10 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
 
   @override Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    if (restoring) return const Scaffold(
+      appBar: AppBar(title: Text('Portfolio Admin')),
+      body: Center(child: CircularProgressIndicator()),
+    );
     if (token == null) return Scaffold(
       appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: const Text('Portfolio Admin')),
       body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 430), child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(22), children: [
