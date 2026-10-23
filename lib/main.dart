@@ -451,54 +451,82 @@ class _DeckHomeState extends State<DeckHome> {
           ? const SizedBox.shrink()
           : (compact ? const SizedBox(width: 4) : (wide ? const _BrandMark() : const Text('ControlDeck', style: TextStyle(fontWeight: FontWeight.w800)))),
         actions: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeInOutCubic,
-            width: searchExpanded ? (screenWidth * 0.55).clamp(180.0, 320.0).toDouble() : 48,
-            height: 44,
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            decoration: BoxDecoration(
-              color: searchExpanded ? theme.colorScheme.surfaceContainerHighest : Colors.transparent,
-              borderRadius: BorderRadius.circular(14),
-              border: searchExpanded ? Border.all(color: theme.colorScheme.outlineVariant) : null,
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(
+              begin: 48,
+              end: searchExpanded
+                  ? (screenWidth * 0.55).clamp(180.0, 320.0).toDouble()
+                  : 48,
             ),
-            child: searchExpanded
-                ? Row(
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.only(left: 12, right: 6),
-                        child: Icon(Icons.search_rounded),
-                      ),
-                      Expanded(
-                        child: TextField(
-                          controller: search,
-                          autofocus: true,
-                          textInputAction: TextInputAction.search,
-                          maxLines: 1,
-                          decoration: const InputDecoration(
-                            hintText: 'Search apps…',
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(vertical: 10),
+            duration: const Duration(milliseconds: 420),
+            curve: Curves.easeInOutCubic,
+            builder: (context, animatedWidth, child) {
+              final canShowField = searchExpanded && animatedWidth >= 176;
+              return Container(
+                width: animatedWidth,
+                height: 44,
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                decoration: BoxDecoration(
+                  color: searchExpanded
+                      ? theme.colorScheme.surfaceContainerHighest
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                  border: searchExpanded
+                      ? Border.all(color: theme.colorScheme.outlineVariant)
+                      : null,
+                ),
+                child: ClipRect(
+                  child: canShowField
+                      ? Row(
+                          children: [
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: search,
+                                autofocus: true,
+                                textInputAction: TextInputAction.search,
+                                maxLines: 1,
+                                onSubmitted: (_) {
+                                  FocusScope.of(context).unfocus();
+                                  setState(() => searchExpanded = false);
+                                },
+                                decoration: const InputDecoration(
+                                  hintText: 'Search apps…',
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(vertical: 10),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Close search',
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () {
+                                search.clear();
+                                FocusScope.of(context).unfocus();
+                                setState(() => searchExpanded = false);
+                              },
+                              icon: const Icon(Icons.close_rounded, size: 20),
+                            ),
+                          ],
+                        )
+                      : Align(
+                          alignment: Alignment.centerRight,
+                          child: SizedBox(
+                            width: 48,
+                            height: 44,
+                            child: IconButton(
+                              tooltip: searchExpanded ? 'Opening search…' : 'Search apps',
+                              onPressed: searchExpanded
+                                  ? null
+                                  : () => setState(() => searchExpanded = true),
+                              icon: const Icon(Icons.search_rounded),
+                            ),
                           ),
                         ),
-                      ),
-                      IconButton(
-                        tooltip: 'Close search',
-                        visualDensity: VisualDensity.compact,
-                        onPressed: () {
-                          search.clear();
-                          setState(() => searchExpanded = false);
-                        },
-                        icon: const Icon(Icons.close_rounded, size: 20),
-                      ),
-                    ],
-                  )
-                : IconButton(
-                    tooltip: 'Search apps',
-                    onPressed: () => setState(() => searchExpanded = true),
-                    icon: const Icon(Icons.search_rounded),
-                  ),
+                ),
+              );
+            },
           ),
           if (!searchExpanded) ...[
             if (widget.cloudUserId != null && screenWidth >= 520) const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Center(child: _StatusPill(label: 'Cloud synced', icon: Icons.cloud_done_rounded, color: accent))),
