@@ -1478,14 +1478,14 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
             }).toList());
           }),
           ],
+          if (sectionPage) ...[
           const SizedBox(height: 8),
           Row(children: [
-            if (!sectionPage) Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(current['label'].toString(), style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
               const SizedBox(height: 3),
               Text(current['key'] == 'contact' ? 'Review messages sent through your website.' : current['key'] == 'profile' ? 'Manage the main details shown on your portfolio.' : 'View and manage the content in this section.', style: theme.textTheme.bodySmall),
             ])),
-            if (sectionPage) const Spacer(), 
             if (current['key'] != 'contact' && (current['key'] != 'profile' || rows.isEmpty))
               FilledButton.icon(onPressed: busy ? null : () => editRecord(current), icon: const Icon(Icons.add_rounded), label: const Text('Add new')),
           ]),
@@ -1544,6 +1544,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
                 },
               );
             }),
+          ],
         ]))),
         if (busy) Positioned.fill(child: ColoredBox(color: theme.colorScheme.scrim.withValues(alpha: .10), child: const Center(child: Card(child: Padding(padding: EdgeInsets.all(22), child: CircularProgressIndicator()))))),
       ]),
