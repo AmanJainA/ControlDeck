@@ -1413,7 +1413,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
                 Expanded(child: Text(r['label'].toString(), maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700))),
                 const SizedBox(width: 6),
                 Text(count.toString(), style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800)),
-              ]))));
+              ])))));
             }).toList());
           }),
           const SizedBox(height: 24),
