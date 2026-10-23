@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'lifehub_workspace.dart';
 import 'notes_workspace.dart';
 import 'supabase_config.dart';
@@ -155,8 +156,7 @@ class _ControlDeckAppState extends State<ControlDeckApp> {
         cardTheme: const CardThemeData(color: Color(0xFF151A22), elevation: 0, margin: EdgeInsets.zero),
         inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: const Color(0xFF1A202A),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none))),
-      home: cloudEnabled ? AuthGate(dark: dark, onTheme: _setTheme)
-        : const _AuthSetupRequiredScreen(),
+      home: _SplashGate(dark: dark, onTheme: _setTheme, configured: cloudEnabled),
     );
   }
 }
@@ -184,6 +184,47 @@ class _AuthSetupRequiredScreen extends StatelessWidget {
       )),
     )),
   );
+}
+
+class _SplashGate extends StatefulWidget {
+  const _SplashGate({required this.dark, required this.onTheme, required this.configured});
+  final bool dark;
+  final ValueChanged<bool> onTheme;
+  final bool configured;
+  @override State<_SplashGate> createState() => _SplashGateState();
+}
+class _SplashGateState extends State<_SplashGate> with SingleTickerProviderStateMixin {
+  late final AnimationController controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 3300))..forward();
+  bool finished = false;
+  @override void initState() {
+    super.initState();
+    controller.addStatusListener((status) { if (status == AnimationStatus.completed && mounted) setState(() => finished = true); });
+  }
+  @override void dispose() { controller.dispose(); super.dispose(); }
+  @override Widget build(BuildContext context) {
+    if (finished) return widget.configured ? AuthGate(dark: widget.dark, onTheme: widget.onTheme) : const _AuthSetupRequiredScreen();
+    return Scaffold(body: LayoutBuilder(builder: (context, bounds) => AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        final p = controller.value;
+        final dotPhase = (p / .22).clamp(0.0, 1.0);
+        final symbolPhase = ((p - .18) / .34).clamp(0.0, 1.0);
+        final fillPhase = ((p - .64) / .36).clamp(0.0, 1.0);
+        final scale = (math.max(bounds.maxWidth, bounds.maxHeight) / 58) * 1.8 * fillPhase;
+        final color = Theme.of(context).colorScheme.primary;
+        return Stack(alignment: Alignment.center, children: [
+          Container(color: Theme.of(context).scaffoldBackgroundColor),
+          if (p >= .64) Transform.scale(scale: scale, child: Container(width: 58, height: 58, decoration: BoxDecoration(color: color, shape: BoxShape.circle))),
+          if (p < .64) Transform.translate(offset: Offset(0, 12 * (1 - dotPhase) * (1 - dotPhase)),
+            child: Opacity(opacity: p < .18 ? 1 : (1 - symbolPhase).clamp(0.0, 1.0),
+              child: Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)))),
+          if (p >= .18 && p < .9) Opacity(opacity: symbolPhase.clamp(0.0, 1.0),
+            child: Transform.scale(scale: 0.7 + 0.45 * (symbolPhase < .8 ? symbolPhase / .8 : (1 - symbolPhase) / .2).clamp(0.0, 1.0),
+              child: Text('@', style: TextStyle(color: color, fontSize: 76, fontWeight: FontWeight.w800, height: 1)))),
+        ]);
+      },
+    )));
+  }
 }
 
 class AuthGate extends StatelessWidget {
@@ -247,7 +288,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   const _BrandMark(), const SizedBox(height: 20),
                   Text(creating ? 'Create your account' : 'Welcome back', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 8), Text('Sign in to sync your app hub across devices.', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+
                   const SizedBox(height: 18),
                   TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email address', prefixIcon: Icon(Icons.mail_outline_rounded))),
                   const SizedBox(height: 12),
@@ -256,10 +297,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   const SizedBox(height: 14),
                   FilledButton(onPressed: busy ? null : submit, style: FilledButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14)),
                     child: busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : Text(creating ? 'Create account' : 'Sign in')),
-                  TextButton(onPressed: () => setState(() { creating = !creating; errorText = null; }),
-                    child: Text(creating ? 'Already have an account? Sign in' : 'New to ControlDeck? Create account')),
-                  Align(alignment: Alignment.centerRight, child: IconButton(onPressed: () => widget.onTheme(!widget.dark),
-                    tooltip: 'Toggle theme', icon: Icon(widget.dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded))),
+
                 ])),
             )),
           ),
@@ -456,19 +494,18 @@ class _DeckHomeState extends State<DeckHome> {
         const SizedBox(width: 8),
       ]),
       body: Row(children: [
-        if (wide) _SideNav(page: page, onSelect: (v) { if (v == 'Profile') { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AccountProfileScreen())); } else if (v == 'Settings') { Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => AccountSettingsScreen(dark: widget.dark, onTheme: widget.onTheme))); } else { setState(() { page = v; favoritesOnly = v == 'Favourites'; if (v == 'All apps' || v == 'Overview') category = 'All apps'; }); } }),
-        Expanded(child: CustomScrollView(slivers: [SliverPadding(padding: EdgeInsets.fromLTRB(wide ? 30 : 18, 20, wide ? 30 : 18, 32),
+        if (wide) _SideNav(page: page, onSelect: (v) { setState(() { page = v; favoritesOnly = false; if (v == 'All apps' || v == 'Overview') category = 'All apps'; }); }),
+        Expanded(child: page == 'Profile' ? const AccountProfileScreen(embedded: true) : page == 'Settings' ? AccountSettingsScreen(dark: widget.dark, onTheme: widget.onTheme, embedded: true) : CustomScrollView(slivers: [SliverPadding(padding: EdgeInsets.fromLTRB(wide ? 30 : 18, 20, wide ? 30 : 18, 32),
           sliver: SliverList(delegate: SliverChildListDelegate([
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(page == 'Overview' ? 'Your workspace, in one place.' : page, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -1)),
+                Text(page == 'Overview' ? 'ControlDeck' : page, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -1)),
                 const SizedBox(height: 8), Text('Your apps, tools, and workspaces — all inside one native experience.', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               ])),
-              if (wide) FilledButton.icon(onPressed: () => editApp(), icon: const Icon(Icons.add_rounded), label: const Text('Add app'),
-                style: FilledButton.styleFrom(backgroundColor: accent, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16))),
+
             ]),
             const SizedBox(height: 24),
-            if (cloudError) const Padding(padding: EdgeInsets.only(bottom: 16), child: _Notice(text: 'Cloud setup is incomplete. Run supabase/controldeck_schema.sql in your selected Supabase project, then restart ControlDeck.', icon: Icons.info_outline_rounded)),
+
             Row(children: [Expanded(child: Text('App library', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))),
               Text(items.length.toString() + ' shown', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant))]),
             const SizedBox(height: 16),
@@ -477,18 +514,18 @@ class _DeckHomeState extends State<DeckHome> {
             else LayoutBuilder(builder: (context, box) {
               final cols = box.maxWidth > 1120 ? 3 : 2;
               return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: items.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, crossAxisSpacing: 14, mainAxisSpacing: 14, mainAxisExtent: 270),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, crossAxisSpacing: 14, mainAxisSpacing: 14, mainAxisExtent: 220),
                 itemBuilder: (context, i) => _AppCard(app: items[i], onOpen: () => openApp(items[i])));
             }),
 
           ]))),
         ])),
       ]),
-      bottomNavigationBar: wide ? null : NavigationBar(selectedIndex: 0,
+      bottomNavigationBar: wide ? null : NavigationBar(selectedIndex: page == 'Profile' ? 1 : page == 'Settings' ? 2 : 0,
         onDestinationSelected: (i) {
           if (i == 0) setState(() { page = 'Overview'; favoritesOnly = false; category = 'All apps'; });
-          if (i == 1) Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AccountProfileScreen()));
-          if (i == 2) Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => AccountSettingsScreen(dark: widget.dark, onTheme: widget.onTheme)));
+          if (i == 1) setState(() => page = 'Profile');
+          if (i == 2) setState(() => page = 'Settings');
         },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard_rounded), label: 'Overview'),
@@ -500,7 +537,8 @@ class _DeckHomeState extends State<DeckHome> {
 }
 
 class AccountProfileScreen extends StatefulWidget {
-  const AccountProfileScreen({super.key});
+  const AccountProfileScreen({super.key, this.embedded = false});
+  final bool embedded;
   @override
   State<AccountProfileScreen> createState() => _AccountProfileScreenState();
 }
@@ -572,7 +610,7 @@ class _AccountProfileScreenState extends State<AccountProfileScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
+      appBar: widget.embedded ? null : AppBar(
         leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
         title: const Text('Profile & security'),
       ),
@@ -622,7 +660,8 @@ class _AccountProfileScreenState extends State<AccountProfileScreen> {
 }
 
 class AccountSettingsScreen extends StatelessWidget {
-  const AccountSettingsScreen({super.key, required this.dark, required this.onTheme});
+  const AccountSettingsScreen({super.key, required this.dark, required this.onTheme, this.embedded = false});
+  final bool embedded;
   final bool dark;
   final ValueChanged<bool> onTheme;
 
@@ -630,7 +669,7 @@ class AccountSettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
+      appBar: embedded ? null : AppBar(
         leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
         title: const Text('Settings'),
       ),
@@ -853,7 +892,6 @@ class _PortfolioNativeScreenState extends State<PortfolioNativeScreen> {
       appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
         title: Text(widget.admin ? 'Portfolio Admin' : 'Portfolio', style: const TextStyle(fontWeight: FontWeight.w800)),
         actions: [
-          IconButton(tooltip: 'Manage portfolio content', onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PortfolioAdminNativeScreen())), icon: const Icon(Icons.admin_panel_settings_outlined)),
           IconButton(tooltip: 'Refresh portfolio data', onPressed: load, icon: const Icon(Icons.refresh_rounded)),
           const SizedBox(width: 8),
         ]),
@@ -1593,16 +1631,14 @@ class _AppCard extends StatelessWidget {
   final VoidCallback onOpen;
   @override Widget build(BuildContext context) {
     final theme = Theme.of(context); final tint = Color(app.accentHex);
-    return Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onOpen, child: Padding(padding: const EdgeInsets.all(14),
+    return Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onOpen, child: Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(width: 42, height: 42, alignment: Alignment.center, decoration: BoxDecoration(color: tint.withValues(alpha: .15), borderRadius: BorderRadius.circular(13)), child: IconTheme(data: IconThemeData(color: tint, size: 23), child: iconFor(app.iconKey))),
         ]),
         const SizedBox(height: 8), Text(app.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
-        _StatusPill(label: 'Native workspace', icon: Icons.dashboard_rounded, color: accent),
-        const SizedBox(height: 5),
-        Text(app.description.isEmpty ? 'Open this workspace inside ControlDeck.' : app.description,
+                Text(app.description.isEmpty ? 'Open this workspace inside ControlDeck.' : app.description,
           maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.3)),
       ]))));
   }
