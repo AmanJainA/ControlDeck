@@ -580,6 +580,7 @@ class _DeckHomeState extends State<DeckHome> {
         ])),
       ]),
       bottomNavigationBar: wide ? null : NavigationBar(selectedIndex: page == 'Profile' ? 1 : page == 'Settings' ? 2 : 0,
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
         onDestinationSelected: (i) {
           if (i == 0) setState(() { page = 'Overview'; favoritesOnly = false; category = 'All apps'; });
           if (i == 1) setState(() => page = 'Profile');
