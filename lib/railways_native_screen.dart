@@ -547,6 +547,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       bottomNavigationBar:user==null?null:NavigationBar(
         selectedIndex: _selectedMainTab,
         onDestinationSelected: _selectMainTab,
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
         destinations:[
           const NavigationDestination(icon:Icon(Icons.home_rounded),label:'Home'),
           const NavigationDestination(icon:Icon(Icons.cloud_upload_outlined),label:'Upload Files'),
@@ -611,7 +612,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       if(view=='home')...[
         hero('Welcome, ${user?['username']??'Railway user'}','${user?['dept']??'Railway workspace'} · ${user?['role']??'User'}',Icons.train_rounded),
         const SizedBox(height:16),
-        LayoutBuilder(builder:(ctx,c){final cols=c.maxWidth>700?3:c.maxWidth>460?2:1;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:cols,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:cols==1?4:2.3,children:[
+        LayoutBuilder(builder:(ctx,c){final cols=c.maxWidth>900?3:2;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:cols,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:cols==2?1.55:2.3,children:[
           metric('Workspaces',headings.length.toString(),Icons.account_tree_rounded),metric('My Data',(dashboardCounts['mydata']??0).toString(),Icons.folder_copy_outlined),metric('Nangia',(dashboardCounts['nangia']??0).toString(),Icons.business_center_outlined),metric('NR Data',(dashboardCounts['nr']??0).toString(),Icons.description_outlined),metric('Role',(user?['role']??'User').toString(),Icons.verified_user_outlined),metric('Project',(user?['project']??'Railways').toString(),Icons.business_center_outlined)
         ]);}),
         const SizedBox(height:18),
