@@ -489,7 +489,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
 
   void back(){
     if(view=='files'&&heading!=null){openHeading(heading!);return;}
-    if(view=='files'||view=='menus'||view=='nangia'||view=='pending'||view=='nr'||view=='tracking'){setState(() { view = 'home'; heading = null; menu = null; });return;}
+    if(view=='files'||view=='menus'||view=='nangia'||view=='pending'||view=='nr'||view=='tracking'||view=='users'){setState(() { view = 'home'; heading = null; menu = null; });return;}
     Navigator.of(context).maybePop();
   }
 
@@ -535,12 +535,12 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   ]));
 
   @override Widget build(BuildContext context){
-    final title=view=='files'?(menu?['menuname']??'Files').toString():view=='menus'?(heading?['headingname']??'Workspace').toString():view=='tracking'?'Manage Tracking':view=='nr'?(dashboardHeadingId==null?'Northern Railway Dashboard':(heading?['headingname']??'NR Data Dashboard').toString()):'Railways';
+    final title=view=='files'?(menu?['menuname']??'Files').toString():view=='menus'?(heading?['headingname']??'Workspace').toString():view=='tracking'?'Manage Tracking':view=='users'?'User Access':view=='nr'?(dashboardHeadingId==null?'Northern Railway Dashboard':(heading?['headingname']??'NR Data Dashboard').toString()):'Railways';
     return Scaffold(appBar:AppBar(
       leading:IconButton(onPressed:user==null?()=>Navigator.of(context).maybePop():back,icon:const Icon(Icons.arrow_back_rounded)),
       title:Text(title),
       actions:[
-        if(user!=null)IconButton(tooltip:'Refresh',onPressed:view=='files'?(heading==null?openMyData:()=>openMenu(menu!)):view=='menus'?()=>openHeading(heading!):view=='pending'?openPendingApprovals:view=='tracking'?()=>loadTracking(trackingTab):view=='nr'?openNRDashboard:loadHeadings,icon:const Icon(Icons.refresh_rounded)),
+        if(user!=null)IconButton(tooltip:'Refresh',onPressed:view=='files'?(heading==null?openMyData:()=>openMenu(menu!)):view=='menus'?()=>openHeading(heading!):view=='pending'?openPendingApprovals:view=='tracking'?()=>loadTracking(trackingTab):view=='users'?()=>setState((){}):view=='nr'?openNRDashboard:loadHeadings,icon:const Icon(Icons.refresh_rounded)),
         if(user!=null)IconButton(tooltip:'Sign out',onPressed:signOut,icon:const Icon(Icons.logout_rounded)),
       ],
     ),body:user==null?openingDashboardView():workspaceView(),
@@ -559,13 +559,14 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
 
   int get _selectedMainTab {
     if (view == 'tracking' && admin) return 3;
+    if (view == 'users' && admin) return 2;
     return 0;
   }
 
   void _selectMainTab(int index){
     if(index==0){setState(()=>view='home');loadHeadings();}
     else if(index==1)uploadLink();
-    else if(index==2&&admin)openNativeManager('users', 'User Access');
+    else if(index==2&&admin)setState(()=>view='users');
     else if(index==3&&admin)loadTracking('online');
   }
 
@@ -609,7 +610,9 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     return Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:1100),child:ListView(padding:const EdgeInsets.all(20),children:[
       if(error!=null)Card(color:Theme.of(context).colorScheme.errorContainer,child:Padding(padding:const EdgeInsets.all(14),child:Text(error!))),
       if(busy)const LinearProgressIndicator(),
-      if(view=='home')...[
+      if(view=='users'&&admin)...[
+         RailwaysDataManager(key:const ValueKey('railways-user-access-tab'),db:db,user:user!,table:'users',title:'User Access',embedded:true),
+       ]else if(view=='home')...[
         hero('Welcome, ${user?['username']??'Railway user'}','${user?['dept']??'Railway workspace'} · ${user?['role']??'User'}',Icons.train_rounded),
         const SizedBox(height:16),
         LayoutBuilder(builder:(ctx,c){final cols=c.maxWidth>900?3:2;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:cols,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:cols==2?1.55:2.3,children:[
