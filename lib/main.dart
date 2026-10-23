@@ -1421,7 +1421,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
           Text('Choose a section', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 10),
           LayoutBuilder(builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 720 ? 4 : constraints.maxWidth >= 440 ? 2 : 1;
+            final columns = constraints.maxWidth >= 1000 ? 4 : constraints.maxWidth >= 720 ? 3 : 2;
             final gap = 10.0;
             final cardWidth = (constraints.maxWidth - gap * (columns - 1)) / columns;
             return Wrap(spacing: gap, runSpacing: gap, children: resources.map((r) {
