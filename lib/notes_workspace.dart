@@ -685,42 +685,47 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       const SizedBox(height:5),
       LayoutBuilder(builder:(context,box){
         final cols=box.maxWidth>760?3:box.maxWidth>460?2:1;
+        final cards=visible.map((l)=>Card(
+          clipBehavior:Clip.antiAlias,
+          child:InkWell(
+            onTap:()=>loadTopics(l),
+            child:Padding(
+              // Keep exactly 10px of internal space below the card content.
+              padding:const EdgeInsets.fromLTRB(16,16,16,10),
+              child:Column(
+                crossAxisAlignment:CrossAxisAlignment.start,
+                mainAxisSize:MainAxisSize.min,
+                children:[
+                  Row(children:[
+                    _NotesLanguageIcon(language:l,size:42),
+                    const Spacer(),
+                    Icon(Icons.arrow_outward_rounded,color:theme.colorScheme.onSurfaceVariant,size:19),
+                  ]),
+                  const SizedBox(height:12),
+                  Text(l['name']?.toString()??'Programming',maxLines:1,overflow:TextOverflow.ellipsis,style:theme.textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),
+                  const SizedBox(height:4),
+                  Text(l['description']?.toString().trim().isNotEmpty==true?l['description'].toString():'Explore lessons, examples and practice notes.',maxLines:3,overflow:TextOverflow.ellipsis,style:theme.textTheme.bodySmall),
+                  const SizedBox(height:6),
+                  Text('Explore lessons  →',style:theme.textTheme.labelLarge?.copyWith(color:theme.colorScheme.primary,fontWeight:FontWeight.w700)),
+                ],
+              ),
+            ),
+          ),
+        )).toList();
+        if(cols==1) {
+          return Column(
+            mainAxisSize:MainAxisSize.min,
+            children:cards,
+          );
+        }
         return GridView.count(
           shrinkWrap:true,
           physics:const NeverScrollableScrollPhysics(),
           crossAxisCount:cols,
           mainAxisSpacing:12,
           crossAxisSpacing:12,
-          // Cards are deliberately taller on narrow screens so the icon, title,
-          // description and action remain inside the card on compact iPhones.
-          childAspectRatio:cols==1?0.82:cols==2?0.98:0.92,
-          children:visible.map((l)=>Card(
-            clipBehavior:Clip.antiAlias,
-            child:InkWell(
-              onTap:()=>loadTopics(l),
-              child:Padding(
-                padding:const EdgeInsets.fromLTRB(16,16,16,10),
-                child:Column(
-                  crossAxisAlignment:CrossAxisAlignment.start,
-                  mainAxisAlignment:MainAxisAlignment.start,
-                  children:[
-                    Row(children:[
-                      _NotesLanguageIcon(language:l,size:42),
-                      const Spacer(),
-                      Icon(Icons.arrow_outward_rounded,color:theme.colorScheme.onSurfaceVariant,size:19),
-                    ]),
-                    const SizedBox(height:12),
-                    Text(l['name']?.toString()??'Programming',maxLines:1,overflow:TextOverflow.ellipsis,style:theme.textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),
-                    const SizedBox(height:4),
-                    Text(l['description']?.toString().trim().isNotEmpty==true?l['description'].toString():'Explore lessons, examples and practice notes.',maxLines:3,overflow:TextOverflow.ellipsis,style:theme.textTheme.bodySmall),
-                    const SizedBox(height:6),
-                    Text('Explore lessons  →',style:theme.textTheme.labelLarge?.copyWith(color:theme.colorScheme.primary,fontWeight:FontWeight.w700)),
-                    if(cols==1) const SizedBox(height:10),
-                  ],
-                ),
-              ),
-            ),
-          )).toList(),
+          childAspectRatio:cols==2?0.98:0.92,
+          children:cards,
         );
       })];
   }
