@@ -1177,7 +1177,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
               ), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(field['label'].toString(), style: Theme.of(ctx).textTheme.labelMedium?.copyWith(color: Theme.of(ctx).colorScheme.primary, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 5),
-                Text(row[field['key']] is List ? (row[field['key']] as List).join(field['multi'] == true ? '\\n' : ', ') : row[field['key']].toString(), style: Theme.of(ctx).textTheme.bodyMedium),
+                Text(row[field['key']] is List ? (row[field['key']] as List).join(field['multi'] == true ? '\n' : ', ') : row[field['key']].toString(), style: Theme.of(ctx).textTheme.bodyMedium),
               ])),
         ])),
         Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 18), child: Row(children: [
