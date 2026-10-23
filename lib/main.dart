@@ -458,7 +458,13 @@ class _DeckHomeState extends State<DeckHome> {
             borderRadius: BorderRadius.circular(24),
           ),
           child: searchExpanded
-              ? Row(children: [
+              ? LayoutBuilder(builder: (context, constraints) {
+                  // During the width animation, keep the compact search icon visible
+                  // until the field has enough room for every control.
+                  if (constraints.maxWidth < 112) {
+                    return const Center(child: Icon(Icons.search_rounded, size: 20));
+                  }
+                  return Row(children: [
                   const SizedBox(width: 12),
                   const Icon(Icons.search_rounded, size: 20),
                   const SizedBox(width: 8),
@@ -480,7 +486,8 @@ class _DeckHomeState extends State<DeckHome> {
                     onPressed: () => setState(() { search.clear(); searchExpanded = false; }),
                     icon: const Icon(Icons.close_rounded, size: 18),
                   ),
-                ])
+                ]);
+                })
               : IconButton(
                   tooltip: 'Search apps',
                   onPressed: () => setState(() => searchExpanded = true),
