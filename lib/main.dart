@@ -1199,9 +1199,9 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
 
   @override Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (restoring) return const Scaffold(
-      appBar: AppBar(title: Text('Portfolio Admin')),
-      body: Center(child: CircularProgressIndicator()),
+    if (restoring) return Scaffold(
+      appBar: AppBar(title: const Text('Portfolio Admin')),
+      body: const Center(child: CircularProgressIndicator()),
     );
     if (token == null) return Scaffold(
       appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: const Text('Portfolio Admin')),
