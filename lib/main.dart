@@ -1020,6 +1020,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
   String? message;
   String? token;
   String section = 'projects';
+  bool sectionPage = false;
   String searchQuery = '';
   Map<String, dynamic> data = {};
 
@@ -1348,8 +1349,17 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
     }).toList();
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)),
-        title: const Text('Portfolio Studio', style: TextStyle(fontWeight: FontWeight.w800)),
+        leading: IconButton(
+          onPressed: () {
+            if (sectionPage) {
+              setState(() { sectionPage = false; searchQuery = ''; });
+            } else {
+              Navigator.of(context).maybePop();
+            }
+          },
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        title: Text(sectionPage ? current['label'].toString() : 'Portfolio Studio', style: const TextStyle(fontWeight: FontWeight.w800)),
         actions: [
           IconButton(tooltip: 'Refresh data', onPressed: busy ? null : loadData, icon: const Icon(Icons.refresh_rounded)),
           IconButton(tooltip: 'Sign out', onPressed: signOut, icon: const Icon(Icons.logout_rounded)),
@@ -1358,6 +1368,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
       ),
       body: Stack(children: [
         Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1180), child: ListView(padding: const EdgeInsets.fromLTRB(18, 12, 18, 32), children: [
+          if (!sectionPage) ...[
           Container(padding: const EdgeInsets.all(22), decoration: BoxDecoration(
             gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [theme.colorScheme.primaryContainer, theme.colorScheme.surfaceContainerHighest]),
             borderRadius: BorderRadius.circular(24),
@@ -1434,7 +1445,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
-                    onTap: () => setState(() { section = r['key'].toString(); searchQuery = ''; }),
+                    onTap: () => setState(() { section = r['key'].toString(); sectionPage = true; searchQuery = ''; }),
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Column(
@@ -1466,13 +1477,15 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
               );
             }).toList());
           }),
-          const SizedBox(height: 24),
+          ],
+          const SizedBox(height: 8),
           Row(children: [
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (!sectionPage) Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(current['label'].toString(), style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
               const SizedBox(height: 3),
               Text(current['key'] == 'contact' ? 'Review messages sent through your website.' : current['key'] == 'profile' ? 'Manage the main details shown on your portfolio.' : 'View and manage the content in this section.', style: theme.textTheme.bodySmall),
             ])),
+            if (sectionPage) const Spacer(), 
             if (current['key'] != 'contact' && (current['key'] != 'profile' || rows.isEmpty))
               FilledButton.icon(onPressed: busy ? null : () => editRecord(current), icon: const Icon(Icons.add_rounded), label: const Text('Add new')),
           ]),
