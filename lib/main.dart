@@ -572,7 +572,7 @@ class _DeckHomeState extends State<DeckHome> {
             else LayoutBuilder(builder: (context, box) {
               final cols = box.maxWidth > 1120 ? 3 : 2;
               return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: items.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, crossAxisSpacing: 14, mainAxisSpacing: 14, mainAxisExtent: 220),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, crossAxisSpacing: 14, mainAxisSpacing: 14, mainAxisExtent: 160),
                 itemBuilder: (context, i) => _AppCard(app: items[i], onOpen: () => openApp(items[i])));
             }),
 
@@ -1710,7 +1710,7 @@ class _AppCard extends StatelessWidget {
   final VoidCallback onOpen;
   @override Widget build(BuildContext context) {
     final theme = Theme.of(context); final tint = Color(app.accentHex);
-    return Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onOpen, child: Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+    return Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onOpen, child: Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(width: 42, height: 42, alignment: Alignment.center, decoration: BoxDecoration(color: tint.withValues(alpha: .15), borderRadius: BorderRadius.circular(13)), child: IconTheme(data: IconThemeData(color: tint, size: 23), child: iconFor(app.iconKey))),
