@@ -44,6 +44,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   final name = TextEditingController();
   final search = TextEditingController();
   final contactName = TextEditingController();
+  final contactLastName = TextEditingController();
   final contactEmail = TextEditingController(text: _notesAdminEmail);
   final contactSubject = TextEditingController();
   final contactMessage = TextEditingController();
@@ -132,7 +133,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     }
   }
   @override void dispose() {
-    for (final c in [email,password,name,search,contactName,contactEmail,contactSubject,contactMessage]) { c.dispose(); }
+    for (final c in [email,password,name,search,contactName,contactLastName,contactEmail,contactSubject,contactMessage]) { c.dispose(); }
     super.dispose();
   }
   String friendly(Object e) => e.toString().replaceFirst('Exception: ', '');
@@ -278,10 +279,11 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     }catch(e){if(mounted)setState(()=>error=friendly(e));}
   }
   Future<void> sendContact() async {
-    if(contactName.text.trim().isEmpty || contactEmail.text.trim().isEmpty || contactMessage.text.trim().isEmpty){setState(()=>error='Name, email and message are required.');return;}
+    if(contactName.text.trim().isEmpty || contactEmail.text.trim().isEmpty || contactMessage.text.trim().isEmpty){setState(()=>error='First name, email and message are required.');return;}
     try {
-      await client!.schema('notes').from('contact_messages').insert({'user_id':profile?['id'],'name':contactName.text.trim(),'email':contactEmail.text.trim(),'subject':contactSubject.text.trim(),'message':contactMessage.text.trim()});
-      contactSubject.clear();contactMessage.clear();if(mounted)setState(()=>notice='Message sent. Thanks for reaching out.');
+      final fullName = '${contactName.text.trim()} ${contactLastName.text.trim()}'.trim();
+      await client!.schema('notes').from('contact_messages').insert({'user_id':profile?['id'],'name':fullName,'email':contactEmail.text.trim(),'subject':contactSubject.text.trim(),'message':contactMessage.text.trim()});
+      contactName.clear();contactLastName.clear();contactSubject.clear();contactMessage.clear();if(mounted)setState(()=>notice='Message sent — thanks for reaching out!');
     }catch(e){if(mounted)setState(()=>error=friendly(e));}
   }
   Future<void> loadActivity({bool withinAdmin = false}) async {
@@ -742,39 +744,78 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   }
 
   List<Widget> aboutView()=>[
-    const _NotesHero(title:'About Notes',subtitle:'A practical, database-driven learning space for programming lessons, examples and progress.'),
-    Center(child:ClipRRect(borderRadius:BorderRadius.circular(90),child:Image.network('https://github.com/AmanJainA.png',width:150,height:150,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const CircleAvatar(radius:75,child:Icon(Icons.person,size:64))))),
-    const SizedBox(height:14),
-    const Text('We believe learning to code should not mean digging through scattered files. Notes keeps lessons organized by language and topic, with examples and a simple way to track completed lessons.'),
-    const SizedBox(height:14),
-    const _NotesHero(title:'Our Vision',subtitle:'Help students learn C, C++, Java, PHP, HTML, CSS, JavaScript and Bootstrap through clear explanations and practical examples.'),
-    const Text('Our Mission',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
-    const Text('• Keep every lesson clear, practical, and example-driven.\n• Track learning progress across languages.\n• Make lessons easy to add and maintain.\n• Keep the experience fast, simple and accessible.'),
+    const _NotesHero(title:'About Us',subtitle:'Welcome to Notes App, a clean, database-driven platform built to help students learn programming languages the practical way clear explanations, real code examples, and one place to track your progress across every language.'),
+    const Text("We believe learning to code shouldn't mean digging through a hundred scattered files. Everything here lives in one consistent, easy-to-navigate structure.",style:TextStyle(height:1.55)),
+    const SizedBox(height:18),
+    ClipRRect(borderRadius:BorderRadius.circular(16),child:Image.network('https://raw.githubusercontent.com/AmanJainA/Notes/main/src/img/About/vision-mission.jpeg',width:double.infinity,height:220,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const SizedBox(height:120,child:Center(child:Icon(Icons.image_not_supported_outlined,size:40))))),
+    const SizedBox(height:18),
+    const Text('Our Vision',style:TextStyle(fontSize:22,fontWeight:FontWeight.w800)),
+    const SizedBox(height:8),
+    const Text('To be the go-to companion for students learning C, C++, Java, PHP, HTML, CSS, JavaScript and Bootstrap a place where every topic is explained clearly enough to actually build something with it, not just pass an exam.',style:TextStyle(height:1.55)),
+    const SizedBox(height:18),
+    const Text('Our Mission',style:TextStyle(fontSize:22,fontWeight:FontWeight.w800)),
+    const SizedBox(height:8),
+    const Text('• Keep every lesson clear, practical, and example-driven.\n• Track your progress across languages, automatically.\n• Make new lessons and languages easy to add content lives in a database, not scattered files.\n• Keep it fast, simple, and free of clutter.',style:TextStyle(height:1.65)),
+    const SizedBox(height:24),
+    const Center(child:Text('Built By',style:TextStyle(fontSize:24,fontWeight:FontWeight.w800))),
+    const SizedBox(height:16),
+    Center(child:ClipRRect(borderRadius:BorderRadius.circular(100),child:Image.network('https://github.com/AmanJainA.png',width:180,height:180,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const CircleAvatar(radius:90,child:Icon(Icons.person,size:64))))),
     const SizedBox(height:12),
-    const _NotesHero(title:'Built By',subtitle:'Aman Jain · Founder & Lead Developer\nEmail: amanjain033@gmail.com'),
-    Card(child:ListTile(leading:const Icon(Icons.code_rounded),title:const Text('Learn, build and grow'),subtitle:const Text('Explore language cards, open lessons and use the progress section to keep track of learning.'),trailing:const Icon(Icons.arrow_forward_rounded),onTap:()=>setState(()=>page='Dashboard'))),
+    const Center(child:Text('Founder & Lead Developer: Aman Jain',textAlign:TextAlign.center,style:TextStyle(fontSize:17,fontWeight:FontWeight.w700))),
+    Center(child:TextButton.icon(onPressed:()=>launchUrl(Uri.parse('mailto:amanjain033@gmail.com')),icon:const Icon(Icons.email_outlined),label:const Text('amanjain033@gmail.com'))),
+    const Text('Built for students who want a single, well-organized place to learn to code and to explore what they can build themselves.',textAlign:TextAlign.center,style:TextStyle(height:1.55)),
+    const SizedBox(height:24),
+    ClipRRect(borderRadius:BorderRadius.circular(16),child:Image.network('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1000&q=85',height:200,width:double.infinity,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const SizedBox(height:100,child:Center(child:Icon(Icons.laptop_mac_rounded,size:48))))),
     const SizedBox(height:12),
-    Card(clipBehavior:Clip.antiAlias,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      Image.network('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80',height:190,width:double.infinity,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const SizedBox(height:100,child:Center(child:Icon(Icons.laptop_mac_rounded,size:48)))),
-      const Padding(padding:EdgeInsets.all(14),child:Text('Built for practical learning, one topic at a time.')),
-    ])),
+    const Text('Learn, build and grow',style:TextStyle(fontSize:21,fontWeight:FontWeight.w800)),
+    const Text('Notes brings language-wise lessons, practical examples and learning progress into one place. Use the Learn section to explore available languages, open lessons and track your completed topics.',style:TextStyle(height:1.55)),
     const SizedBox(height:12),
-    FilledButton.tonalIcon(onPressed:openContactMap,icon:const Icon(Icons.map_outlined),label:const Text('View location in Google Maps')),
+    Wrap(spacing:10,runSpacing:8,children:[
+      FilledButton(onPressed:()=>setState(()=>page='Dashboard'),child:const Text('Explore Notes')),
+      OutlinedButton(onPressed:()=>launchUrl(Uri.parse('mailto:amanjain033@gmail.com')),child:const Text('Email the team')),
+    ]),
+    const SizedBox(height:24),
+    const Center(child:Text('Find Us',style:TextStyle(fontSize:21,fontWeight:FontWeight.w800))),
+    const SizedBox(height:8),
+    const Text('Parasnath Colony, Baral Road, Bijainagar, Ajmer, Rajasthan',textAlign:TextAlign.center),
+    const SizedBox(height:10),
+    Card(child:ListTile(leading:const Icon(Icons.map_outlined),title:const Text('Open location in Google Maps'),subtitle:const Text('Parasnath Colony, Baral Road, Bijainagar, Ajmer, Rajasthan'),trailing:const Icon(Icons.open_in_new_rounded),onTap:openContactMap)),
   ];
   List<Widget> contactView()=>[
-    const _NotesHero(title:'Contact Notes',subtitle:'Questions, suggestions or feedback? Send a message and we will get back to you.'),
-    Card(clipBehavior:Clip.antiAlias,child:Image.network('https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1200&q=80',height:180,width:double.infinity,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const SizedBox(height:100,child:Center(child:Icon(Icons.support_agent_rounded,size:48))))),
-    TextField(controller:contactName,decoration:const InputDecoration(labelText:'Name *')),
-    TextField(controller:contactEmail,keyboardType:TextInputType.emailAddress,decoration:const InputDecoration(labelText:'Email *')),
-    TextField(controller:contactSubject,decoration:const InputDecoration(labelText:'Subject')),
-    TextField(controller:contactMessage,minLines:4,maxLines:8,decoration:const InputDecoration(labelText:'Message *')),
-    const SizedBox(height:10),
-    FilledButton.icon(onPressed:sendContact,icon:const Icon(Icons.send),label:const Text('Send message')),
+    const _NotesHero(title:'Contact',subtitle:'Have a question about a lesson, found something that needs fixing, or want to share feedback? Send a message and we will get back to you.'),
+    Wrap(spacing:10,runSpacing:8,children:[
+      FilledButton.tonalIcon(onPressed:()=>launchUrl(Uri.parse('mailto:amanjain033@gmail.com')),icon:const Icon(Icons.email_outlined),label:const Text('Email Us')),
+      OutlinedButton.icon(onPressed:()=>launchUrl(Uri.parse('tel:+918290367908')),icon:const Icon(Icons.phone_outlined),label:const Text('Call Us')),
+    ]),
+    const SizedBox(height:12),
+    ClipRRect(borderRadius:BorderRadius.circular(16),child:Image.network('https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1000&q=85',height:220,width:double.infinity,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const SizedBox(height:100,child:Center(child:Icon(Icons.support_agent_rounded,size:48))))),
     const SizedBox(height:18),
-    const _NotesHero(title:'Contact Information',subtitle:'Address: Parasnath Colony, Baral Road, Bijainagar, Ajmer, Rajasthan\nPhone: +91 8290367908\nEmail: amanjain033@gmail.com\nResponse time: We usually reply within 1–2 business days.'),
-    Card(child:ListTile(leading:const Icon(Icons.phone_outlined),title:const Text('Call'),subtitle:const Text('+91 8290367908'),onTap:()=>launchUrl(Uri.parse('tel:+918290367908')))),
+    Row(children:[
+      Expanded(child:TextField(controller:contactName,decoration:const InputDecoration(labelText:'First Name *'))),
+      const SizedBox(width:12),
+      Expanded(child:TextField(controller:contactLastName,decoration:const InputDecoration(labelText:'Last Name'))),
+    ]),
+    const SizedBox(height:10),
+    TextField(controller:contactEmail,keyboardType:TextInputType.emailAddress,decoration:const InputDecoration(labelText:'Email *')),
+    const SizedBox(height:10),
+    TextField(controller:contactSubject,decoration:const InputDecoration(labelText:'Subject')),
+    const SizedBox(height:10),
+    TextField(controller:contactMessage,minLines:4,maxLines:8,decoration:const InputDecoration(labelText:'Message *',hintText:'Write your question or feedback here...')),
+    const SizedBox(height:12),
+    FilledButton.icon(onPressed:sendContact,icon:const Icon(Icons.send),label:const Text('Send Message')),
+    const SizedBox(height:24),
+    const Text('Contact Information',style:TextStyle(fontSize:22,fontWeight:FontWeight.w800)),
+    const SizedBox(height:12),
+    Card(child:ListTile(leading:const Icon(Icons.location_on_outlined),title:const Text('Address'),subtitle:const Text('Parasnath Colony, Baral Road, Bijainagar, Ajmer, Rajasthan'))),
+    Card(child:ListTile(leading:const Icon(Icons.phone_outlined),title:const Text('Phone'),subtitle:const Text('+91 8290367908'),onTap:()=>launchUrl(Uri.parse('tel:+918290367908')))),
     Card(child:ListTile(leading:const Icon(Icons.email_outlined),title:const Text('Email'),subtitle:const Text('amanjain033@gmail.com'),onTap:()=>launchUrl(Uri.parse('mailto:amanjain033@gmail.com')))),
-    Card(child:ListTile(leading:const Icon(Icons.map_outlined),title:const Text('Location and directions'),subtitle:const Text('Parasnath Colony, Baral Road, Bijainagar, Ajmer, Rajasthan'),trailing:const Icon(Icons.open_in_new_rounded),onTap:openContactMap)),
+    Card(child:ListTile(leading:const Icon(Icons.schedule_outlined),title:const Text('Response time'),subtitle:const Text('We usually reply within 1–2 business days.'))),
+    const SizedBox(height:18),
+    const Text('Find Us on the Map',style:TextStyle(fontSize:21,fontWeight:FontWeight.w800)),
+    const SizedBox(height:6),
+    const Text('Open the map to get directions to Bijainagar, Ajmer.'),
+    const SizedBox(height:10),
+    Card(child:ListTile(leading:const Icon(Icons.map_outlined),title:const Text('Get Directions'),subtitle:const Text('Parasnath Colony, Baral Road, Bijainagar, Ajmer, Rajasthan'),trailing:const Icon(Icons.open_in_new_rounded),onTap:openContactMap)),
   ];
   List<Widget> profileView(ThemeData theme)=>[const _NotesHero(title:'My Notes profile',subtitle:'Account and learning progress.'),Card(child:ListTile(leading:const Icon(Icons.account_circle),title:Text(profile?['full_name']?.toString()??profile?['name']?.toString()??'Notes user'),subtitle:Text(profile?['email']?.toString()??''))),Text('${progress.where((p)=>p['completed']==true).length} lessons completed'),FilledButton.tonalIcon(onPressed:changePassword,icon:const Icon(Icons.password),label:const Text('Change password')),if(notesWorkspaceUrl != controlDeckWorkspaceUrl)OutlinedButton.icon(onPressed:signOut,icon:const Icon(Icons.logout),label:const Text('Sign out')) else const _NotesNotice(title:'Shared ControlDeck sign-in',detail:'This Notes workspace uses your existing ControlDeck session. Sign out from the main ControlDeck account menu to end the shared session.')];
   Future<void> changePassword() async {
