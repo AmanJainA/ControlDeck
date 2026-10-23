@@ -751,7 +751,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     const Text('Our Mission',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
     const Text('• Keep every lesson clear, practical, and example-driven.\n• Track learning progress across languages.\n• Make lessons easy to add and maintain.\n• Keep the experience fast, simple and accessible.'),
     const SizedBox(height:12),
-    const _NotesHero(title:'Built By',subtitle:'Aman Jain · Founder & Lead Developer\nEmail: aman jain033@gmail.com'.replaceFirst('aman jain','aman')),
+    const _NotesHero(title:'Built By',subtitle:'Aman Jain · Founder & Lead Developer\nEmail: amanjain033@gmail.com'),
     Card(child:ListTile(leading:const Icon(Icons.code_rounded),title:const Text('Learn, build and grow'),subtitle:const Text('Explore language cards, open lessons and use the progress section to keep track of learning.'),trailing:const Icon(Icons.arrow_forward_rounded),onTap:()=>setState(()=>page='Dashboard'))),
     const SizedBox(height:12),
     Card(clipBehavior:Clip.antiAlias,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
