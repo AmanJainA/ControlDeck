@@ -499,7 +499,8 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     'Home' => 0,
     'Dashboard' || 'Lessons' || 'Lesson' => 1,
     'Progress' => 2,
-    'Profile' => 3,
+    'Contact' => 3,
+    'About' => 4,
     _ => 0,
   };
 
@@ -519,7 +520,10 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
           page = 'Progress';
           break;
         case 3:
-          page = 'Profile';
+          page = 'Contact';
+          break;
+        case 4:
+          page = 'About';
           break;
       }
     });
@@ -548,12 +552,12 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
           },
           itemBuilder: (_) => [
             const PopupMenuItem(value: 'about', child: Text('About Notes')),
-            const PopupMenuItem(value: 'contact', child: Text('Contact')),
+            const PopupMenuItem(value: 'contact', child: Text('Contact Notes')),
             if (isAdmin) const PopupMenuItem(value: 'admin', child: Text('Admin management')),
             if (isAdmin) const PopupMenuItem(value: 'activity', child: Text('Activity monitor')),
           ],
         ),
-        if (profile != null) IconButton(tooltip: 'Profile', onPressed: () => setState(() => page = 'Profile'), icon: const Icon(Icons.account_circle_outlined)),
+
         if (profile != null) IconButton(tooltip: usesSharedControlDeckAuth ? 'Back to ControlDeck' : 'Sign out', onPressed: signOut, icon: Icon(usesSharedControlDeckAuth ? Icons.arrow_back_rounded : Icons.logout_rounded)),
         const SizedBox(width: 8),
       ],
@@ -580,7 +584,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
                       if (page == 'Progress') ...progressView(theme),
                       if (page == 'About') ...aboutView(),
                       if (page == 'Contact') ...contactView(),
-                      if (page == 'Profile') ...profileView(theme),
+
                       if (page == 'Admin') ...adminView(theme),
                       if (page == 'Activity') ...activityView(theme),
                     ]),
@@ -591,7 +595,8 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
           NavigationDestination(icon: Icon(Icons.home_rounded), selectedIcon: Icon(Icons.home_filled), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.menu_book_rounded), label: 'Learn'),
           NavigationDestination(icon: Icon(Icons.insights_rounded), label: 'Progress'),
-          NavigationDestination(icon: Icon(Icons.account_circle_outlined), label: 'Profile'),
+          NavigationDestination(icon: Icon(Icons.mail_outline_rounded), label: 'Contact Notes'),
+          NavigationDestination(icon: Icon(Icons.info_outline_rounded), label: 'About'),
         ],
       ),
     );
@@ -627,9 +632,6 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       );
     }),
     const SizedBox(height: 14),
-    FilledButton.icon(onPressed: () => _selectNav(1), icon: const Icon(Icons.school_rounded), label: const Text('Browse all programming languages')),
-    OutlinedButton.icon(onPressed: () => setState(() => page = 'Progress'), icon: const Icon(Icons.insights_rounded), label: const Text('View learning progress')),
-    OutlinedButton.icon(onPressed: () => setState(() => page = 'Contact'), icon: const Icon(Icons.mail_outline_rounded), label: const Text('Contact Notes')),
   ];
 
   List<Widget> progressView(ThemeData theme) {
@@ -676,12 +678,6 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     return [const _NotesHero(title:'Coding Notes',subtitle:'Database-driven coding notes for BCA/MCA students.'),
       Row(children:[Expanded(child:Text('${languages.length} languages',style:theme.textTheme.titleMedium)),Text('${progress.where((p)=>p['completed']==true).length} completed')]),
       TextField(controller:search,onChanged:(v)=>setState(()=>query=v),decoration:const InputDecoration(labelText:'Search languages',prefixIcon:Icon(Icons.search_rounded))),
-      Wrap(spacing:8,children:[
-        ActionChip(label:const Text('About'),onPressed:()=>setState(()=>page='About')),
-        ActionChip(label:const Text('Contact'),onPressed:()=>setState(()=>page='Contact')),
-        if(isAdmin)ActionChip(label:const Text('Admin management'),onPressed:loadAdmin),
-        if(isAdmin)ActionChip(label:const Text('Activity monitor'),onPressed:loadActivity),
-      ]),
       LayoutBuilder(builder:(context,box){
         final cols=box.maxWidth>760?3:box.maxWidth>460?2:1;
         return GridView.count(
@@ -698,7 +694,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
             child:InkWell(
               onTap:()=>loadTopics(l),
               child:Padding(
-                padding:const EdgeInsets.all(16),
+                padding:const EdgeInsets.fromLTRB(16,16,16,10),
                 child:Column(
                   crossAxisAlignment:CrossAxisAlignment.start,
                   mainAxisAlignment:MainAxisAlignment.start,
@@ -724,18 +720,18 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   }
   List<Widget> lessonList(ThemeData theme)=>[
     _NotesHero(title:language?['name']?.toString()??'Lessons',subtitle:language?['description']?.toString()??'Select a lesson.'),
-    Row(children:[Expanded(child:Text('${topics.length} lessons')),if(isAdmin)FilledButton.tonalIcon(onPressed:()=>editTopic(),icon:const Icon(Icons.add),label:const Text('Add topic'))]),
+    Row(children:[Expanded(child:Text('${topics.length} lessons'))]),
     for(final t in topics)Card(child:ListTile(leading:Icon(completed(t['id'].toString())?Icons.check_circle:Icons.menu_book_rounded),title:Text(t['title'].toString()),subtitle:Text(completed(t['id'].toString())?'Completed':'Lesson'),trailing:Wrap(children:[
-      if(isAdmin)IconButton(onPressed:()=>editTopic(t),icon:const Icon(Icons.edit_outlined)),if(isAdmin)IconButton(onPressed:()=>editContent(t),icon:const Icon(Icons.edit_note_rounded)),const Icon(Icons.chevron_right_rounded),
+      const Icon(Icons.chevron_right_rounded),
     ]),onTap:()=>loadLesson(t))),
   ];
   List<Widget> lessonView(ThemeData theme)=>[
     _NotesHero(title:topic?['title']?.toString()??'Lesson',subtitle:language?['name']?.toString()??'Programming'),
-    Wrap(spacing:8,children:[FilledButton.tonalIcon(onPressed:toggleProgress,icon:Icon(completed(topic?['id']?.toString()??'')?Icons.check_circle:Icons.check_circle_outline),label:Text(completed(topic?['id']?.toString()??'')?'Mark incomplete':'Mark complete')),if(isAdmin)OutlinedButton.icon(onPressed:()=>editContent(topic!),icon:const Icon(Icons.edit_note),label:const Text('Edit lesson'))]),
+    Wrap(spacing:8,children:[FilledButton.tonalIcon(onPressed:toggleProgress,icon:Icon(completed(topic?['id']?.toString()??'')?Icons.check_circle:Icons.check_circle_outline),label:Text(completed(topic?['id']?.toString()??'')?'Mark incomplete':'Mark complete')),]),
     if(blocks.isEmpty)const _NotesNotice(title:'No lesson content yet',detail:'This topic has no content blocks in the database yet.'),for(final b in blocks)if(b is Map)_NotesBlock(block:Map<String,dynamic>.from(b)),
   ];
-  List<Widget> aboutView()=>[const _NotesHero(title:'About Notes',subtitle:'Reusable, database-driven coding notes for BCA/MCA students.'),const _NotesNotice(title:'Learn by language and topic',detail:'Supported subjects include C, C++, Java, PHP, HTML, CSS, JavaScript and Bootstrap. New tracks and lessons load from Supabase.')];
-  List<Widget> contactView()=>[const _NotesHero(title:'Contact',subtitle:'Send a question or feedback message.'),TextField(controller:contactName,decoration:const InputDecoration(labelText:'Name *')),TextField(controller:contactEmail,decoration:const InputDecoration(labelText:'Email *')),TextField(controller:contactSubject,decoration:const InputDecoration(labelText:'Subject')),TextField(controller:contactMessage,minLines:4,maxLines:8,decoration:const InputDecoration(labelText:'Message *')),const SizedBox(height:10),FilledButton.icon(onPressed:sendContact,icon:const Icon(Icons.send),label:const Text('Send message'))];
+  List<Widget> aboutView()=>[const _NotesHero(title:'About Us',subtitle:'Welcome to Notes App, a clean, database-driven platform built to help students learn programming languages the practical way.'),const Text('We believe learning to code should not mean digging through a hundred scattered files. Everything here lives in one consistent, easy-to-navigate structure.'),const SizedBox(height:14),const Text('Our Vision',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800)),const Text('To be the go-to companion for students learning C, C++, Java, PHP, HTML, CSS, JavaScript and Bootstrap — a place where every topic is explained clearly enough to build something with it, not just pass an exam.'),const SizedBox(height:12),const Text('Our Mission',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800)),const Text('• Keep every lesson clear, practical, and example-driven.\\n• Track your progress across languages, automatically.\\n• Make new lessons and languages easy to add, with content stored in a database.\\n• Keep it fast, simple, and free of clutter.'),const SizedBox(height:16),const _NotesHero(title:'Built By',subtitle:'Founder & Lead Developer: Aman Jain\\nEmail: amanjain033@gmail.com\\nBuilt for students who want a single, well-organized place to learn to code.')];
+  List<Widget> contactView()=>[const _NotesHero(title:'Contact Notes',subtitle:'Send a question or feedback message.'),TextField(controller:contactName,decoration:const InputDecoration(labelText:'Name *')),TextField(controller:contactEmail,decoration:const InputDecoration(labelText:'Email *')),TextField(controller:contactSubject,decoration:const InputDecoration(labelText:'Subject')),TextField(controller:contactMessage,minLines:4,maxLines:8,decoration:const InputDecoration(labelText:'Message *')),const SizedBox(height:10),FilledButton.icon(onPressed:sendContact,icon:const Icon(Icons.send),label:const Text('Send message')),const SizedBox(height:18),const _NotesHero(title:'Contact Information',subtitle:'Address: Parasnath Colony, Baral Road, Bijainagar [Ajmer]\\nPhone: +91 8290367908\\nEmail: amanjain033@gmail.com\\nResponse time: We usually reply within 1–2 business days.')];
   List<Widget> profileView(ThemeData theme)=>[const _NotesHero(title:'My Notes profile',subtitle:'Account and learning progress.'),Card(child:ListTile(leading:const Icon(Icons.account_circle),title:Text(profile?['full_name']?.toString()??profile?['name']?.toString()??'Notes user'),subtitle:Text(profile?['email']?.toString()??''))),Text('${progress.where((p)=>p['completed']==true).length} lessons completed'),FilledButton.tonalIcon(onPressed:changePassword,icon:const Icon(Icons.password),label:const Text('Change password')),if(notesWorkspaceUrl != controlDeckWorkspaceUrl)OutlinedButton.icon(onPressed:signOut,icon:const Icon(Icons.logout),label:const Text('Sign out')) else const _NotesNotice(title:'Shared ControlDeck sign-in',detail:'This Notes workspace uses your existing ControlDeck session. Sign out from the main ControlDeck account menu to end the shared session.')];
   Future<void> changePassword() async {
     final current=TextEditingController(),next=TextEditingController();
