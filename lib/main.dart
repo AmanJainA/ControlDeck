@@ -320,7 +320,7 @@ class _DeckHomeState extends State<DeckHome> {
   final search = TextEditingController();
   List<DeckApp> apps = starterApps();
   String category = 'All apps', page = 'Overview';
-  bool favoritesOnly = false, loading = true, cloudError = false, searchExpanded = false;
+  bool favoritesOnly = false, loading = true, cloudError = false;
 
   @override void initState() { super.initState(); search.addListener(_refresh); _load(); }
   @override void dispose() { search.removeListener(_refresh); search.dispose(); super.dispose(); }
@@ -448,51 +448,40 @@ class _DeckHomeState extends State<DeckHome> {
     final items = shown;
     return Scaffold(
       appBar: AppBar(title: compact ? const SizedBox(width: 4) : (wide ? const _BrandMark() : const Text('ControlDeck', style: TextStyle(fontWeight: FontWeight.w800))), actions: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeInOutCubic,
-          width: searchExpanded ? (wide ? 270 : (screenWidth < 360 ? 112 : screenWidth < 420 ? 132 : 176)) : 44,
-          height: 42,
-          decoration: BoxDecoration(
-            color: searchExpanded ? Theme.of(context).colorScheme.surfaceContainerHighest : Colors.transparent,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: searchExpanded
-              ? LayoutBuilder(builder: (context, constraints) {
-                  // During the width animation, keep the compact search icon visible
-                  // until the field has enough room for every control.
-                  if (constraints.maxWidth < 112) {
-                    return const Center(child: Icon(Icons.search_rounded, size: 20));
-                  }
-                  return Row(children: [
-                  const SizedBox(width: 12),
-                  const Icon(Icons.search_rounded, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(child: TextField(
-                    controller: search,
-                    autofocus: true,
-                    textInputAction: TextInputAction.search,
-                    decoration: const InputDecoration(
-                      hintText: 'Search apps…',
-                      border: InputBorder.none,
-                      filled: false,
-                      contentPadding: EdgeInsets.symmetric(vertical: 10),
-                      isDense: true,
-                    ),
-                  )),
-                  IconButton(
-                    tooltip: 'Close search',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => setState(() { search.clear(); searchExpanded = false; }),
-                    icon: const Icon(Icons.close_rounded, size: 18),
+        IconButton(
+          tooltip: 'Search apps',
+          onPressed: () => showDialog<void>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('Search apps'),
+              content: SizedBox(
+                width: 420,
+                child: TextField(
+                  controller: search,
+                  autofocus: true,
+                  textInputAction: TextInputAction.search,
+                  decoration: const InputDecoration(
+                    hintText: 'Search apps…',
+                    prefixIcon: Icon(Icons.search_rounded),
                   ),
-                ]);
-                })
-              : IconButton(
-                  tooltip: 'Search apps',
-                  onPressed: () => setState(() => searchExpanded = true),
-                  icon: const Icon(Icons.search_rounded),
                 ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    search.clear();
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('Clear'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Done'),
+                ),
+              ],
+            ),
+          ),
+          icon: const Icon(Icons.search_rounded),
         ),
         if (widget.cloudUserId != null && screenWidth >= 520) const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Center(child: _StatusPill(label: 'Cloud synced', icon: Icons.cloud_done_rounded, color: accent))),
         IconButton(tooltip: 'Toggle theme', onPressed: () => widget.onTheme(!widget.dark), icon: Icon(widget.dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded)),
