@@ -1405,7 +1405,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
             return SizedBox(width: 154, child: Material(color: selected ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerLow, borderRadius: BorderRadius.circular(17), child: InkWell(borderRadius: BorderRadius.circular(17), onTap: () => setState(() { section = r['key'].toString(); searchQuery = ''; }), child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Row(children: [Icon(icon, size: 21, color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant), const Spacer(), Text(count.toString(), style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800))]),
               Text(r['label'].toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700)),
-            ]))));
+            ])))));
           })),
           const SizedBox(height: 24),
           Row(children: [
