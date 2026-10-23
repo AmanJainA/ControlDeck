@@ -713,7 +713,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
                     Text(l['description']?.toString().trim().isNotEmpty==true?l['description'].toString():'Explore lessons, examples and practice notes.',maxLines:3,overflow:TextOverflow.ellipsis,style:theme.textTheme.bodySmall),
                     const SizedBox(height:6),
                     Text('Explore lessons  →',style:theme.textTheme.labelLarge?.copyWith(color:theme.colorScheme.primary,fontWeight:FontWeight.w700)),
-                    if(cols==1) const SizedBox(height:140),
+                    if(cols==1) const SizedBox(height:10),
                   ],
                 ),
               ),
