@@ -592,7 +592,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       bottomNavigationBar: profile == null ? null : NavigationBar(
         selectedIndex: _selectedNavIndex,
         onDestinationSelected: _selectNav,
-        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_rounded), selectedIcon: Icon(Icons.home_filled), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.menu_book_rounded), label: 'Learn'),
