@@ -568,10 +568,27 @@ class _AccountProfileScreenState extends State<AccountProfileScreen> {
   Future<void> saveProfile() async {
     setState(() { savingProfile = true; notice = null; error = null; });
     try {
-      await Supabase.instance.client.auth.updateUser(
-        UserAttributes(data: {'full_name': name.text.trim()}),
-      );
-      if (mounted) setState(() => notice = 'Profile updated.');
+      final displayName = name.text.trim();
+      final auth = Supabase.instance.client.auth;
+      await auth.updateUser(UserAttributes(data: {'full_name': displayName, 'name': displayName}));
+      final userEmail = auth.currentUser?.email;
+      if (userEmail != null && userEmail.isNotEmpty) {
+        final db = Supabase.instance.client;
+        // Keep connected workspace profile records aligned with the shared account.
+        // Some installations do not have every optional profile table/column, so
+        // each schema is attempted independently without blocking the main update.
+        final syncs = <Future<void> Function()>[
+          () async => db.from('profiles').update({'full_name': displayName, 'name': displayName, 'username': displayName}).eq('email', userEmail),
+          () async => db.schema('notes').from('profiles').update({'full_name': displayName}).eq('email', userEmail),
+          () async => db.schema('interview').from('users').update({'full_name': displayName}).eq('email', userEmail),
+          () async => db.from('users').update({'full_name': displayName}).eq('email', userEmail),
+          () async => db.schema('portfolio').from('site_profile').update({'full_name': displayName}).eq('email', userEmail),
+        ];
+        for (final sync in syncs) {
+          try { await sync(); } catch (_) { /* Optional schema or RLS policy may not support this table. */ }
+        }
+      }
+      if (mounted) setState(() => notice = 'Display name updated for ControlDeck. Connected workspace profiles were synced where supported.');
     } on AuthException catch (e) {
       if (mounted) setState(() => error = e.message);
     } catch (e) {
