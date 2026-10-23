@@ -547,7 +547,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       bottomNavigationBar:user==null?null:NavigationBar(
         selectedIndex: _selectedMainTab,
         onDestinationSelected: _selectMainTab,
-        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations:[
           const NavigationDestination(icon:Icon(Icons.home_rounded),label:'Home'),
           const NavigationDestination(icon:Icon(Icons.cloud_upload_outlined),label:'Upload Files'),
