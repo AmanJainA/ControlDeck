@@ -1412,28 +1412,58 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
           LayoutBuilder(builder: (context, constraints) {
             final columns = constraints.maxWidth >= 720 ? 4 : constraints.maxWidth >= 440 ? 2 : 1;
             final gap = 10.0;
-            final buttonWidth = (constraints.maxWidth - gap * (columns - 1)) / columns;
+            final cardWidth = (constraints.maxWidth - gap * (columns - 1)) / columns;
             return Wrap(spacing: gap, runSpacing: gap, children: resources.map((r) {
               final selected = section == r['key'];
               final value = data[r['key']];
               final count = value is List ? value.length : value is Map && value.isNotEmpty ? 1 : 0;
               final icon = r['key'] == 'profile' ? Icons.person_outline_rounded : r['key'] == 'projects' ? Icons.rocket_launch_outlined : r['key'] == 'skills' ? Icons.psychology_alt_outlined : r['key'] == 'experience' ? Icons.work_history_outlined : r['key'] == 'education' ? Icons.school_outlined : r['key'] == 'languages' ? Icons.translate_rounded : r['key'] == 'social_links' ? Icons.link_rounded : Icons.mark_email_unread_outlined;
-              return SizedBox(width: buttonWidth, height: 52, child: FilledButton.tonal(
-                style: FilledButton.styleFrom(
-                  backgroundColor: selected ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerLow,
-                  foregroundColor: theme.colorScheme.onSurface,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: selected ? theme.colorScheme.primary : theme.colorScheme.outlineVariant.withValues(alpha: .6))),
+              return SizedBox(
+                width: cardWidth,
+                height: 100,
+                child: Card(
+                  margin: EdgeInsets.zero,
+                  elevation: selected ? 2 : 0,
+                  color: selected ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerLow,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: selected ? theme.colorScheme.primary : theme.colorScheme.outlineVariant.withValues(alpha: .65),
+                      width: selected ? 1.5 : 1,
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => setState(() { section = r['key'].toString(); searchQuery = ''; }),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(children: [
+                            Icon(icon, size: 22, color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surface.withValues(alpha: .65),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text('$count', style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800)),
+                            ),
+                          ]),
+                          Row(children: [
+                            Expanded(child: Text(r['label'].toString(), maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800))),
+                            const SizedBox(width: 4),
+                            Icon(Icons.arrow_forward_rounded, size: 17, color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant),
+                          ]),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                onPressed: () => setState(() { section = r['key'].toString(); searchQuery = ''; }),
-                child: Row(children: [
-                  Icon(icon, size: 19, color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant),
-                  const SizedBox(width: 7),
-                  Expanded(child: Text(r['label'].toString(), maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700))),
-                  const SizedBox(width: 4),
-                  Text(count.toString(), style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800)),
-                ]),
-              ));
+              );
             }).toList());
           }),
           const SizedBox(height: 24),
