@@ -901,6 +901,11 @@ class _PortfolioNativeScreenState extends State<PortfolioNativeScreen> {
           _WorkspaceHero(title: name, subtitle: (profile['hero_role'] ?? profile['hero_intro'] ?? profile['about_text'] ?? 'Full Stack Developer · Consultant & Data Analyst').toString(), icon: Icons.person_rounded),
           const SizedBox(height: 16),
           SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: sections.map((s) => Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(s), selected: section == s, onSelected: (_) => setState(() => section = s)))).toList())),
+          const SizedBox(height: 12),
+          Align(alignment: Alignment.centerLeft, child: OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PortfolioAdminNativeScreen())),
+            icon: const Icon(Icons.manage_accounts_outlined), label: const Text('Admin management'),
+          )),
           const SizedBox(height: 18),
           if (section == 'Overview') ...[
             _DataSection(title: 'Technical skills', rows: (data['skills'] ?? []).where((e) => e['category'] == 'technical').take(8).map((e) => _dataText(e, ['name','description','percent'])).toList()),
@@ -1083,7 +1088,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
     if (token == null) return Scaffold(
       appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: const Text('Portfolio Admin')),
       body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 430), child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(22), children: [
-        const _WorkspaceHero(title: 'Portfolio CMS', subtitle: 'Sign in to manage public portfolio content.', icon: Icons.admin_panel_settings_rounded),
+        const _WorkspaceHero(title: 'Portfolio Admin', subtitle: 'Sign in to manage portfolio content.', icon: Icons.admin_panel_settings_rounded),
         const SizedBox(height: 18), TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Admin email')),
         const SizedBox(height: 12), TextField(controller: password, obscureText: true, onSubmitted: (_) => signIn(), decoration: const InputDecoration(labelText: 'Password')),
         if (message != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(message!, style: TextStyle(color: theme.colorScheme.error))),
