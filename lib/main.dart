@@ -207,19 +207,19 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
       animation: controller,
       builder: (context, child) {
         final p = controller.value;
-        final dotPhase = (p / .22).clamp(0.0, 1.0);
-        final symbolPhase = ((p - .18) / .34).clamp(0.0, 1.0);
-        final fillPhase = ((p - .64) / .36).clamp(0.0, 1.0);
+        final dotPhase = (p / .22).clamp(0.0, 1.0).toDouble();
+        final symbolPhase = ((p - .18) / .34).clamp(0.0, 1.0).toDouble();
+        final fillPhase = ((p - .64) / .36).clamp(0.0, 1.0).toDouble();
         final scale = (math.max(bounds.maxWidth, bounds.maxHeight) / 58) * 1.8 * fillPhase;
         final color = Theme.of(context).colorScheme.primary;
         return Stack(alignment: Alignment.center, children: [
           Container(color: Theme.of(context).scaffoldBackgroundColor),
           if (p >= .64) Transform.scale(scale: scale, child: Container(width: 58, height: 58, decoration: BoxDecoration(color: color, shape: BoxShape.circle))),
           if (p < .64) Transform.translate(offset: Offset(0, 12 * (1 - dotPhase) * (1 - dotPhase)),
-            child: Opacity(opacity: p < .18 ? 1 : (1 - symbolPhase).clamp(0.0, 1.0),
+            child: Opacity(opacity: p < .18 ? 1.0 : (1 - symbolPhase).clamp(0.0, 1.0).toDouble(),
               child: Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)))),
-          if (p >= .18 && p < .9) Opacity(opacity: symbolPhase.clamp(0.0, 1.0),
-            child: Transform.scale(scale: 0.7 + 0.45 * (symbolPhase < .8 ? symbolPhase / .8 : (1 - symbolPhase) / .2).clamp(0.0, 1.0),
+          if (p >= .18 && p < .9) Opacity(opacity: symbolPhase.clamp(0.0, 1.0).toDouble(),
+            child: Transform.scale(scale: 0.7 + 0.45 * (symbolPhase < .8 ? symbolPhase / .8 : (1 - symbolPhase) / .2).clamp(0.0, 1.0).toDouble(),
               child: Text('@', style: TextStyle(color: color, fontSize: 76, fontWeight: FontWeight.w800, height: 1)))),
         ]);
       },
