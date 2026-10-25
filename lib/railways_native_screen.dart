@@ -345,6 +345,17 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     title.dispose(); link.dispose();
   }
 
+  String _formatDateTime(dynamic value) {
+    if (value == null || value.toString().trim().isEmpty) return '—';
+    final parsed = DateTime.tryParse(value.toString());
+    if (parsed == null) return value.toString();
+    final local = parsed.toLocal();
+    final date = '${local.day}-${local.month}-${(local.year % 100).toString().padLeft(2, '0')}';
+    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final time = '${hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')} ${local.hour >= 12 ? 'PM' : 'AM'}';
+    return '$date · $time';
+  }
+
   Future<void> openMyData() async {
     setState(() { menu = {'menuname':'My Data'}; heading = null; view = 'files'; files = []; folders = []; selectedFolderId = null; search.clear(); busy = true; error = null; });
     try{
@@ -522,7 +533,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         detail('Type',(f['type']??'Unknown').toString()),
         detail('Folder',(f['folder']??'—').toString()),
         detail('Uploaded by',(f['uploaded_by']??'—').toString()),
-        detail('Uploaded at',(f['uploaded_at']??'—').toString()),
+        detail('Uploaded at',_formatDateTime(f['uploaded_at'])),
         if((f['remark']??'').toString().isNotEmpty)detail('Remark',f['remark'].toString()),
         const SizedBox(height:16),
         SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:link.isEmpty?null:()=>openDocument(f),icon:const Icon(Icons.open_in_new_rounded),label:const Text('Open document'))),
@@ -620,19 +631,19 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         const SizedBox(height:18),
         Row(children:[Expanded(child:Text('Workspaces',style:Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800))),TextButton.icon(onPressed:openMyData,icon:const Icon(Icons.folder_copy_outlined),label:const Text('My Data'))]),
         if(headings.isEmpty)const EmptyRailway(title:'No workspaces assigned',detail:'Ask your administrator to grant access.'),
-        for(final h in headings)Card(child:ListTile(leading:const CircleAvatar(child:Icon(Icons.account_tree_rounded)),title:Text((h['headingname']??'Workspace').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:const Text('Open menus and documents'),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>openHeading(h))),
+        for(final h in headings)Card(margin:const EdgeInsets.only(bottom:5),child:ListTile(leading:const CircleAvatar(child:Icon(Icons.account_tree_rounded)),title:Text((h['headingname']??'Workspace').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:const Text('Open menus and documents'),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>openHeading(h))),
         const SizedBox(height:20),
         Text('Railway tools', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height:8),
-        Card(child: ListTile(leading: const Icon(Icons.folder_copy_outlined), title: const Text('My Data'), subtitle: const Text('View your submissions'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openMyData)),
-        Card(child: ListTile(leading: const Icon(Icons.business_center_outlined), title: const Text('Nangia'), subtitle: const Text('Browse Nangia documents and project files'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openNangia)),
-        if (canApprove) Card(child: ListTile(leading: const Icon(Icons.fact_check_outlined), title: const Text('Pending Approvals'), subtitle: const Text('Approve or reject submitted files'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openPendingApprovals)),
+        Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.folder_copy_outlined), title: const Text('My Data'), subtitle: const Text('View your submissions'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openMyData)),
+        Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.business_center_outlined), title: const Text('Nangia'), subtitle: const Text('Browse Nangia documents and project files'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openNangia)),
+        if (canApprove) Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.fact_check_outlined), title: const Text('Pending Approvals'), subtitle: const Text('Approve or reject submitted files'), trailing: const Icon(Icons.chevron_right_rounded), onTap: openPendingApprovals)),
         if (admin) ...[
-          Card(child: ListTile(leading: const Icon(Icons.file_present_outlined), title: const Text('Manage Uploads'), subtitle: const Text('Edit or delete document metadata'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('datacollection', 'Manage Uploads'))),
-          Card(child: ListTile(leading: const Icon(Icons.account_tree_outlined), title: const Text('Main Headings'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('main_heading_master', 'Main Headings'))),
-          Card(child: ListTile(leading: const Icon(Icons.menu_open_rounded), title: const Text('Manage Menus'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('menu_master', 'Manage Menus'))),
-          Card(child: ListTile(leading: const Icon(Icons.folder_outlined), title: const Text('Manage Folders'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('folder_master', 'Manage Folders'))),
-          Card(child: ListTile(leading: const Icon(Icons.key_outlined), title: const Text('Heading Access'), subtitle: const Text('Assign users to workspaces'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('user_main_heading_access', 'Heading Access'))),
+          Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.file_present_outlined), title: const Text('Manage Uploads'), subtitle: const Text('Edit or delete document metadata'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('datacollection', 'Manage Uploads'))),
+          Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.account_tree_outlined), title: const Text('Main Headings'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('main_heading_master', 'Main Headings'))),
+          Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.menu_open_rounded), title: const Text('Manage Menus'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('menu_master', 'Manage Menus'))),
+          Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.folder_outlined), title: const Text('Manage Folders'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('folder_master', 'Manage Folders'))),
+          Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.key_outlined), title: const Text('Heading Access'), subtitle: const Text('Assign users to workspaces'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('user_main_heading_access', 'Heading Access'))),
           Card(child: ListTile(leading: const Icon(Icons.admin_panel_settings_outlined), title: const Text('Menu Access'), subtitle: const Text('Assign users to menus'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('user_menu_access', 'Menu Access'))),
           Card(child: ListTile(leading: const Icon(Icons.task_alt_rounded), title: const Text('Work Tracker'), subtitle: const Text('Manage tasks, reports and due dates'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('work_items', 'Work Tracker'))),
           Card(child: ListTile(leading: const Icon(Icons.link_rounded), title: const Text('Work Item Links'), subtitle: const Text('Connect tasks with Railway documents'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('work_item_links', 'Work Item Links'))),
@@ -680,7 +691,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
             subtitle:Text([
               (f['type']??'FILE').toString().toUpperCase(),
               if((f['uploaded_by']??'').toString().isNotEmpty) 'Uploaded by ${f['uploaded_by']}',
-              if((f['uploaded_at']??'').toString().isNotEmpty) (f['uploaded_at']??'').toString(),
+              if(_formatDateTime(f['uploaded_at']).isNotEmpty) (f['uploaded_at']??'').toString(),
             ].join(' · '),maxLines:2,overflow:TextOverflow.ellipsis),
             trailing:IconButton(tooltip:'Open document',onPressed:()=>openDocument(f),icon:const Icon(Icons.open_in_new_rounded)),
             onTap:()=>showFile(f),
