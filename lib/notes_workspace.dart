@@ -583,12 +583,12 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         selectedIndex: _selectedNavIndex,
         onDestinationSelected: _selectNav,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_rounded), selectedIcon: Icon(Icons.home_filled), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.menu_book_rounded), label: 'Learn'),
-          NavigationDestination(icon: Icon(Icons.insights_rounded), label: 'Progress'),
-          NavigationDestination(icon: Icon(Icons.mail_outline_rounded), label: 'Contact'),
-          NavigationDestination(icon: Icon(Icons.info_outline_rounded), label: 'About'),
+        destinations: [
+          const NavigationDestination(icon: Icon(Icons.home_rounded), selectedIcon: Icon(Icons.home_filled), label: 'Home'),
+          const NavigationDestination(icon: Icon(Icons.menu_book_rounded), label: 'Learn'),
+          const NavigationDestination(icon: Icon(Icons.insights_rounded), label: 'Progress'),
+          const NavigationDestination(icon: Icon(Icons.mail_outline_rounded), label: 'Contact'),
+          const NavigationDestination(icon: Icon(Icons.info_outline_rounded), label: 'About'),
           if (isAdmin) NavigationDestination(icon: Icon(Icons.admin_panel_settings_outlined), label: 'Admin'),
         ],
       ),
