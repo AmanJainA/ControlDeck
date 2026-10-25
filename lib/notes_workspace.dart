@@ -504,6 +504,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     'Progress' => 2,
     'Contact' => 3,
     'About' => 4,
+    'Admin' || 'Activity' => 5,
     _ => 0,
   };
 
@@ -528,6 +529,9 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         case 4:
           page = 'About';
           break;
+        case 5:
+          loadAdmin();
+          break;
       }
     });
   }
@@ -545,22 +549,6 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       ),
       title: const Text('Notes'),
       actions: [
-        if (profile != null) PopupMenuButton<String>(
-          tooltip: 'More Notes sections',
-          onSelected: (value) {
-            if (value == 'about') setState(() => page = 'About');
-            if (value == 'contact') setState(() => page = 'Contact');
-            if (value == 'admin') loadAdmin();
-            if (value == 'activity') loadActivity();
-          },
-          itemBuilder: (_) => [
-            const PopupMenuItem(value: 'about', child: Text('About Notes')),
-            const PopupMenuItem(value: 'contact', child: Text('Contact Notes')),
-            if (isAdmin) const PopupMenuItem(value: 'admin', child: Text('Admin management')),
-            if (isAdmin) const PopupMenuItem(value: 'activity', child: Text('Activity monitor')),
-          ],
-        ),
-
         if (profile != null) IconButton(tooltip: usesSharedControlDeckAuth ? 'Back to ControlDeck' : 'Sign out', onPressed: signOut, icon: Icon(usesSharedControlDeckAuth ? Icons.arrow_back_rounded : Icons.logout_rounded)),
         const SizedBox(width: 8),
       ],
@@ -599,8 +587,9 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
           NavigationDestination(icon: Icon(Icons.home_rounded), selectedIcon: Icon(Icons.home_filled), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.menu_book_rounded), label: 'Learn'),
           NavigationDestination(icon: Icon(Icons.insights_rounded), label: 'Progress'),
-          NavigationDestination(icon: Icon(Icons.mail_outline_rounded), label: 'Contact Notes'),
+          NavigationDestination(icon: Icon(Icons.mail_outline_rounded), label: 'Contact'),
           NavigationDestination(icon: Icon(Icons.info_outline_rounded), label: 'About'),
+          if (isAdmin) NavigationDestination(icon: Icon(Icons.admin_panel_settings_outlined), label: 'Admin'),
         ],
       ),
     );
@@ -686,6 +675,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
       LayoutBuilder(builder:(context,box){
         final cols=box.maxWidth>760?3:box.maxWidth>460?2:1;
         final cards=visible.map((l)=>Card(
+          margin: EdgeInsets.zero,
           clipBehavior:Clip.antiAlias,
           child:InkWell(
             onTap:()=>loadTopics(l),
@@ -722,7 +712,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
           shrinkWrap:true,
           physics:const NeverScrollableScrollPhysics(),
           crossAxisCount:cols,
-          mainAxisSpacing:12,
+          mainAxisSpacing:5,
           crossAxisSpacing:12,
           childAspectRatio:cols==2?0.98:0.92,
           children:cards,
@@ -732,7 +722,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   List<Widget> lessonList(ThemeData theme)=>[
     _NotesHero(title:language?['name']?.toString()??'Lessons',subtitle:language?['description']?.toString()??'Select a lesson.'),
     Row(children:[Expanded(child:Text('${topics.length} lessons'))]),
-    for(final t in topics)Card(child:ListTile(leading:Icon(completed(t['id'].toString())?Icons.check_circle:Icons.menu_book_rounded),title:Text(t['title'].toString()),subtitle:Text(completed(t['id'].toString())?'Completed':'Lesson'),trailing:Wrap(children:[
+    for(final t in topics)Card(margin:const EdgeInsets.only(bottom:5),child:ListTile(leading:Icon(completed(t['id'].toString())?Icons.check_circle:Icons.menu_book_rounded),title:Text(t['title'].toString()),subtitle:Text(completed(t['id'].toString())?'Completed':'Lesson'),trailing:Wrap(children:[
       const Icon(Icons.chevron_right_rounded),
     ]),onTap:()=>loadLesson(t))),
   ];
