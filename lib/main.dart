@@ -1309,7 +1309,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
       final result = await client.schema('portfolio').rpc('admin_upsert', params: {
         'p_token': token,
         'p_resource': resource['resource'],
-        'p_data': {'id': row['id'], 'is_visible': visible},
+        'p_data': {...row, 'is_visible': visible},
       });
       if (result is Map && result['ok'] != true) {
         throw Exception((result['message'] ?? 'Visibility could not be updated.').toString());
