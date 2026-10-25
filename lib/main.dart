@@ -1302,6 +1302,24 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
     for (final controller in controllers.values) { controller.dispose(); }
   }
 
+  Future<void> setRecordVisibility(Map<String, dynamic> resource, Map<String, dynamic> row, bool visible) async {
+    if (token == null || row['id'] == null || resource['key'] == 'profile') return;
+    setState(() { busy = true; message = null; });
+    try {
+      final result = await client.schema('portfolio').rpc('admin_upsert', params: {
+        'p_token': token,
+        'p_resource': resource['resource'],
+        'p_data': {'id': row['id'], 'is_visible': visible},
+      });
+      if (result is Map && result['ok'] != true) {
+        throw Exception((result['message'] ?? 'Visibility could not be updated.').toString());
+      }
+      await loadData();
+    } catch (e) {
+      if (mounted) setState(() { busy = false; message = e.toString().replaceFirst('Exception: ', ''); });
+    }
+  }
+
   Future<void> deleteRecord(Map<String, dynamic> resource, Map<String, dynamic> row) async {
     if (row['id'] == null || token == null) return;
     final accepted = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Delete record?'), content: const Text('This removes the selected item from the Portfolio database.'), actions: [
@@ -1517,32 +1535,46 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
           else
             LayoutBuilder(builder: (context, constraints) {
               final columns = constraints.maxWidth >= 850 ? 3 : constraints.maxWidth >= 560 ? 2 : 1;
-              return GridView.builder(
-                shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: columns, crossAxisSpacing: 12, mainAxisSpacing: 12, mainAxisExtent: 230),
-                itemCount: visibleItems.length,
-                itemBuilder: (context, index) {
-                  final row = visibleItems[index];
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: visibleItems.map((row) {
                   final title = _recordTitle(row);
                   final summary = _recordSummary(row);
-                  final isVisible = row['is_visible'];
-                  return Card(clipBehavior: Clip.antiAlias, elevation: 0, color: theme.colorScheme.surfaceContainerLow, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(19), side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: .65))), child: Padding(padding: const EdgeInsets.all(15), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Container(width: 42, height: 42, decoration: BoxDecoration(color: theme.colorScheme.primaryContainer, borderRadius: BorderRadius.circular(13)), child: Icon(current['key'] == 'projects' ? Icons.rocket_launch_rounded : current['key'] == 'experience' ? Icons.work_history_rounded : current['key'] == 'education' ? Icons.school_rounded : current['key'] == 'skills' ? Icons.psychology_alt_rounded : current['key'] == 'profile' ? Icons.person_rounded : current['key'] == 'social_links' ? Icons.link_rounded : Icons.article_rounded, color: theme.colorScheme.primary)),
-                      const SizedBox(width: 10), Expanded(child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
-                      if (isVisible is bool) Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: isVisible ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(20)), child: Text(isVisible ? 'Live' : 'Hidden', style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800))),
-                    ]),
-                    const SizedBox(height: 10),
-                    Expanded(child: Text(summary.isEmpty ? 'No summary added yet.' : summary, maxLines: 3, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(height: 1.4))),
-                    const Divider(height: 18),
-                    Row(children: [
-                      TextButton.icon(onPressed: () => viewRecord(current, row), icon: const Icon(Icons.visibility_outlined, size: 18), label: const Text('View')),
-                      const Spacer(),
-                      IconButton(tooltip: 'Edit record', onPressed: () => editRecord(current, row), icon: const Icon(Icons.edit_outlined)),
-                      if (current['key'] != 'profile') IconButton(tooltip: 'Delete record', onPressed: () => deleteRecord(current, row), icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error)),
-                    ]),
-                  ])));
-                },
+                  final isVisible = row['is_visible'] is bool ? row['is_visible'] as bool : true;
+                  return SizedBox(
+                    width: (constraints.maxWidth - (columns - 1) * 12) / columns,
+                    child: Card(
+                      clipBehavior: Clip.antiAlias,
+                      elevation: 0,
+                      color: theme.colorScheme.surfaceContainerLow,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(19), side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: .65))),
+                      child: Padding(
+                        padding: const EdgeInsets.all(15),
+                        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Container(width: 42, height: 42, decoration: BoxDecoration(color: theme.colorScheme.primaryContainer, borderRadius: BorderRadius.circular(13)), child: Icon(current['key'] == 'projects' ? Icons.rocket_launch_rounded : current['key'] == 'experience' ? Icons.work_history_rounded : current['key'] == 'education' ? Icons.school_rounded : current['key'] == 'skills' ? Icons.psychology_alt_rounded : current['key'] == 'profile' ? Icons.person_rounded : current['key'] == 'social_links' ? Icons.link_rounded : Icons.article_rounded, color: theme.colorScheme.primary)),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
+                          ]),
+                          const SizedBox(height: 10),
+                          Text(summary.isEmpty ? 'No summary added yet.' : summary, style: theme.textTheme.bodySmall?.copyWith(height: 1.4)),
+                          const Divider(height: 18),
+                          Row(children: [
+                            TextButton.icon(onPressed: () => viewRecord(current, row), icon: const Icon(Icons.visibility_outlined, size: 18), label: const Text('View')),
+                            const Spacer(),
+                            if (row['is_visible'] is bool) Switch.adaptive(
+                              value: isVisible,
+                              onChanged: busy ? null : (value) => setRecordVisibility(current, row, value),
+                            ),
+                            IconButton(tooltip: 'Edit record', onPressed: () => editRecord(current, row), icon: const Icon(Icons.edit_outlined)),
+                            if (current['key'] != 'profile') IconButton(tooltip: 'Delete record', onPressed: () => deleteRecord(current, row), icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error)),
+                          ]),
+                        ]),
+                      ),
+                    ),
+                  );
+                }).toList(),
               );
             }),
           ],
