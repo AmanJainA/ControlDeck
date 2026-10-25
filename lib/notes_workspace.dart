@@ -705,7 +705,12 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         if(cols==1) {
           return Column(
             mainAxisSize:MainAxisSize.min,
-            children:cards,
+            children: [
+              for (var i=0; i<cards.length; i++) ...[
+                cards[i],
+                if (i < cards.length - 1) const SizedBox(height:5),
+              ],
+            ],
           );
         }
         return GridView.count(
