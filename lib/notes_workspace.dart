@@ -818,24 +818,57 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     return [
       if (page != 'Admin')
         const _NotesHero(title: 'Notes activity', subtitle: 'Review online users, sign-ins and page visits with readable names and export tools.'),
-      Wrap(spacing: 8, runSpacing: 8, children: [
-        ChoiceChip(label: Text('Online (${onlineUsers.length})'), selected: activityTab == 'Online', onSelected: (_) => setState(() => activityTab = 'Online')),
-        ChoiceChip(label: Text('Logins (${loginActivity.length})'), selected: activityTab == 'Logins', onSelected: (_) => setState(() => activityTab = 'Logins')),
-        ChoiceChip(label: Text('Page visits (${pageVisits.length})'), selected: activityTab == 'Visits', onSelected: (_) => setState(() => activityTab = 'Visits')),
-        OutlinedButton.icon(onPressed: copyActivity, icon: const Icon(Icons.copy_rounded), label: const Text('Copy table')),
-        OutlinedButton.icon(onPressed: () => loadActivity(withinAdmin: page == 'Admin'), icon: const Icon(Icons.refresh_rounded), label: const Text('Refresh')),
-        PopupMenuButton<String>(
-          tooltip: 'Export activity data',
-          onSelected: exportActivity,
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'excel', child: ListTile(dense: true, leading: Icon(Icons.table_chart_outlined), title: Text('Export Excel (.xlsx)'))),
-            PopupMenuItem(value: 'word', child: ListTile(dense: true, leading: Icon(Icons.description_outlined), title: Text('Export Word (.doc)'))),
-            PopupMenuItem(value: 'pdf', child: ListTile(dense: true, leading: Icon(Icons.picture_as_pdf_outlined), title: Text('Export PDF'))),
-            PopupMenuItem(value: 'csv', child: ListTile(dense: true, leading: Icon(Icons.file_download_outlined), title: Text('Export CSV'))),
-          ],
-          child: const Padding(padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.file_download_outlined), SizedBox(width: 8), Text('Export'), Icon(Icons.arrow_drop_down)])),
-        ),
-      ]),
+      Row(
+        children: [
+          Expanded(child: Center(child: FittedBox(fit: BoxFit.scaleDown, child: ChoiceChip(
+            label: Text('Online ${onlineUsers.length}'), selected: activityTab == 'Online',
+            onSelected: (_) => setState(() => activityTab = 'Online'),
+          )))),
+          Expanded(child: Center(child: FittedBox(fit: BoxFit.scaleDown, child: ChoiceChip(
+            label: Text('Logins ${loginActivity.length}'), selected: activityTab == 'Logins',
+            onSelected: (_) => setState(() => activityTab = 'Logins'),
+          )))),
+          Expanded(child: Center(child: FittedBox(fit: BoxFit.scaleDown, child: ChoiceChip(
+            label: Text('Visits ${pageVisits.length}'), selected: activityTab == 'Visits',
+            onSelected: (_) => setState(() => activityTab = 'Visits'),
+          )))),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Row(
+        children: [
+          Expanded(child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6)),
+            onPressed: copyActivity,
+            icon: const Icon(Icons.copy_rounded, size: 17),
+            label: const Text('Copy table', maxLines: 1, overflow: TextOverflow.ellipsis),
+          )),
+          const SizedBox(width: 6),
+          Expanded(child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6)),
+            onPressed: () => loadActivity(withinAdmin: page == 'Admin'),
+            icon: const Icon(Icons.refresh_rounded, size: 17),
+            label: const Text('Refresh', maxLines: 1, overflow: TextOverflow.ellipsis),
+          )),
+          const SizedBox(width: 6),
+          Expanded(child: PopupMenuButton<String>(
+            tooltip: 'Export activity data',
+            onSelected: exportActivity,
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'excel', child: ListTile(dense: true, leading: Icon(Icons.table_chart_outlined), title: Text('Export Excel (.xlsx)'))),
+              PopupMenuItem(value: 'word', child: ListTile(dense: true, leading: Icon(Icons.description_outlined), title: Text('Export Word (.doc)'))),
+              PopupMenuItem(value: 'pdf', child: ListTile(dense: true, leading: Icon(Icons.picture_as_pdf_outlined), title: Text('Export PDF'))),
+              PopupMenuItem(value: 'csv', child: ListTile(dense: true, leading: Icon(Icons.file_download_outlined), title: Text('Export CSV'))),
+            ],
+            child: OutlinedButton.icon(
+              onPressed: null,
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6)),
+              icon: const Icon(Icons.file_download_outlined, size: 17),
+              label: const Text('Export', maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          )),
+        ],
+      ),
       const SizedBox(height: 12),
       Text('${rows.length} records · ${columns.length} columns', style: theme.textTheme.labelLarge),
       const SizedBox(height: 8),
@@ -940,10 +973,13 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         const Text('Quick summary of curriculum records and shortcuts to common tasks.'),
         const SizedBox(height: 12),
         LayoutBuilder(builder: (context, box) {
-          final cols = box.maxWidth > 760 ? 3 : box.maxWidth > 460 ? 2 : 1;
+          // Keep three compact metric cards per row, including on phones.
+          const cols = 3;
+          final compact = box.maxWidth < 420;
           return GridView.count(
             crossAxisCount: cols, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: cols == 1 ? 3.0 : 1.55,
+            mainAxisSpacing: 8, crossAxisSpacing: 8,
+            childAspectRatio: compact ? 0.82 : 1.15,
             children: [
               _NotesStatCard(label: 'Languages', value: languages.length.toString(), icon: Icons.code_rounded),
               _NotesStatCard(label: 'Topics', value: adminTopics.length.toString(), icon: Icons.menu_book_rounded),
