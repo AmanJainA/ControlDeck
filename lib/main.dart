@@ -1091,6 +1091,47 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
     else if (key.contains('x-twitter') || key.contains('twitter')) brandIcon = FontAwesomeIcons.xTwitter;
 
     if (brandIcon != null) return FaIcon(brandIcon, color: color, size: 26);
+
+    // Use a recognizable flag when the record is a spoken language rather
+    // than a programming language with a brand mark.
+    if (resourceKey == 'languages') {
+      final flag = name.contains('english') ? '🇬🇧'
+          : name.contains('hindi') || name.contains('punjabi') ? '🇮🇳'
+          : name.contains('spanish') ? '🇪🇸'
+          : name.contains('french') ? '🇫🇷'
+          : name.contains('german') ? '🇩🇪'
+          : name.contains('japanese') ? '🇯🇵'
+          : name.contains('chinese') ? '🇨🇳'
+          : name.contains('arabic') ? '🇸🇦'
+          : name.contains('urdu') ? '🇵🇰'
+          : name.contains('bengali') ? '🇧🇩'
+          : name.contains('italian') ? '🇮🇹'
+          : name.contains('portuguese') ? '🇵🇹'
+          : name.contains('russian') ? '🇷🇺'
+          : '';
+      if (flag.isNotEmpty) {
+        return SizedBox(
+          width: 30,
+          height: 30,
+          child: Center(child: Text(flag, style: const TextStyle(fontSize: 24))),
+        );
+      }
+    }
+
+    if (key.contains('database') || key.contains('mysql') || key.contains('sql')) {
+      return Icon(Icons.storage_rounded, color: color, size: 26);
+    }
+    if (key.contains('cloud')) return Icon(Icons.cloud_outlined, color: color, size: 26);
+    if (key.contains('server') || key.contains('api')) return Icon(Icons.dns_rounded, color: color, size: 26);
+    if (key.contains('mobile') || key.contains('android') || key.contains('ios')) {
+      return Icon(Icons.phone_android_rounded, color: color, size: 26);
+    }
+    if (key.contains('code') || key.contains('c++') || key.contains('dart') || key.contains('flutter')) {
+      return Icon(Icons.code_rounded, color: color, size: 26);
+    }
+    if (key.contains('language') || key.contains('globe')) {
+      return Icon(Icons.translate_rounded, color: color, size: 26);
+    }
     return Icon(_fallbackPortfolioIcon(resourceKey), color: color, size: 26);
   }
 
