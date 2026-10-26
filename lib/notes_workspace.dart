@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
+import 'shared/widgets/deck_components.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/services.dart';
@@ -1233,29 +1234,18 @@ class _NotesStatCard extends StatelessWidget {
   const _NotesStatCard({required this.label, required this.value, required this.icon});
   final String label, value;
   final IconData icon;
-  @override Widget build(BuildContext context) => Card(child: Padding(
-    padding: const EdgeInsets.all(16),
-    child: Row(children: [
-      Icon(icon, size: 28, color: Theme.of(context).colorScheme.primary),
-      const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text(label, style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: 4),
-        Text(value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-      ])),
-    ]),
-  ));
+  @override Widget build(BuildContext context) => DeckMetricCard(label:label,value:value,icon:icon,margin:EdgeInsets.zero);
 }
 
 class _NotesHero extends StatelessWidget {
   const _NotesHero({required this.title,required this.subtitle});
   final String title,subtitle;
-  @override Widget build(BuildContext context)=>Container(width:double.infinity,padding:const EdgeInsets.all(22),decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),gradient:LinearGradient(colors:[Colors.amber.withValues(alpha:.18),Theme.of(context).colorScheme.surfaceContainerHighest])),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Icon(Icons.menu_book_rounded,color:Colors.amber,size:32),const SizedBox(height:14),Text(title,style:Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight:FontWeight.w800)),const SizedBox(height:8),Text(subtitle,style:Theme.of(context).textTheme.bodyLarge)]));
+  @override Widget build(BuildContext context)=>DeckPageHero(title:title,subtitle:subtitle,icon:Icons.menu_book_rounded,gradientColors:[Colors.amber.withValues(alpha:.18),Theme.of(context).colorScheme.surfaceContainerHighest],iconColor:Colors.amber,padding:const EdgeInsets.all(22));
 }
 class _NotesNotice extends StatelessWidget {
   const _NotesNotice({required this.title,required this.detail});
   final String title,detail;
-  @override Widget build(BuildContext context)=>Card(child:Padding(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight:FontWeight.w800)),const SizedBox(height:6),Text(detail,style:Theme.of(context).textTheme.bodyMedium?.copyWith(height:1.45))])));
+  @override Widget build(BuildContext context)=>DeckInfoCard(title:title,body:detail,margin:EdgeInsets.zero);
 }
 class _NotesBlock extends StatelessWidget {
   const _NotesBlock({required this.block});
