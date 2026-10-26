@@ -35,6 +35,7 @@ class DeckResponsiveGrid extends StatelessWidget {
     this.spacing = 12,
     this.runSpacing = 12,
     this.childAspectRatio = 1.2,
+    this.itemExtent,
     this.padding = EdgeInsets.zero,
   });
 
@@ -44,6 +45,7 @@ class DeckResponsiveGrid extends StatelessWidget {
   final double spacing;
   final double runSpacing;
   final double childAspectRatio;
+  final double? itemExtent;
   final EdgeInsetsGeometry padding;
 
   @override
@@ -52,15 +54,19 @@ class DeckResponsiveGrid extends StatelessWidget {
       final columns = (constraints.maxWidth / (minItemWidth + spacing))
           .floor()
           .clamp(1, maxColumns);
-      return GridView.count(
+      return GridView.builder(
         padding: padding,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: columns,
-        mainAxisSpacing: runSpacing,
-        crossAxisSpacing: spacing,
-        childAspectRatio: childAspectRatio,
-        children: children,
+        itemCount: children.length,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          mainAxisSpacing: runSpacing,
+          crossAxisSpacing: spacing,
+          mainAxisExtent: itemExtent,
+          childAspectRatio: itemExtent == null ? childAspectRatio : 1,
+        ),
+        itemBuilder: (context, index) => children[index],
       );
     },
   );
