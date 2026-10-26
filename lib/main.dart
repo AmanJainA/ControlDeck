@@ -1056,6 +1056,64 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
     if (old != null) { try { await client.schema('portfolio').rpc('admin_logout', params: {'p_token': old}); } catch (_) {} }
   }
 
+  Widget _portfolioRecordIcon(Map<String, dynamic> row, String resourceKey, Color color) {
+    final imageUrl = row['icon_url']?.toString().trim() ?? '';
+    if (imageUrl.isNotEmpty && Uri.tryParse(imageUrl)?.hasAbsolutePath == true) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: Image.network(
+          imageUrl,
+          width: 30,
+          height: 30,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Icon(_fallbackPortfolioIcon(resourceKey), color: color),
+        ),
+      );
+    }
+
+    final iconClass = (row['icon_class'] ?? '').toString().toLowerCase();
+    final name = (row['name'] ?? row['label'] ?? '').toString().toLowerCase();
+    final key = '$iconClass $name';
+    IconData? brandIcon;
+    if (key.contains('python')) brandIcon = FontAwesomeIcons.python;
+    else if (key.contains('php')) brandIcon = FontAwesomeIcons.php;
+    else if (key.contains('html5') || key.contains('html')) brandIcon = FontAwesomeIcons.html5;
+    else if (key.contains('css3') || key.contains('css')) brandIcon = FontAwesomeIcons.css3Alt;
+    else if (key.contains('javascript') || key.contains('fa-js') || key.contains(' js')) brandIcon = FontAwesomeIcons.js;
+    else if (key.contains('java')) brandIcon = FontAwesomeIcons.java;
+    else if (key.contains('react')) brandIcon = FontAwesomeIcons.react;
+    else if (key.contains('github')) brandIcon = FontAwesomeIcons.github;
+    else if (key.contains('linkedin')) brandIcon = FontAwesomeIcons.linkedin;
+    else if (key.contains('instagram')) brandIcon = FontAwesomeIcons.instagram;
+    else if (key.contains('facebook')) brandIcon = FontAwesomeIcons.facebook;
+    else if (key.contains('youtube')) brandIcon = FontAwesomeIcons.youtube;
+    else if (key.contains('x-twitter') || key.contains('twitter')) brandIcon = FontAwesomeIcons.xTwitter;
+
+    if (brandIcon != null) return FaIcon(brandIcon, color: color, size: 26);
+    return Icon(_fallbackPortfolioIcon(resourceKey), color: color, size: 26);
+  }
+
+  IconData _fallbackPortfolioIcon(String resourceKey) {
+    switch (resourceKey) {
+      case 'languages':
+        return Icons.translate_rounded;
+      case 'skills':
+        return Icons.psychology_alt_rounded;
+      case 'social_links':
+        return Icons.link_rounded;
+      case 'projects':
+        return Icons.rocket_launch_rounded;
+      case 'experience':
+        return Icons.work_history_rounded;
+      case 'education':
+        return Icons.school_rounded;
+      case 'profile':
+        return Icons.person_rounded;
+      default:
+        return Icons.article_rounded;
+    }
+  }
+
   String _recordTitle(Map<String, dynamic> row) {
     for (final key in ['title', 'full_name', 'subject', 'name', 'label', 'company', 'username']) {
       final value = row[key]?.toString().trim() ?? '';
@@ -1125,7 +1183,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
       }
     }
     final accepted = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) {
-      final cs = Theme.of(ctx).colorScheme;
+      final cs = Theme.of(this.context).colorScheme;
       return Dialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 760, maxHeight: 820), child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1134,15 +1192,15 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
           ), child: Row(children: [
             CircleAvatar(backgroundColor: cs.primary, foregroundColor: cs.onPrimary, child: Icon(old == null ? Icons.add_rounded : Icons.edit_rounded)),
             const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(old == null ? 'Add ${resource['label']}' : 'Edit ${resource['label']}', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 3), Text('Update the details below, then save your changes.', style: Theme.of(ctx).textTheme.bodySmall),
+              Text(old == null ? 'Add ${resource['label']}' : 'Edit ${resource['label']}', style: Theme.of(this.context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 3), Text('Update the details below, then save your changes.', style: Theme.of(this.context).textTheme.bodySmall),
             ])),
             IconButton(onPressed: () => Navigator.pop(ctx, false), icon: const Icon(Icons.close_rounded)),
           ])),
           Flexible(child: ListView(padding: const EdgeInsets.fromLTRB(20, 18, 20, 18), children: [
             Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: cs.surfaceContainerLow, borderRadius: BorderRadius.circular(14)), child: Row(children: [
               Icon(Icons.tips_and_updates_outlined, color: cs.primary), const SizedBox(width: 10),
-              Expanded(child: Text('Tip: Keep titles clear and descriptions concise. For lists, separate items with commas or put each item on a new line.', style: Theme.of(ctx).textTheme.bodySmall)),
+              Expanded(child: Text('Tip: Keep titles clear and descriptions concise. For lists, separate items with commas or put each item on a new line.', style: Theme.of(this.context).textTheme.bodySmall)),
             ])),
             const SizedBox(height: 16),
             LayoutBuilder(builder: (context, constraints) {
@@ -1471,7 +1529,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
                         padding: const EdgeInsets.all(15),
                         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Container(width: 42, height: 42, decoration: BoxDecoration(color: theme.colorScheme.primaryContainer, borderRadius: BorderRadius.circular(13)), child: Icon(current['key'] == 'projects' ? Icons.rocket_launch_rounded : current['key'] == 'experience' ? Icons.work_history_rounded : current['key'] == 'education' ? Icons.school_rounded : current['key'] == 'skills' ? Icons.psychology_alt_rounded : current['key'] == 'profile' ? Icons.person_rounded : current['key'] == 'social_links' ? Icons.link_rounded : Icons.article_rounded, color: theme.colorScheme.primary)),
+                            Container(width: 42, height: 42, decoration: BoxDecoration(color: theme.colorScheme.primaryContainer, borderRadius: BorderRadius.circular(13)), child: (current['key'] == 'languages' || current['key'] == 'skills' || current['key'] == 'social_links') ? _portfolioRecordIcon(row, current['key'].toString(), theme.colorScheme.primary) : Icon(_fallbackPortfolioIcon(current['key'].toString()), color: theme.colorScheme.primary)),
                             const SizedBox(width: 10),
                             Expanded(child: Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
                           ]),
