@@ -1563,9 +1563,13 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
                           Row(children: [
                             TextButton.icon(onPressed: () => viewRecord(current, row), icon: const Icon(Icons.visibility_outlined, size: 18), label: const Text('View')),
                             const Spacer(),
-                            if (row['is_visible'] is bool) Switch.adaptive(
+                            if (row['is_visible'] is bool) Transform.scale(
+                              scale: 0.78,
+                              child: Switch.adaptive(
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               value: isVisible,
                               onChanged: busy ? null : (value) => setRecordVisibility(current, row, value),
+                              ),
                             ),
                             IconButton(tooltip: 'Edit record', onPressed: () => editRecord(current, row), icon: const Icon(Icons.edit_outlined)),
                             if (current['key'] != 'profile') IconButton(tooltip: 'Delete record', onPressed: () => deleteRecord(current, row), icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error)),
