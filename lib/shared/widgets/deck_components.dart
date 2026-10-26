@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/deck_theme.dart';
 
 /// Shared spacing scale for consistent layouts across ControlDeck workspaces.
 abstract final class DeckSpacing {
@@ -67,7 +68,7 @@ class DeckPageHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = gradientColors ??
         <Color>[
-          const Color(0xFF8FA600).withValues(alpha: .18),
+          DeckColors.accent.withValues(alpha: .18),
           Theme.of(context).colorScheme.surfaceContainerHighest,
         ];
     final foreground = iconColor ?? Theme.of(context).colorScheme.onSurface;
@@ -216,7 +217,7 @@ class DeckInfoCard extends StatelessWidget {
           if (icon != null) ...[
             Row(
               children: [
-                Icon(icon, color: const Color(0xFF8FA600)),
+                Icon(icon, color: DeckColors.accent),
                 const SizedBox(width: 8),
                 Expanded(child: titleWidget),
               ],
