@@ -89,7 +89,7 @@ class DeckHomeController extends ChangeNotifier {
     }
     notifyListeners();
 
-    if (isNew) {
+    if (isNew && ownerId != null) {
       await _repository.insert(app, ownerId: ownerId);
     } else {
       await _repository.saveAll(_apps, ownerId: ownerId);
