@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../models/deck_app.dart';
+import '../../models/deck_app.dart';
 
 /// Reusable form component for creating or editing a launcher shortcut.
 /// It returns the edited model; persistence remains the controller's job.
