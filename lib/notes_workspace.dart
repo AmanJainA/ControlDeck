@@ -614,7 +614,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
         crossAxisCount: columns,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 12,
+        mainAxisSpacing: 10,
         crossAxisSpacing: 12,
         childAspectRatio: columns == 1 ? 3.4 : 1.6,
         children: [
@@ -743,31 +743,9 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     }
   }
 
-  List<Widget> aboutView()=>[
-    const _NotesHero(title:'About Us',subtitle:'Welcome to Notes App, a clean, database-driven platform built to help students learn programming languages the practical way clear explanations, real code examples, and one place to track your progress across every language.'),
-    const Text("We believe learning to code shouldn't mean digging through a hundred scattered files. Everything here lives in one consistent, easy-to-navigate structure.",style:TextStyle(height:1.55)),
-    const SizedBox(height:18),
-    ClipRRect(borderRadius:BorderRadius.circular(16),child:Image.network('https://raw.githubusercontent.com/AmanJainA/Notes/main/src/img/About/vision-mission.jpeg',width:double.infinity,height:220,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const SizedBox(height:120,child:Center(child:Icon(Icons.image_not_supported_outlined,size:40))))),
-    const SizedBox(height:18),
-    const Text('Our Vision',style:TextStyle(fontSize:22,fontWeight:FontWeight.w800)),
-    const SizedBox(height:8),
-    const Text('To be the go-to companion for students learning C, C++, Java, PHP, HTML, CSS, JavaScript and Bootstrap a place where every topic is explained clearly enough to actually build something with it, not just pass an exam.',style:TextStyle(height:1.55)),
-    const SizedBox(height:18),
-    const Text('Our Mission',style:TextStyle(fontSize:22,fontWeight:FontWeight.w800)),
-    const SizedBox(height:8),
-    const Text('• Keep every lesson clear, practical, and example-driven.\n• Track your progress across languages, automatically.\n• Make new lessons and languages easy to add content lives in a database, not scattered files.\n• Keep it fast, simple, and free of clutter.',style:TextStyle(height:1.65)),
-    const SizedBox(height:24),
-    const Center(child:Text('Built By',style:TextStyle(fontSize:24,fontWeight:FontWeight.w800))),
-    const SizedBox(height:16),
-    Center(child:ClipRRect(borderRadius:BorderRadius.circular(100),child:Image.network('https://github.com/AmanJainA.png',width:180,height:180,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const CircleAvatar(radius:90,child:Icon(Icons.person,size:64))))),
-    const SizedBox(height:12),
-    const Center(child:Text('Founder & Lead Developer: Aman Jain',textAlign:TextAlign.center,style:TextStyle(fontSize:17,fontWeight:FontWeight.w700))),
-    Center(child:TextButton.icon(onPressed:()=>launchUrl(Uri.parse('mailto:amanjain033@gmail.com')),icon:const Icon(Icons.email_outlined),label:const Text('amanjain033@gmail.com'))),
-    const Text('Built for students who want a single, well-organized place to learn to code and to explore what they can build themselves.',textAlign:TextAlign.center,style:TextStyle(height:1.55)),
-    const SizedBox(height:24),
-    ClipRRect(borderRadius:BorderRadius.circular(16),child:Image.network('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1000&q=85',height:200,width:double.infinity,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const SizedBox(height:100,child:Center(child:Icon(Icons.laptop_mac_rounded,size:48))))),
-    const SizedBox(height:12),
-    const Text('Learn, build and grow',style:TextStyle(fontSize:21,fontWeight:FontWeight.w800)),
+  List<Widget> aboutView() => [
+
+  List<Widget> aboutView() => [
     const Text('Notes brings language-wise lessons, practical examples and learning progress into one place. Use the Learn section to explore available languages, open lessons and track your completed topics.',style:TextStyle(height:1.55)),
     const SizedBox(height:12),
     Wrap(spacing:10,runSpacing:8,children:[
@@ -806,10 +784,10 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
     const SizedBox(height:24),
     const Text('Contact Information',style:TextStyle(fontSize:22,fontWeight:FontWeight.w800)),
     const SizedBox(height:12),
-    Card(child:ListTile(leading:const Icon(Icons.location_on_outlined),title:const Text('Address'),subtitle:const Text('Parasnath Colony, Baral Road, Bijainagar, Ajmer, Rajasthan'))),
-    Card(child:ListTile(leading:const Icon(Icons.phone_outlined),title:const Text('Phone'),subtitle:const Text('+91 8290367908'),onTap:()=>launchUrl(Uri.parse('tel:+918290367908')))),
-    Card(child:ListTile(leading:const Icon(Icons.email_outlined),title:const Text('Email'),subtitle:const Text('amanjain033@gmail.com'),onTap:()=>launchUrl(Uri.parse('mailto:amanjain033@gmail.com')))),
-    Card(child:ListTile(leading:const Icon(Icons.schedule_outlined),title:const Text('Response time'),subtitle:const Text('We usually reply within 1–2 business days.'))),
+    Card(margin:const EdgeInsets.only(bottom:5),child:ListTile(leading:const Icon(Icons.location_on_outlined),title:const Text('Address'),subtitle:const Text('Parasnath Colony, Baral Road, Bijainagar, Ajmer, Rajasthan'))),
+    Card(margin:const EdgeInsets.only(bottom:5),child:ListTile(leading:const Icon(Icons.phone_outlined),title:const Text('Phone'),subtitle:const Text('+91 8290367908'),onTap:()=>launchUrl(Uri.parse('tel:+918290367908')))),
+    Card(margin:const EdgeInsets.only(bottom:5),child:ListTile(leading:const Icon(Icons.email_outlined),title:const Text('Email'),subtitle:const Text('amanjain033@gmail.com'),onTap:()=>launchUrl(Uri.parse('mailto:amanjain033@gmail.com')))),
+    Card(margin:const EdgeInsets.only(bottom:5),child:ListTile(leading:const Icon(Icons.schedule_outlined),title:const Text('Response time'),subtitle:const Text('We usually reply within 1–2 business days.'))),
     const SizedBox(height:18),
     const Text('Find Us on the Map',style:TextStyle(fontSize:21,fontWeight:FontWeight.w800)),
     const SizedBox(height:6),
