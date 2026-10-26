@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'shared/widgets/deck_components.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -294,6 +295,6 @@ class _LifeHubFullNativeScreenState extends State<LifeHubFullNativeScreen> {
   Widget _searchBox()=>Padding(padding:const EdgeInsets.only(bottom:12),child:TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'Search this section…')));
 }
 
-Widget _hero(BuildContext c,String title,String subtitle,IconData icon)=>Container(width:double.infinity,padding:const EdgeInsets.all(20),decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),gradient:LinearGradient(colors:[_lhAccent.withValues(alpha:.18),Theme.of(c).colorScheme.surfaceContainerHighest])),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(icon,color:_lhAccent,size:30),const SizedBox(height:12),Text(title,style:Theme.of(c).textTheme.headlineSmall?.copyWith(fontWeight:FontWeight.w800)),const SizedBox(height:6),Text(subtitle)]));
-Widget _metric(BuildContext c,String label,String value)=>Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(label,style:Theme.of(c).textTheme.bodySmall),const SizedBox(height:5),Text(value,style:Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800))])));
-Widget _card(BuildContext c,String title,String body)=>Card(margin:const EdgeInsets.only(bottom:5),child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:Theme.of(c).textTheme.titleMedium?.copyWith(fontWeight:FontWeight.w800)),const SizedBox(height:6),Text(body)])));
+Widget _hero(BuildContext c,String title,String subtitle,IconData icon)=>DeckPageHero(title:title,subtitle:subtitle,icon:icon,iconColor:_lhAccent);
+Widget _metric(BuildContext c,String label,String value)=>DeckMetricCard(label:label,value:value,margin:EdgeInsets.zero);
+Widget _card(BuildContext c,String title,String body)=>DeckInfoCard(title:title,body:body);
