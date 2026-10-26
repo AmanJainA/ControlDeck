@@ -14,6 +14,7 @@ import 'notes_workspace.dart';
 import 'supabase_config.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'shared/widgets/deck_components.dart';
 import 'shared/theme/deck_theme.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -1182,7 +1183,17 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
         controllers[key] = TextEditingController(text: text);
       }
     }
-    final accepted = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) {
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () {
+            // Drop text-field focus before dismissing the editor with Escape.
+            FocusManager.instance.primaryFocus?.unfocus();
+            Navigator.of(ctx).pop(false);
+          },
+        },
+        child: StatefulBuilder(builder: (ctx, setDialog) {
       final cs = Theme.of(this.context).colorScheme;
       return Dialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -1257,7 +1268,9 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
           ])),
         ])),
       );
-    }));
+        }),
+      ),
+    );
     if (accepted == true && token != null) {
       final payload = <String, dynamic>{if (old?['id'] != null) 'id': old!['id']};
       for (final field in fields) {
