@@ -6,6 +6,11 @@ ControlDeck is a cross-platform Flutter workspace for opening native Flutter ver
 
 The editable iOS/Android screen concept is in [Figma](https://www.figma.com/design/hl5NbR4aBUGDaeafAJMl73). The reviewed product direction, per-project workflows, security constraints and migration plan are documented in [docs/APP_DESIGN_CONCEPT.md](docs/APP_DESIGN_CONCEPT.md). For first-time platform setup and run commands, see [docs/MOBILE_BUILD_SETUP.md](docs/MOBILE_BUILD_SETUP.md).
 
+
+## Component-based architecture
+
+Shared Material 3 themes and reusable widgets now live in `lib/shared/theme/deck_theme.dart` and `lib/shared/widgets/deck_components.dart`. LifeHub, Notes, Interview, Railways, the Railways data manager, and the ControlDeck dashboard use these shared components for consistent cards, heroes, metrics, information panels, section headings and empty states. See [docs/COMPONENT_ARCHITECTURE.md](docs/COMPONENT_ARCHITECTURE.md) for structure and contribution rules.
+
 ## Current native implementation
 
 - **Responsive dashboard:** mobile/tablet/desktop layouts, dark/light themes, favourites, categories, editable shortcuts, local storage and optional Supabase sync.
