@@ -9,10 +9,12 @@ class DeckAppEditorDialog extends StatefulWidget {
     super.key,
     required this.categories,
     this.initialApp,
+    this.nextSortOrder = 0,
   });
 
   final List<String> categories;
   final DeckApp? initialApp;
+  final int nextSortOrder;
 
   @override
   State<DeckAppEditorDialog> createState() => _DeckAppEditorDialogState();
@@ -67,7 +69,7 @@ class _DeckAppEditorDialogState extends State<DeckAppEditorDialog> {
       iconKey: _icon,
       accentHex: old?.accentHex ?? 0xFF64748B,
       favorite: old?.favorite ?? false,
-      sortOrder: old?.sortOrder ?? 0,
+      sortOrder: old?.sortOrder ?? widget.nextSortOrder,
     );
     Navigator.of(context).pop(app);
   }
