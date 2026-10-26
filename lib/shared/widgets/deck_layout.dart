@@ -53,7 +53,8 @@ class DeckResponsiveGrid extends StatelessWidget {
     builder: (context, constraints) {
       final columns = (constraints.maxWidth / (minItemWidth + spacing))
           .floor()
-          .clamp(1, maxColumns);
+          .clamp(1, maxColumns)
+          .toInt();
       return GridView.builder(
         padding: padding,
         shrinkWrap: true,
