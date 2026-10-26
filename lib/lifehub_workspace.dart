@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'shared/widgets/deck_components.dart';
+import 'shared/theme/deck_theme.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -8,7 +9,7 @@ const _lhUrl = 'https://wrssvnvagpnvlwhnqqta.supabase.co';
 const _lhKey = 'sb_publishable_AEu-JBRYrCLYrVq3VjAtyA_ya5ApyuM';
 const _lhSessionKey = 'controldeck.lifehub.session.v1';
 const _lhStorage = FlutterSecureStorage();
-const _lhAccent = Color(0xFF8FA600);
+const _lhAccent = DeckColors.accent;
 
 class LifeHubFullNativeScreen extends StatefulWidget {
   const LifeHubFullNativeScreen({super.key});
