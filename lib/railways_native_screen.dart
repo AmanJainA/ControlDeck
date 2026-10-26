@@ -644,9 +644,9 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
           Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.menu_open_rounded), title: const Text('Manage Menus'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('menu_master', 'Manage Menus'))),
           Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.folder_outlined), title: const Text('Manage Folders'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('folder_master', 'Manage Folders'))),
           Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.key_outlined), title: const Text('Heading Access'), subtitle: const Text('Assign users to workspaces'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('user_main_heading_access', 'Heading Access'))),
-          Card(child: ListTile(leading: const Icon(Icons.admin_panel_settings_outlined), title: const Text('Menu Access'), subtitle: const Text('Assign users to menus'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('user_menu_access', 'Menu Access'))),
-          Card(child: ListTile(leading: const Icon(Icons.task_alt_rounded), title: const Text('Work Tracker'), subtitle: const Text('Manage tasks, reports and due dates'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('work_items', 'Work Tracker'))),
-          Card(child: ListTile(leading: const Icon(Icons.link_rounded), title: const Text('Work Item Links'), subtitle: const Text('Connect tasks with Railway documents'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('work_item_links', 'Work Item Links'))),
+          Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.admin_panel_settings_outlined), title: const Text('Menu Access'), subtitle: const Text('Assign users to menus'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('user_menu_access', 'Menu Access'))),
+          Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.task_alt_rounded), title: const Text('Work Tracker'), subtitle: const Text('Manage tasks, reports and due dates'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('work_items', 'Work Tracker'))),
+          Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.link_rounded), title: const Text('Work Item Links'), subtitle: const Text('Connect tasks with Railway documents'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('work_item_links', 'Work Item Links'))),
         ],
       ]else if(view=='nr')...[
         hero('NR Data Dashboard','Your dashboard and menus in one workspace.',Icons.dashboard_customize_outlined),
@@ -670,7 +670,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
             final count=files.where((f)=>(f['menu_id'] as num?)?.toInt()==id).length;
             final folderCount = menuFolderCounts[id] ?? 0;
             final hasFolders = folderCount > 0;
-            return Card(clipBehavior:Clip.antiAlias,child:ListTile(
+            return Card(margin:const EdgeInsets.only(bottom:5),clipBehavior:Clip.antiAlias,child:ListTile(
               leading:const CircleAvatar(child:Icon(Icons.folder_open_rounded)),
               title:Text((m['menuname']??'Menu').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),
               subtitle:Text('$count approved documents' + (hasFolders ? ' · $folderCount folders' : ' · No folders')),
