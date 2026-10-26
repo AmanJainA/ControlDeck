@@ -744,20 +744,19 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   }
 
   List<Widget> aboutView() => [
-
-  List<Widget> aboutView() => [
-    const Text('Notes brings language-wise lessons, practical examples and learning progress into one place. Use the Learn section to explore available languages, open lessons and track your completed topics.',style:TextStyle(height:1.55)),
-    const SizedBox(height:12),
-    Wrap(spacing:10,runSpacing:8,children:[
-      FilledButton(onPressed:()=>setState(()=>page='Dashboard'),child:const Text('Explore Notes')),
-      OutlinedButton(onPressed:()=>launchUrl(Uri.parse('mailto:amanjain033@gmail.com')),child:const Text('Email the team')),
-    ]),
-    const SizedBox(height:24),
-    const Center(child:Text('Find Us',style:TextStyle(fontSize:21,fontWeight:FontWeight.w800))),
-    const SizedBox(height:8),
-    const Text('Parasnath Colony, Baral Road, Bijainagar, Ajmer, Rajasthan',textAlign:TextAlign.center),
+    const _NotesHero(title:'About Notes',subtitle:'A clean, database-driven platform to help students learn programming languages through practical lessons and examples.'),
     const SizedBox(height:10),
-    Card(child:ListTile(leading:const Icon(Icons.map_outlined),title:const Text('Open location in Google Maps'),subtitle:const Text('Parasnath Colony, Baral Road, Bijainagar, Ajmer, Rajasthan'),trailing:const Icon(Icons.open_in_new_rounded),onTap:openContactMap)),
+    const Text('Welcome to Notes App, a clean, database-driven platform built to help students learn programming languages the practical way — clear explanations, real code examples, and one place to track your progress across every language.',style:TextStyle(height:1.55)),
+    const SizedBox(height:10),
+    const Text("We believe learning to code shouldn't mean digging through a hundred scattered files. Everything here lives in one consistent, easy-to-navigate structure.",style:TextStyle(height:1.55)),
+    const SizedBox(height:16),
+    const Text('Our Vision',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
+    const Text('Make learning C, C++, Java, PHP, HTML, CSS, JavaScript and Bootstrap more accessible through clear, practical lessons.',style:TextStyle(height:1.55)),
+    const SizedBox(height:12),
+    const Text('Our Mission',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
+    const Text('• Provide clear, example-driven lessons.\n• Help learners track their progress.\n• Keep content organised and easy to expand.\n• Make learning simple, fast and practical.',style:TextStyle(height:1.6)),
+    const SizedBox(height:16),
+    Card(child:ListTile(leading:const CircleAvatar(child:Icon(Icons.person_outline_rounded)),title:const Text('Aman Jain'),subtitle:const Text('Founder & Lead Developer'),trailing:IconButton(tooltip:'Email',onPressed:()=>launchUrl(Uri.parse('mailto:amanjain033@gmail.com')),icon:const Icon(Icons.email_outlined)))),
   ];
   List<Widget> contactView()=>[
     const _NotesHero(title:'Contact',subtitle:'Have a question about a lesson, found something that needs fixing, or want to share feedback? Send a message and we will get back to you.'),
