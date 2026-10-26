@@ -18,7 +18,6 @@ import 'shared/widgets/deck_components.dart';
 import 'shared/theme/deck_theme.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'railways_native_screen.dart';
 import 'interview_native_screen.dart';
@@ -96,24 +95,34 @@ class ControlDeckApp extends StatefulWidget {
   @override State<ControlDeckApp> createState() => _ControlDeckAppState();
 }
 
-class _ControlDeckAppState extends State<ControlDeckApp> {
-  bool dark = true;
+class _ControlDeckAppState extends State<ControlDeckApp> with WidgetsBindingObserver {
+  bool dark = WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
 
   @override
   void initState() {
     super.initState();
-    _loadTheme();
+    WidgetsBinding.instance.addObserver(this);
+    _syncDeviceBrightness();
   }
 
-  Future<void> _loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) setState(() => dark = prefs.getBool('controldeck.darkTheme') ?? true);
+  void _syncDeviceBrightness() {
+    final value = WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
+    if (mounted && dark != value) setState(() => dark = value);
   }
+
+  @override
+  void didChangePlatformBrightness() => _syncDeviceBrightness();
 
   Future<void> _setTheme(bool value) async {
-    setState(() => dark = value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('controldeck.darkTheme', value);
+    // Kept for compatibility with existing workspace callbacks. Appearance is
+    // intentionally controlled by the operating system, not an app override.
+    _syncDeviceBrightness();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override
@@ -121,7 +130,7 @@ class _ControlDeckAppState extends State<ControlDeckApp> {
     return MaterialApp(
       title: 'ControlDeck',
       debugShowCheckedModeBanner: false,
-      themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+      themeMode: ThemeMode.system,
       theme: DeckTheme.light,
       darkTheme: DeckTheme.dark,
       home: _SplashGate(dark: dark, onTheme: _setTheme, configured: cloudEnabled),
@@ -512,7 +521,7 @@ class _DeckHomeState extends State<DeckHome> {
             if (controller.loading) const Padding(padding: EdgeInsets.all(36), child: Center(child: CircularProgressIndicator()))
             else if (items.isEmpty) const DeckLauncherEmptyState()
             else DeckResponsiveGrid(
-              minItemWidth: 360,
+              minItemWidth: 160,
               maxColumns: 3,
               spacing: 14,
               runSpacing: 14,
@@ -707,12 +716,11 @@ class AccountSettingsScreen extends StatelessWidget {
           child: ListView(padding: const EdgeInsets.all(20), children: [
             const DeckWorkspaceHero(title: 'ControlDeck settings', subtitle: 'Manage your app appearance and sign-in session.', icon: Icons.tune_rounded),
             const SizedBox(height: 16),
-            Card(child: SwitchListTile(
-              value: dark,
-              onChanged: onTheme,
-              secondary: Icon(dark ? Icons.dark_mode_rounded : Icons.light_mode_rounded),
-              title: const Text('Dark appearance'),
-              subtitle: const Text('Switch between dark and light mode.'),
+            Card(child: ListTile(
+              leading: Icon(dark ? Icons.dark_mode_rounded : Icons.light_mode_rounded),
+              title: const Text('Device appearance'),
+              subtitle: const Text('ControlDeck follows your device dark or light theme automatically.'),
+              trailing: const Icon(Icons.sync_rounded),
             )),
             const SizedBox(height: 12),
             Card(child: ListTile(
