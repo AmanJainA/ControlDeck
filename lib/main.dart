@@ -510,12 +510,18 @@ class _DeckHomeState extends State<DeckHome> {
             const SizedBox(height: 16),
             if (controller.loading) const Padding(padding: EdgeInsets.all(36), child: Center(child: CircularProgressIndicator()))
             else if (items.isEmpty) const DeckLauncherEmptyState()
-            else LayoutBuilder(builder: (context, box) {
-              final cols = box.maxWidth > 1120 ? 3 : 2;
-              return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: items.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, crossAxisSpacing: 14, mainAxisSpacing: 14, mainAxisExtent: 160),
-                itemBuilder: (context, i) => DeckAppCard(app: items[i], icon: iconFor(items[i].iconKey), onOpen: () => openApp(items[i], admin: items[i].id.toLowerCase() == 'portfolio')));
-            }),
+            else DeckResponsiveGrid(
+              minItemWidth: 360,
+              maxColumns: 3,
+              spacing: 14,
+              runSpacing: 14,
+              itemExtent: 160,
+              children: items.map((app) => DeckAppCard(
+                app: app,
+                icon: iconFor(app.iconKey),
+                onOpen: () => openApp(app, admin: app.id.toLowerCase() == 'portfolio'),
+              )).toList(),
+            ),
 
           ]))),
         ])),
