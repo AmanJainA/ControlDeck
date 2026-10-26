@@ -321,12 +321,7 @@ class _DeckHomeState extends State<DeckHome> {
     }
   }
 
-  List<DeckApp> get shown {
-    final q = search.text.trim().toLowerCase();
-    return apps.where((a) => (category == 'All apps' || a.category == category) &&
-      (!favoritesOnly || a.favorite) && (q.isEmpty || a.name.toLowerCase().contains(q) ||
-      a.description.toLowerCase().contains(q) || a.category.toLowerCase().contains(q))).toList();
-  }
+  List<DeckApp> get shown => controller.filteredApps;
 
   void message(String s) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s), behavior: SnackBarBehavior.floating));
 
@@ -380,10 +375,9 @@ class _DeckHomeState extends State<DeckHome> {
   }
 
   Future<void> toggleFavorite(DeckApp app) async {
-    setState(() => app.favorite = !app.favorite);
     try {
-      // The controller persists the updated model through the repository.
       await controller.toggleFavorite(app);
+      if (mounted) setState(() {});
     } catch (_) {
       message('Could not sync this change to the cloud.');
     }
@@ -501,7 +495,17 @@ class _DeckHomeState extends State<DeckHome> {
           ],
         ]),
       body: Row(children: [
-        if (wide) _SideNav(page: page, onSelect: (v) { setState(() { page = v; favoritesOnly = false; if (v == 'All apps' || v == 'Overview') category = 'All apps'; }); }),
+        if (wide) _SideNav(page: page, onSelect: (v) {
+          setState(() {
+            page = v;
+            favoritesOnly = false;
+            controller.setFavoritesOnly(false);
+            if (v == 'All apps' || v == 'Overview') {
+              category = 'All apps';
+              controller.setCategory('All apps');
+            }
+          });
+        }),
         Expanded(child: page == 'Profile' ? const AccountProfileScreen(embedded: true) : page == 'Settings' ? AccountSettingsScreen(dark: widget.dark, onTheme: widget.onTheme, embedded: true) : CustomScrollView(slivers: [SliverPadding(padding: EdgeInsets.fromLTRB(wide ? 30 : 18, 20, wide ? 30 : 18, 10),
           sliver: SliverList(delegate: SliverChildListDelegate([
             if (page == 'Overview')
@@ -544,7 +548,13 @@ class _DeckHomeState extends State<DeckHome> {
       bottomNavigationBar: wide ? null : NavigationBar(selectedIndex: page == 'Profile' ? 1 : page == 'Settings' ? 2 : 0,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         onDestinationSelected: (i) {
-          if (i == 0) setState(() { page = 'Overview'; favoritesOnly = false; category = 'All apps'; });
+          if (i == 0) setState(() {
+            page = 'Overview';
+            favoritesOnly = false;
+            category = 'All apps';
+            controller.setFavoritesOnly(false);
+            controller.setCategory('All apps');
+          });
           if (i == 1) setState(() => page = 'Profile');
           if (i == 2) setState(() => page = 'Settings');
         },
