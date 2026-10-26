@@ -61,4 +61,4 @@ flutter analyze
 flutter test
 ```
 
-These checks have not been run by the GitHub editing workflow. The existing launcher View is being migrated incrementally, so connect it to `DeckHomeController` before removing its current state/persistence methods.
+These checks have not been run by the GitHub editing workflow. The app launcher View now delegates app loading, filtering and CRUD persistence to `DeckHomeController` and `DeckAppRepository`. Dialog presentation, navigation and transient widget state remain in the View. Apply the same separation incrementally to the LifeHub, Notes, Railways and Interview workspaces.
