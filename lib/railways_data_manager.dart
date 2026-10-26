@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'shared/widgets/deck_components.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Native CRUD screens for the management tables used by the Railways repository.
@@ -178,7 +179,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
           if (!readOnly) FilledButton.icon(onPressed: () => edit(), icon: const Icon(Icons.add_rounded), label: const Text('Add')),
         ])),
         Expanded(child: busy ? const Center(child: CircularProgressIndicator()) : filtered.isEmpty
-          ? const Center(child: Text('No records found.'))
+          ? const Center(child: DeckEmptyState(title:'No records found',detail:'Try another search or add a new record.',icon:Icons.search_off_rounded))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(12),
               scrollDirection: Axis.horizontal,
