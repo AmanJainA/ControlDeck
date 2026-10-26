@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'shared/widgets/deck_components.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -737,20 +738,13 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     ]);
   }
 
-  Widget hero(String title,String subtitle,IconData icon)=>Container(padding:const EdgeInsets.all(22),decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),gradient:const LinearGradient(colors:[Color(0xFF102D4D),Color(0xFF176B87)])),child:Row(children:[
-    Container(padding:const EdgeInsets.all(13),decoration:BoxDecoration(color:Colors.white.withValues(alpha:.13),borderRadius:BorderRadius.circular(14)),child:Icon(icon,color:Colors.white,size:30)),const SizedBox(width:14),
-    Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:const TextStyle(color:Colors.white,fontSize:21,fontWeight:FontWeight.w800)),const SizedBox(height:5),Text(subtitle,style:const TextStyle(color:Colors.white70))]))
-  ]));
-  Widget metric(String label,String value,IconData icon)=>Card(child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[Icon(icon,color:const Color(0xFF1685A4),size:28),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(label,style:Theme.of(context).textTheme.bodySmall),const SizedBox(height:4),Text(value,maxLines:1,overflow:TextOverflow.ellipsis,style:Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight:FontWeight.w800))]))])));
+  Widget hero(String title,String subtitle,IconData icon)=>DeckPageHero(title:title,subtitle:subtitle,icon:icon,gradientColors:const [Color(0xFF102D4D),Color(0xFF176B87)],iconColor:Colors.white,horizontal:true,padding:const EdgeInsets.all(22));
+  Widget metric(String label,String value,IconData icon)=>DeckMetricCard(label:label,value:value,icon:icon,iconColor:const Color(0xFF1685A4),margin:EdgeInsets.zero);
   Icon fileIcon(String type){final t=type.toLowerCase();if(t.contains('pdf'))return const Icon(Icons.picture_as_pdf_rounded,color:Colors.redAccent);if(t.contains('xls')||t.contains('csv'))return const Icon(Icons.table_chart_rounded,color:Colors.green);if(t.contains('doc'))return const Icon(Icons.article_rounded,color:Colors.blue);if(t.contains('ppt'))return const Icon(Icons.slideshow_rounded,color:Colors.orange);if(['png','jpg','jpeg','gif','svg'].any(t.contains))return const Icon(Icons.image_outlined,color:Colors.purple);return const Icon(Icons.insert_drive_file_outlined);}
 }
 
 class EmptyRailway extends StatelessWidget {
   const EmptyRailway({super.key,required this.title,required this.detail});
   final String title,detail;
-  @override Widget build(BuildContext context)=>Padding(padding:const EdgeInsets.symmetric(vertical:32,horizontal:12),child:Column(children:[
-    Icon(Icons.folder_off_outlined,size:40,color:Theme.of(context).colorScheme.onSurfaceVariant),const SizedBox(height:12),
-    Text(title,style:Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight:FontWeight.w800)),const SizedBox(height:6),
-    Text(detail,textAlign:TextAlign.center,style:Theme.of(context).textTheme.bodyMedium?.copyWith(color:Theme.of(context).colorScheme.onSurfaceVariant)),
-  ]));
+  @override Widget build(BuildContext context)=>DeckEmptyState(title:title,detail:detail,icon:Icons.folder_off_outlined);
 }
