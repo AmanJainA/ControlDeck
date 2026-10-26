@@ -20,8 +20,11 @@ class DeckAppRepository {
   final SupabaseClient? _client;
   final SharedPreferences? _preferences;
 
-  Future<SharedPreferences> get _prefs async =>
-      _preferences ?? SharedPreferences.getInstance();
+  Future<SharedPreferences> get _prefs async {
+    final preferences = _preferences;
+    if (preferences != null) return preferences;
+    return SharedPreferences.getInstance();
+  }
 
   SupabaseClient? get _cloudClient {
     if (_client != null) return _client;
