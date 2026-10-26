@@ -179,19 +179,35 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
         ])),
         Expanded(child: busy ? const Center(child: CircularProgressIndicator()) : filtered.isEmpty
           ? const Center(child: Text('No records found.'))
-          : ListView.builder(padding: const EdgeInsets.all(12), itemCount: filtered.length, itemBuilder: (ctx, i) {
-            final row = filtered[i];
-            final title = row['headingname'] ?? row['menuname'] ?? row['foldername'] ?? row['username'] ?? row['title'] ?? row['name'] ?? row['id'] ?? 'Record';
-            final summary = row.entries.where((e) => e.key != 'id' && e.key != 'password' && e.value != null && e.value.toString().isNotEmpty).take(5).map((e) => e.key.replaceAll('_', ' ') + ': ' + e.value.toString()).join(' • ');
-            return Card(child: ListTile(
-              title: Text(title.toString(), style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text(summary, maxLines: 3, overflow: TextOverflow.ellipsis),
-              trailing: readOnly ? const Icon(Icons.chevron_right_rounded) : PopupMenuButton<String>(onSelected: (v) { if (v == 'edit') edit(row); if (v == 'delete') remove(row); }, itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit', child: Text('Edit')),
-                PopupMenuItem(value: 'delete', child: Text('Delete')),
-              ]),
-            ));
-          })),
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(12),
+              scrollDirection: Axis.horizontal,
+              child: SingleChildScrollView(
+                child: DataTable(
+                  columnSpacing: 18,
+                  columns: [
+                    const DataColumn(label: Text('Record')),
+                    ...((fields[widget.table] ?? const <Map<String,dynamic>>[])
+                        .where((f) => f['key'] != 'password').take(5)
+                        .map((f) => DataColumn(label: Text(f['label'].toString())))),
+                    const DataColumn(label: Text('Actions')),
+                  ],
+                  rows: filtered.map((row) {
+                    final title = row['headingname'] ?? row['menuname'] ?? row['foldername'] ?? row['username'] ?? row['title'] ?? row['name'] ?? row['id'] ?? 'Record';
+                    final visibleFields = (fields[widget.table] ?? const <Map<String,dynamic>>[])
+                        .where((f) => f['key'] != 'password').take(5);
+                    return DataRow(cells: [
+                      DataCell(SizedBox(width: 150, child: Text(title.toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
+                      ...visibleFields.map((f) => DataCell(SizedBox(width: 130, child: Text((row[f['key'].toString()] ?? '—').toString(), maxLines: 2, overflow: TextOverflow.ellipsis)))),
+                      DataCell(readOnly ? const Icon(Icons.chevron_right_rounded) : PopupMenuButton<String>(
+                        onSelected: (v) { if (v == 'edit') edit(row); if (v == 'delete') remove(row); },
+                        itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('Edit')), PopupMenuItem(value: 'delete', child: Text('Delete'))],
+                      )),
+                    ]);
+                  }).toList(),
+                ),
+              ),
+            )),
       ]))),
     );
   }
