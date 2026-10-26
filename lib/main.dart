@@ -2040,7 +2040,7 @@ class _DataSection extends StatelessWidget {
   final String title;
   final List<Map<String, dynamic>> rows;
   @override Widget build(BuildContext context) => DeckCard(margin:EdgeInsets.zero,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    Text(title,style:Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight:FontWeight.w800)),
+    DeckSectionTitle(title:title),
     const SizedBox(height:8),
     if(rows.isEmpty) const DeckEmptyState(title:'No records available',detail:'Records will appear here when data is available.'),
     for(final row in rows) Padding(padding:const EdgeInsets.symmetric(vertical:8),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -2096,16 +2096,45 @@ class _AppCard extends StatelessWidget {
   final VoidCallback onOpen;
   @override Widget build(BuildContext context) {
     final theme = Theme.of(context); final tint = Color(app.accentHex);
-    return Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onOpen, child: Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+    return DeckCard(
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      onTap: onOpen,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Container(width: 42, height: 42, alignment: Alignment.center, decoration: BoxDecoration(color: tint.withValues(alpha: .15), borderRadius: BorderRadius.circular(13)), child: IconTheme(data: IconThemeData(color: tint, size: 23), child: iconFor(app.iconKey))),
+          Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: tint.withValues(alpha: .15),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: IconTheme(
+              data: IconThemeData(color: tint, size: 23),
+              child: iconFor(app.iconKey),
+            ),
+          ),
         ]),
-        const SizedBox(height: 8), Text(app.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        Text(
+          app.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+        ),
         const SizedBox(height: 6),
-                Text(app.description.isEmpty ? 'Open this workspace inside ControlDeck.' : app.description,
-          maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.3)),
-      ]))));
+        Text(
+          app.description.isEmpty ? 'Open this workspace inside ControlDeck.' : app.description,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.3,
+          ),
+        ),
+      ]),
+    );
   }
 }
 
