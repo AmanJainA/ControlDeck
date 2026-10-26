@@ -9,6 +9,7 @@ import 'shared/widgets/deck_workspace_hero.dart';
 import 'shared/widgets/deck_feedback_widgets.dart';
 import 'shared/widgets/deck_navigation.dart';
 import 'shared/widgets/deck_layout.dart';
+import 'features/apps/views/widgets/deck_app_editor_dialog.dart';
 import 'notes_workspace.dart';
 import 'supabase_config.dart';
 
@@ -334,45 +335,21 @@ class _DeckHomeState extends State<DeckHome> {
   }
 
   Future<void> editApp([DeckApp? old]) async {
-    final name = TextEditingController(text: old?.name ?? '');
-    final description = TextEditingController(text: old?.description ?? '');
-    String cat = old?.category ?? 'Personal', icon = old?.iconKey ?? 'apps';
-    final formKey = GlobalKey<FormState>();
-    final ok = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
-      title: Text(old == null ? 'Add an app workspace' : 'Edit ' + old.name),
-      content: SizedBox(width: 460, child: SingleChildScrollView(child: Form(key: formKey, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextFormField(controller: name, decoration: const InputDecoration(labelText: 'App name'), validator: (v) => v == null || v.trim().isEmpty ? 'Enter a name' : null),
-        const SizedBox(height: 10), TextFormField(controller: description, decoration: const InputDecoration(labelText: 'Description')),
-        const SizedBox(height: 10), 
-        DropdownButtonFormField<String>(value: categories.contains(cat) && cat != 'All apps' ? cat : 'Other', decoration: const InputDecoration(labelText: 'Category'),
-          items: categories.where((x) => x != 'All apps').map((x) => DropdownMenuItem(value: x, child: Text(x))).toList(), onChanged: (v) => setDialog(() => cat = v ?? cat)),
-        const SizedBox(height: 10),
-        DropdownButtonFormField<String>(value: icon, decoration: const InputDecoration(labelText: 'Icon'),
-          items: const [DropdownMenuItem(value: 'apps', child: Text('Apps')), DropdownMenuItem(value: 'lifehub', child: Text('LifeHub')),
-            DropdownMenuItem(value: 'notes', child: Text('Notes')), DropdownMenuItem(value: 'railways', child: Text('Railways')),
-            DropdownMenuItem(value: 'interview', child: Text('Interview')), DropdownMenuItem(value: 'portfolio', child: Text('Portfolio')),
-            DropdownMenuItem(value: 'admin', child: Text('Admin')), DropdownMenuItem(value: 'analytics', child: Text('Analytics')),
-            DropdownMenuItem(value: 'code', child: Text('Code'))], onChanged: (v) => setDialog(() => icon = v ?? icon)),
-      ])))),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-        FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(ctx, true); }, child: const Text('Save workspace'))],
-    )));
-    if (ok == true && mounted) {
-      final isNew = old == null;
-      final item = old ?? DeckApp(id: DateTime.now().microsecondsSinceEpoch.toString(), name: '', description: '',
-        category: cat, url: '', iconKey: icon, accentHex: 0xFF64748B, sortOrder: controller.apps.length);
-      setState(() {
-        item.name = name.text.trim(); item.description = description.text.trim(); item.category = cat;
-        item.iconKey = icon;
-      });
-      try {
-        await controller.save(item, isNew: isNew);
-        if (mounted) setState(() {});
-      } catch (_) {
-        message('Could not save to the cloud. Check the ControlDeck SQL setup.');
-      }
+    final item = await showDialog<DeckApp>(
+      context: context,
+      builder: (_) => DeckAppEditorDialog(
+        categories: categories,
+        initialApp: old,
+      ),
+    );
+    if (item == null || !mounted) return;
+
+    try {
+      await controller.save(item, isNew: old == null);
+      if (mounted) setState(() {});
+    } catch (_) {
+      message('Could not save to the cloud. Check the ControlDeck SQL setup.');
     }
-    name.dispose(); description.dispose();
   }
 
   Future<void> toggleFavorite(DeckApp app) async {
