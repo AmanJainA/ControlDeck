@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'shared/widgets/deck_components.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_config.dart';
 
@@ -108,7 +109,7 @@ class _InterviewNativeScreenV2State extends State<InterviewNativeScreenV2>{
     ]));
   }
   Widget content(){if(page=='Assessment')return assessment();if(page=='Result')return result();if(page=='Results')return results();if(page=='Users')return usersPage();if(page=='Tracking')return trackingPage();if(page=='Questions')return questionsPage();if(page=='Content')return contentPage();return admin?adminHome():userHome();}
-  Widget info(String title,String body,IconData icon)=>Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Row(children:[Icon(icon,color:const Color(0xFF8FA600)),const SizedBox(width:8),Text(title,style:const TextStyle(fontWeight:FontWeight.w800,fontSize:17))]),const SizedBox(height:10),SelectableText(body,style:const TextStyle(height:1.5))])));
+  Widget info(String title,String body,IconData icon)=>DeckInfoCard(title:title,body:body,icon:icon,selectable:true);
   Widget userHome()=>ListView(padding:const EdgeInsets.all(14),children:[info('About the company',company?['about']?.toString()??'No company information added.',Icons.business),info('Instructions',company?['instructions']?.toString()??'No instructions added.',Icons.rule),info('General assessment',questions.length.toString()+' questions · '+(company?['duration_minutes']??30).toString()+' minutes',Icons.quiz),FilledButton.icon(onPressed:busy?null:startAssessment,icon:const Icon(Icons.play_arrow),label:Text(attempt?['status']=='in_progress'?'Resume assessment':'Start assessment')),if(attempts.any((a)=>a['status']=='submitted'))const Text('Submitted assessment cannot be retaken.'),for(final a in attempts)ListTile(title:Text((a['assessment_type']??'general').toString()+' assessment'),subtitle:Text((a['status']??'').toString()+' · '+(a['started_at']??'').toString()),trailing:Text(a['status']=='submitted'?n(a['percentage']).toStringAsFixed(1)+'%':'Resume'))]);
   Widget assessment(){
     if(attempt==null||attempt!['status']=='submitted')return Center(child:Column(mainAxisSize:MainAxisSize.min,children:[const Icon(Icons.quiz,size:40),Text(attempt?['status']=='submitted'?'Assessment submitted':'Ready to begin'),FilledButton(onPressed:attempt?['status']=='submitted'?null:startAssessment,child:const Text('Start assessment'))]));
