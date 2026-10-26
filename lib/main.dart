@@ -4,6 +4,9 @@ import 'lifehub_workspace.dart';
 import 'features/apps/models/deck_app.dart';
 import 'features/apps/controllers/deck_home_controller.dart';
 import 'features/apps/repositories/deck_app_repository.dart';
+import 'shared/widgets/deck_app_card.dart';
+import 'shared/widgets/deck_workspace_hero.dart';
+import 'shared/widgets/deck_feedback_widgets.dart';
 import 'notes_workspace.dart';
 import 'supabase_config.dart';
 
@@ -138,7 +141,7 @@ class _AuthSetupRequiredScreen extends StatelessWidget {
             const SizedBox(height: 10),
             const Text('ControlDeck requires its shared Supabase Auth project before showing your workspaces. This keeps the app from silently skipping sign-in when cloud configuration is missing.'),
             const SizedBox(height: 16),
-            const _Notice(text: 'Run with SUPABASE_URL and SUPABASE_ANON_KEY configured. Create or invite your account in that project; do not store passwords or service-role keys in source code.', icon: Icons.lock_outline_rounded),
+            const DeckNotice(text: 'Run with SUPABASE_URL and SUPABASE_ANON_KEY configured. Create or invite your account in that project; do not store passwords or service-role keys in source code.', icon: Icons.lock_outline_rounded),
             const SizedBox(height: 16),
             SelectableText('flutter run --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co --dart-define=SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_KEY', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontFamily: 'monospace')),
           ],
@@ -534,12 +537,12 @@ class _DeckHomeState extends State<DeckHome> {
               Text(items.length.toString() + ' shown', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant))]),
             const SizedBox(height: 16),
             if (loading) const Padding(padding: EdgeInsets.all(36), child: Center(child: CircularProgressIndicator()))
-            else if (items.isEmpty) const _EmptyState()
+            else if (items.isEmpty) const DeckLauncherEmptyState()
             else LayoutBuilder(builder: (context, box) {
               final cols = box.maxWidth > 1120 ? 3 : 2;
               return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: items.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, crossAxisSpacing: 14, mainAxisSpacing: 14, mainAxisExtent: 160),
-                itemBuilder: (context, i) => _AppCard(app: items[i], onOpen: () => openApp(items[i], admin: items[i].id.toLowerCase() == 'portfolio')));
+                itemBuilder: (context, i) => DeckAppCard(app: items[i], icon: iconFor(items[i].iconKey), onOpen: () => openApp(items[i], admin: items[i].id.toLowerCase() == 'portfolio')));
             }),
 
           ]))),
@@ -668,7 +671,7 @@ class _AccountProfileScreenState extends State<AccountProfileScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              const _WorkspaceHero(title: 'Your account', subtitle: 'Manage the profile and password used to sign in to ControlDeck.', icon: Icons.account_circle_rounded),
+              const DeckWorkspaceHero(title: 'Your account', subtitle: 'Manage the profile and password used to sign in to ControlDeck.', icon: Icons.account_circle_rounded),
               const SizedBox(height: 16),
               Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -725,7 +728,7 @@ class AccountSettingsScreen extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: ListView(padding: const EdgeInsets.all(20), children: [
-            const _WorkspaceHero(title: 'ControlDeck settings', subtitle: 'Manage your app appearance and sign-in session.', icon: Icons.tune_rounded),
+            const DeckWorkspaceHero(title: 'ControlDeck settings', subtitle: 'Manage your app appearance and sign-in session.', icon: Icons.tune_rounded),
             const SizedBox(height: 16),
             Card(child: SwitchListTile(
               value: dark,
@@ -823,7 +826,7 @@ class _NativeFeatureScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            _WorkspaceHero(title: title, subtitle: subtitle, icon: icon),
+            DeckWorkspaceHero(title: title, subtitle: subtitle, icon: icon),
             const SizedBox(height: 20),
             Text(
               'Workspace modules',
@@ -853,48 +856,6 @@ class _NativeFeatureScreen extends StatelessWidget {
       ),
     ),
   );
-}
-
-class _WorkspaceHero extends StatelessWidget {
-  const _WorkspaceHero({required this.title, required this.subtitle, required this.icon});
-  final String title, subtitle;
-  // Accept both Material IconData and widget-based icons such as Font Awesome.
-  final Object icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          colors: [accent.withValues(alpha: .18), theme.colorScheme.surfaceContainerHighest],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: .18),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: icon is IconData
-                ? Icon(icon as IconData, color: accent, size: 28)
-                : IconTheme(data: const IconThemeData(color: accent, size: 28), child: icon as Widget),
-          ),
-          const SizedBox(height: 18),
-          Text(title, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          Text(subtitle, style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        ],
-      ),
-    );
-  }
 }
 
 class PortfolioNativeScreen extends StatefulWidget {
@@ -944,9 +905,9 @@ class _PortfolioNativeScreenState extends State<PortfolioNativeScreen> {
           const SizedBox(width: 8),
         ]),
       body: loading ? const Center(child: CircularProgressIndicator()) : error != null
-        ? _ConnectionNotice(title: 'Portfolio data could not load', detail: error!, onRetry: load)
+        ? DeckConnectionNotice(title: 'Portfolio data could not load', detail: error!, onRetry: load)
         : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1050), child: ListView(padding: const EdgeInsets.all(20), children: [
-          _WorkspaceHero(title: name, subtitle: (profile['hero_role'] ?? profile['hero_intro'] ?? profile['about_text'] ?? 'Full Stack Developer · Consultant & Data Analyst').toString(), icon: Icons.person_rounded),
+          DeckWorkspaceHero(title: name, subtitle: (profile['hero_role'] ?? profile['hero_intro'] ?? profile['about_text'] ?? 'Full Stack Developer · Consultant & Data Analyst').toString(), icon: Icons.person_rounded),
           const SizedBox(height: 16),
           SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: sections.map((s) => Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(s), selected: section == s, onSelected: (_) => setState(() => section = s)))).toList())),
           const SizedBox(height: 12),
@@ -1314,7 +1275,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
     if (token == null) return Scaffold(
       appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: const Text('Portfolio Admin')),
       body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 430), child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(22), children: [
-        const _WorkspaceHero(title: 'Portfolio Admin', subtitle: 'Sign in to manage portfolio content.', icon: Icons.admin_panel_settings_rounded),
+        const DeckWorkspaceHero(title: 'Portfolio Admin', subtitle: 'Sign in to manage portfolio content.', icon: Icons.admin_panel_settings_rounded),
         const SizedBox(height: 18), TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Admin email')),
         const SizedBox(height: 12), TextField(controller: password, obscureText: true, onSubmitted: (_) => signIn(), decoration: const InputDecoration(labelText: 'Password')),
         if (message != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(message!, style: TextStyle(color: theme.colorScheme.error))),
@@ -1597,17 +1558,17 @@ class _NotesNativeScreenState extends State<NotesNativeScreen> {
   }
   @override Widget build(BuildContext context) {
     return Scaffold(appBar: AppBar(leading: IconButton(onPressed: () { if (selectedTopic != null) setState(() => selectedTopic = null); else if (selectedLanguage != null) setState(() => selectedLanguage = null); else Navigator.of(context).maybePop(); }, icon: const Icon(Icons.arrow_back_rounded)), title: const Text('Notes')),
-      body: client == null ? _ConnectionNotice(title: 'Connect your Notes database', detail: 'The Notes main branch keeps its Supabase URL and anon key in local environment variables, not in GitHub. Run ControlDeck with --dart-define=NOTES_SUPABASE_URL=... and --dart-define=NOTES_SUPABASE_ANON_KEY=... to load your real curriculum.') :
-      loading ? const Center(child: CircularProgressIndicator()) : error != null ? _ConnectionNotice(title: 'Notes could not load', detail: error!, onRetry: selectedLanguage == null ? loadLanguages : () => selectedLanguage == null ? loadLanguages() : loadTopics(selectedLanguage!)) :
+      body: client == null ? DeckConnectionNotice(title: 'Connect your Notes database', detail: 'The Notes main branch keeps its Supabase URL and anon key in local environment variables, not in GitHub. Run ControlDeck with --dart-define=NOTES_SUPABASE_URL=... and --dart-define=NOTES_SUPABASE_ANON_KEY=... to load your real curriculum.') :
+      loading ? const Center(child: CircularProgressIndicator()) : error != null ? DeckConnectionNotice(title: 'Notes could not load', detail: error!, onRetry: selectedLanguage == null ? loadLanguages : () => selectedLanguage == null ? loadLanguages() : loadTopics(selectedLanguage!)) :
       Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1000), child: ListView(padding: const EdgeInsets.all(20), children: [
         if (selectedTopic != null) ...[
-          _WorkspaceHero(title: (selectedTopic!['title'] ?? 'Lesson').toString(), subtitle: (selectedLanguage?['name'] ?? '').toString(), icon: Icons.menu_book_rounded),
+          DeckWorkspaceHero(title: (selectedTopic!['title'] ?? 'Lesson').toString(), subtitle: (selectedLanguage?['name'] ?? '').toString(), icon: Icons.menu_book_rounded),
           for (final block in lesson) _LessonBlock(block: Map<String,dynamic>.from(block as Map)),
         ] else if (selectedLanguage != null) ...[
-          _WorkspaceHero(title: selectedLanguage!['name'].toString(), subtitle: selectedLanguage!['description']?.toString() ?? 'Choose a lesson to start learning.', icon: Icons.code_rounded),
+          DeckWorkspaceHero(title: selectedLanguage!['name'].toString(), subtitle: selectedLanguage!['description']?.toString() ?? 'Choose a lesson to start learning.', icon: Icons.code_rounded),
           for (final topic in topics) Card(child: ListTile(title: Text(topic['title'].toString()), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => loadLesson(topic))),
         ] else ...[
-          _WorkspaceHero(title: 'Coding Notes', subtitle: 'Browse the database-driven programming curriculum.', icon: Icons.menu_book_rounded),
+          DeckWorkspaceHero(title: 'Coding Notes', subtitle: 'Browse the database-driven programming curriculum.', icon: Icons.menu_book_rounded),
           LayoutBuilder(builder: (context, box) { final cols = box.maxWidth > 700 ? 3 : box.maxWidth > 440 ? 2 : 1; return GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: cols, childAspectRatio: 2.3, crossAxisSpacing: 12, mainAxisSpacing: 12, children: languages.map((l) => Card(child: InkWell(onTap: () => loadTopics(l), child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Icon(Icons.code_rounded, color: accent), const Spacer(), Text(l['name'].toString(), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)), Text(l['description']?.toString() ?? '', maxLines: 2, overflow: TextOverflow.ellipsis)]))))).toList()); }),
         ],
       ]))));
@@ -1663,7 +1624,7 @@ class _LessonBlock extends StatelessWidget {
       return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(
         crossAxisAlignment: CrossAxisAlignment.center, children: [
           ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.network(src, fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const _Notice(text: 'This lesson image could not be loaded.', icon: Icons.broken_image_outlined))),
+            errorBuilder: (_, __, ___) => const DeckNotice(text: 'This lesson image could not be loaded.', icon: Icons.broken_image_outlined))),
           if ((block['caption'] ?? '').toString().isNotEmpty)
             Padding(padding: const EdgeInsets.only(top: 8), child: Text(block['caption'].toString(), style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant))),
         ],
@@ -1797,12 +1758,12 @@ class _InterviewNativeScreenState extends State<InterviewNativeScreen> {
       title: const Text('Interview'),
     ),
     body: client == null
-        ? _ConnectionNotice(title: 'Interview workspace unavailable', detail: error ?? 'The Interview data connection is not configured.')
+        ? DeckConnectionNotice(title: 'Interview workspace unavailable', detail: error ?? 'The Interview data connection is not configured.')
         : profile == null
             ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 960), child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  const _WorkspaceHero(title: 'Interview Dashboard', subtitle: 'Your ControlDeck session is used automatically. No separate Interview login is required.', icon: Icons.quiz_rounded),
+                  const DeckWorkspaceHero(title: 'Interview Dashboard', subtitle: 'Your ControlDeck session is used automatically. No separate Interview login is required.', icon: Icons.quiz_rounded),
                   const SizedBox(height: 18),
                   if (busy)
                     const Card(child: Padding(
@@ -1838,7 +1799,7 @@ class _InterviewNativeScreenState extends State<InterviewNativeScreen> {
             : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 960), child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  _WorkspaceHero(title: 'Welcome, ${profile!['name'] ?? 'User'}', subtitle: 'ControlDeck session active · ${profile!['usertype'] ?? 'user'} account', icon: Icons.account_circle_rounded),
+                  DeckWorkspaceHero(title: 'Welcome, ${profile!['name'] ?? 'User'}', subtitle: 'ControlDeck session active · ${profile!['usertype'] ?? 'user'} account', icon: Icons.account_circle_rounded),
                   const SizedBox(height: 18),
                   _DataSection(title: 'Available assessment questions', rows: questions.map((q) => {'question':q['question_text'],'type':q['assessment_type'],'marks':q['marks']}).toList()),
                   if (error != null) Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
@@ -1957,7 +1918,7 @@ class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
     appBar: AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: const Text('LifeHub')),
     body: profile == null
       ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(22), children: [
-          const _WorkspaceHero(title: 'LifeHub', subtitle: 'Uses your ControlDeck sign-in automatically.', icon: Icons.home_work_rounded),
+          const DeckWorkspaceHero(title: 'LifeHub', subtitle: 'Uses your ControlDeck sign-in automatically.', icon: Icons.home_work_rounded),
           if (busy) const Padding(padding: EdgeInsets.all(18), child: Center(child: CircularProgressIndicator())),
           if (error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
           const SizedBox(height: 16),
@@ -1965,7 +1926,7 @@ class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
           TextButton(onPressed: () => Navigator.of(context).maybePop(), child: const Text('Back to ControlDeck')),
         ])))
       : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 980), child: ListView(padding: const EdgeInsets.all(20), children: [
-          _WorkspaceHero(title: 'Welcome, ${profile!['full_name'] ?? profile!['name'] ?? 'there'}', subtitle: 'LifeHub · Tasks and personal planning', icon: Icons.home_work_rounded),
+          DeckWorkspaceHero(title: 'Welcome, ${profile!['full_name'] ?? profile!['name'] ?? 'there'}', subtitle: 'LifeHub · Tasks and personal planning', icon: Icons.home_work_rounded),
           const SizedBox(height: 18),
           Row(children: [Expanded(child: TextField(controller: taskTitle, onSubmitted: (_) => addTask(), decoration: const InputDecoration(labelText: 'Add a task', prefixIcon: Icon(Icons.add_task_rounded)))), const SizedBox(width: 10), FilledButton(onPressed: busy ? null : addTask, child: const Text('Add'))]),
           const SizedBox(height: 14),
@@ -1992,18 +1953,6 @@ class _LifeHubNativeScreenState extends State<LifeHubNativeScreen> {
           OutlinedButton.icon(onPressed: signOutControlDeck, icon: const Icon(Icons.logout_rounded), label: const Text('Sign out of ControlDeck')),
         ]))),
   );
-}
-
-class _ConnectionNotice extends StatelessWidget {
-  const _ConnectionNotice({required this.title, required this.detail, this.onRetry});
-  final String title, detail;
-  final Future<void> Function()? onRetry;
-  @override Widget build(BuildContext context) => Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 540), child: Padding(padding: const EdgeInsets.all(22), child: Card(child: Padding(padding: const EdgeInsets.all(22), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-    const Icon(Icons.cloud_off_rounded, color: accent, size: 34), const SizedBox(height: 12),
-    Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-    const SizedBox(height: 8), Text(detail, style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5)),
-    if (onRetry != null) ...[const SizedBox(height: 14), FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh_rounded), label: const Text('Retry'))],
-  ]))))));
 }
 
 class _DataSection extends StatelessWidget {
@@ -2061,54 +2010,6 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-class _AppCard extends StatelessWidget {
-  const _AppCard({required this.app, required this.onOpen});
-  final DeckApp app;
-  final VoidCallback onOpen;
-  @override Widget build(BuildContext context) {
-    final theme = Theme.of(context); final tint = Color(app.accentHex);
-    return DeckCard(
-      margin: EdgeInsets.zero,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-      onTap: onOpen,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            width: 42,
-            height: 42,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: tint.withValues(alpha: .15),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: IconTheme(
-              data: IconThemeData(color: tint, size: 23),
-              child: iconFor(app.iconKey),
-            ),
-          ),
-        ]),
-        const SizedBox(height: 8),
-        Text(
-          app.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          app.description.isEmpty ? 'Open this workspace inside ControlDeck.' : app.description,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            height: 1.3,
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
 class _StatusPill extends StatelessWidget {
   const _StatusPill({required this.label, required this.icon, required this.color});
   final String label; final IconData icon; final Color color;
@@ -2118,27 +2019,3 @@ class _StatusPill extends StatelessWidget {
       Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700))]));
 }
 
-class _Notice extends StatelessWidget {
-  const _Notice({required this.text, required this.icon});
-  final String text; final IconData icon;
-  @override Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: .55), borderRadius: BorderRadius.circular(14)),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(icon, size: 19, color: theme.colorScheme.onSurfaceVariant), const SizedBox(width: 10),
-        Expanded(child: Text(text, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.4)))]));
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-  @override Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.all(30),
-    child: Column(children: [
-      Icon(Icons.widgets_outlined, size: 42),
-      SizedBox(height: 12),
-      Text('Nothing here yet', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-      SizedBox(height: 6),
-      Text('No apps are available to display.'),
-    ]),
-  );
-}
