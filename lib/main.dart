@@ -5,6 +5,7 @@ import 'notes_workspace.dart';
 import 'supabase_config.dart';
 
 import 'package:flutter/material.dart';
+import 'shared/widgets/deck_components.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -2038,17 +2039,17 @@ class _DataSection extends StatelessWidget {
   const _DataSection({required this.title, required this.rows});
   final String title;
   final List<Map<String, dynamic>> rows;
-  @override Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-    const SizedBox(height: 8),
-    if (rows.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('No records available yet.')),
-    for (final row in rows) Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text((row.values.isNotEmpty ? row.values.first : 'Item').toString(), style: const TextStyle(fontWeight: FontWeight.w700)),
-      const SizedBox(height: 3),
-      Text(row.entries.skip(1).map((e) => '${e.key}: ${e.value}').join(' · '), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-      const Divider(height: 16),
+  @override Widget build(BuildContext context) => DeckCard(margin:EdgeInsets.zero,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    Text(title,style:Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight:FontWeight.w800)),
+    const SizedBox(height:8),
+    if(rows.isEmpty) const DeckEmptyState(title:'No records available',detail:'Records will appear here when data is available.'),
+    for(final row in rows) Padding(padding:const EdgeInsets.symmetric(vertical:8),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Text((row.values.isNotEmpty?row.values.first:'Item').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),
+      const SizedBox(height:3),
+      Text(row.entries.skip(1).map((e)=>'${e.key}: ${e.value}').join(' · '),style:Theme.of(context).textTheme.bodySmall?.copyWith(color:Theme.of(context).colorScheme.onSurfaceVariant)),
+      const Divider(height:16),
     ])),
-  ])));
+  ]));
 }
 
 class _BrandMark extends StatelessWidget {
