@@ -1075,7 +1075,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
     final iconClass = (row['icon_class'] ?? '').toString().toLowerCase();
     final name = (row['name'] ?? row['label'] ?? '').toString().toLowerCase();
     final key = '$iconClass $name';
-    IconData? brandIcon;
+    FaIconData? brandIcon;
     if (key.contains('python')) brandIcon = FontAwesomeIcons.python;
     else if (key.contains('php')) brandIcon = FontAwesomeIcons.php;
     else if (key.contains('html5') || key.contains('html')) brandIcon = FontAwesomeIcons.html5;
