@@ -7,6 +7,8 @@ import 'features/apps/repositories/deck_app_repository.dart';
 import 'shared/widgets/deck_app_card.dart';
 import 'shared/widgets/deck_workspace_hero.dart';
 import 'shared/widgets/deck_feedback_widgets.dart';
+import 'shared/widgets/deck_navigation.dart';
+import 'shared/widgets/deck_layout.dart';
 import 'notes_workspace.dart';
 import 'supabase_config.dart';
 
@@ -493,7 +495,7 @@ class _DeckHomeState extends State<DeckHome> {
           ],
         ]),
       body: Row(children: [
-        if (wide) _SideNav(page: page, onSelect: (v) {
+        if (wide) DeckSideNavigation(selected: page, onSelect: (v) {
           setState(() {
             page = v;
             controller.setFavoritesOnly(false);
@@ -1970,35 +1972,6 @@ class _BrandMark extends StatelessWidget {
       child: const Icon(Icons.dashboard_customize_rounded, color: Colors.black, size: 23)),
     const SizedBox(width: 11), const Text('ControlDeck', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -.5)),
   ]);
-}
-
-class _SideNav extends StatelessWidget {
-  const _SideNav({required this.page, required this.onSelect});
-  final String page;
-  final ValueChanged<String> onSelect;
-  @override Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(width: 220, decoration: BoxDecoration(border: Border(right: BorderSide(color: theme.dividerColor.withValues(alpha: .35)))),
-      padding: const EdgeInsets.fromLTRB(16, 20, 12, 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(padding: const EdgeInsets.only(left: 12, bottom: 10), child: Text('WORKSPACE', style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 1.4, color: theme.colorScheme.onSurfaceVariant))),
-        _NavItem(icon: Icons.dashboard_rounded, label: 'Overview', selected: page == 'Overview', onTap: () => onSelect('Overview')),
-        _NavItem(icon: Icons.account_circle_outlined, label: 'Profile', selected: page == 'Profile', onTap: () => onSelect('Profile')),
-        const Spacer(), _NavItem(icon: Icons.tune_rounded, label: 'Settings', selected: page == 'Settings', onTap: () => onSelect('Settings')),
-        const SizedBox(height: 8), Padding(padding: const EdgeInsets.all(12), child: Text('ONE HUB. YOUR TOOLS.', style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 1.1, color: theme.colorScheme.onSurfaceVariant))),
-      ]));
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({required this.icon, required this.label, required this.selected, required this.onTap});
-  final IconData icon; final String label; final bool selected; final VoidCallback onTap;
-  @override Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(padding: const EdgeInsets.only(bottom: 4), child: ListTile(dense: true,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), selected: selected, selectedTileColor: accent.withValues(alpha: .15),
-      leading: Icon(icon, size: 20, color: selected ? accent : theme.colorScheme.onSurfaceVariant),
-      title: Text(label, style: TextStyle(fontWeight: selected ? FontWeight.w700 : FontWeight.w500)), onTap: onTap));
-  }
 }
 
 class _StatusPill extends StatelessWidget {
