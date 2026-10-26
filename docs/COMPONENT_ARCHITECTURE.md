@@ -1,63 +1,64 @@
-# ControlDeck component-based architecture
+# ControlDeck component-based MVC architecture
 
-ControlDeck uses feature screens with shared presentation components. The goal is to keep visual rules reusable while each workspace retains its own data and workflow.
+ControlDeck combines reusable presentation components with an MVC structure for feature code. The purpose is to keep the View focused on rendering, the Controller responsible for UI state and actions, the Model responsible for app data, and the Repository responsible for persistence.
 
-## Current structure
+## Structure
 
 ```text
 lib/
-  main.dart
-  lifehub_workspace.dart
-  notes_workspace.dart
-  interview_native_screen.dart
-  railways_native_screen.dart
-  railways_data_manager.dart
+  main.dart                         # app bootstrap, auth gate and navigation shell
+  features/
+    apps/
+      models/
+        deck_app.dart               # DeckApp entity and starter records
+      controllers/
+        deck_home_controller.dart   # launcher state, filters and actions
+      repositories/
+        deck_app_repository.dart    # Supabase / local preferences persistence
   shared/
     theme/
       deck_theme.dart
     widgets/
       deck_components.dart
+  lifehub_workspace.dart            # feature Views
+  notes_workspace.dart
+  interview_native_screen.dart
+  railways_native_screen.dart
+  railways_data_manager.dart
 ```
 
-## Responsibilities
+## MVC responsibilities
 
-- **App shell — `main.dart`:** app startup, shared sign-in gate, navigation, workspace discovery and the dashboard.
-- **Feature screens:** each workspace file owns its screen state, navigation and workspace-specific operations. Keep changes local to the relevant feature where possible.
-- **Shared theme — `shared/theme/deck_theme.dart`:** brand colors and Material 3 light/dark themes. Avoid repeating global color, card and input styles in individual screens.
-- **Shared widgets — `shared/widgets/deck_components.dart`:** reusable cards, page heroes, metric tiles, information cards, empty states and section titles. These widgets accept content and style options rather than owning backend logic.
-- **Data and authentication:** keep Supabase calls and permission checks within the relevant feature until that feature's data access can be safely extracted into a dedicated service. Do not move credentials, role checks or access rules into presentation widgets.
+- **Model — `features/apps/models/deck_app.dart`:** the `DeckApp` entity, JSON conversion and default launcher records. It contains no widget or database calls.
+- **View — Flutter screens and shared widgets:** renders app data, handles layout and sends user intent through callbacks. Shared widgets stay presentation-only.
+- **Controller — `features/apps/controllers/deck_home_controller.dart`:** owns launcher state, search/category/favorite filters and app actions. It notifies listeners when state changes.
+- **Repository — `features/apps/repositories/deck_app_repository.dart`:** handles Supabase and SharedPreferences reads/writes. It contains no UI or navigation.
+- **App shell — `main.dart`:** startup, shared authentication gate, navigation and app-level theme selection.
+- **Feature workspaces:** LifeHub, Notes, Railways and Interview keep their domain-specific workflows separate. Extract their data access into feature-specific repositories/controllers incrementally; do not move permission checks into reusable widgets.
 
-## Shared widgets
+## Shared components
 
-| Widget | Use |
-| --- | --- |
-| `DeckCard` | Common surface, padding, margins and optional tap handling |
-| `DeckPageHero` | Consistent page introduction with configurable icon and gradient |
-| `DeckMetricCard` | Dashboard metric tile |
-| `DeckInfoCard` | Titled information or report card |
-| `DeckEmptyState` | Empty/search-no-results state |
-| `DeckSectionTitle` | Consistent section heading with optional trailing action |
-| `DeckSpacing` | Shared spacing scale, including the 5 px card gap |
-| `DeckColors` / `DeckTheme` | Brand tokens and light/dark app themes |
+Use `DeckCard`, `DeckPageHero`, `DeckMetricCard`, `DeckInfoCard`, `DeckEmptyState`, `DeckSectionTitle`, `DeckSpacing`, `DeckColors` and `DeckTheme` before creating duplicate presentation patterns.
 
-## Rules for new UI
+## Rules
 
-1. Prefer an existing shared widget before introducing another slightly different card or hero.
-2. Keep widgets focused: presentation widgets render data; feature state and async operations stay in the feature screen or a service.
-3. Pass callbacks and data into widgets. Avoid putting Supabase queries inside reusable presentation components.
-4. Use `DeckTheme.light` and `DeckTheme.dark` for global themes and `DeckColors.accent` for the primary accent.
-5. Preserve responsive constraints and use `LayoutBuilder` where layout depends on available width.
-6. Keep empty, loading and error states explicit.
-7. When a component is used by multiple workspaces, place it under `lib/shared/widgets/`; keep feature-only widgets near their feature until there is a real reuse case.
+1. Views should not contain direct Supabase or SharedPreferences calls once migrated to a controller/repository.
+2. Controllers should not import Flutter Material widgets or build UI.
+3. Repositories should not show dialogs, snackbars or navigate.
+4. Keep app-wide auth/session behavior in the app shell; keep workspace permissions in the relevant feature.
+5. Preserve the existing shared ControlDeck sign-in and direct workspace/dashboard behavior during refactors.
+6. Use dependency injection for repositories so controllers can be tested with fakes.
+7. Keep loading, empty and error states explicit, and preserve responsive layouts and light/dark theme support.
 
 ## Verification
 
-After pulling changes locally, run:
+Run locally after pulling the branch:
 
 ```bash
 dart format lib
+flutter pub get
 flutter analyze
 flutter test
 ```
 
-Run these checks before release; a successful GitHub commit alone does not establish that the app builds on every target platform.
+These checks have not been run by the GitHub editing workflow. The existing launcher View is being migrated incrementally, so connect it to `DeckHomeController` before removing its current state/persistence methods.
