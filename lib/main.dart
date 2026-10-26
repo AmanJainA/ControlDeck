@@ -284,9 +284,8 @@ class DeckHome extends StatefulWidget {
 class _DeckHomeState extends State<DeckHome> {
   late final DeckHomeController controller;
   final search = TextEditingController();
-  List<DeckApp> apps = starterApps();
-  String category = 'All apps', page = 'Overview';
-  bool favoritesOnly = false, loading = true, cloudError = false, searchExpanded = false;
+  String page = 'Overview';
+  bool searchExpanded = false;
 
   @override void initState() {
     super.initState();
@@ -311,16 +310,14 @@ class _DeckHomeState extends State<DeckHome> {
   Future<void> _load() async {
     try {
       await controller.load();
-      if (mounted) setState(() => apps = controller.apps.toList());
     } catch (_) {
-      cloudError = widget.cloudUserId != null;
-      if (cloudError && mounted) {
+      if (controller.cloudError && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Cloud database not ready. Follow the SQL setup in the repository README.')),
         );
       }
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted) setState(() {});
     }
   }
 
@@ -361,15 +358,14 @@ class _DeckHomeState extends State<DeckHome> {
     if (ok == true && mounted) {
       final isNew = old == null;
       final item = old ?? DeckApp(id: DateTime.now().microsecondsSinceEpoch.toString(), name: '', description: '',
-        category: cat, url: '', iconKey: icon, accentHex: 0xFF64748B, sortOrder: apps.length);
+        category: cat, url: '', iconKey: icon, accentHex: 0xFF64748B, sortOrder: controller.apps.length);
       setState(() {
         item.name = name.text.trim(); item.description = description.text.trim(); item.category = cat;
         item.iconKey = icon;
-        if (isNew) apps.add(item);
       });
       try {
         await controller.save(item, isNew: isNew);
-        if (mounted) setState(() => apps = controller.apps.toList());
+        if (mounted) setState(() {});
       } catch (_) {
         message('Could not save to the cloud. Check the ControlDeck SQL setup.');
       }
@@ -393,7 +389,6 @@ class _DeckHomeState extends State<DeckHome> {
       actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove'))]));
     if (confirm != true) return;
-    setState(() => apps.removeWhere((x) => x.id == app.id));
     try {
       await controller.remove(app);
     } catch (_) {
@@ -501,10 +496,8 @@ class _DeckHomeState extends State<DeckHome> {
         if (wide) _SideNav(page: page, onSelect: (v) {
           setState(() {
             page = v;
-            favoritesOnly = false;
             controller.setFavoritesOnly(false);
             if (v == 'All apps' || v == 'Overview') {
-              category = 'All apps';
               controller.setCategory('All apps');
             }
           });
@@ -536,7 +529,7 @@ class _DeckHomeState extends State<DeckHome> {
             Row(children: [Expanded(child: Text('App library', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))),
               Text(items.length.toString() + ' shown', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant))]),
             const SizedBox(height: 16),
-            if (loading) const Padding(padding: EdgeInsets.all(36), child: Center(child: CircularProgressIndicator()))
+            if (controller.loading) const Padding(padding: EdgeInsets.all(36), child: Center(child: CircularProgressIndicator()))
             else if (items.isEmpty) const DeckLauncherEmptyState()
             else LayoutBuilder(builder: (context, box) {
               final cols = box.maxWidth > 1120 ? 3 : 2;
@@ -553,8 +546,6 @@ class _DeckHomeState extends State<DeckHome> {
         onDestinationSelected: (i) {
           if (i == 0) setState(() {
             page = 'Overview';
-            favoritesOnly = false;
-            category = 'All apps';
             controller.setFavoritesOnly(false);
             controller.setCategory('All apps');
           });
