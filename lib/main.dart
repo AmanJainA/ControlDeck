@@ -6,6 +6,7 @@ import 'supabase_config.dart';
 
 import 'package:flutter/material.dart';
 import 'shared/widgets/deck_components.dart';
+import 'shared/theme/deck_theme.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,7 +14,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'railways_native_screen.dart';
 import 'interview_native_screen.dart';
 
-const accent = Color(0xFF8FA600);
+const accent = DeckColors.accent;
 const List<String> categories = ['All apps', 'Personal', 'Professional', 'Creative', 'Other'];
 const List<String> _weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const List<String> _monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -148,17 +149,12 @@ class _ControlDeckAppState extends State<ControlDeckApp> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = ColorScheme.fromSeed(seedColor: accent, brightness: dark ? Brightness.dark : Brightness.light);
     return MaterialApp(
-      title: 'ControlDeck', debugShowCheckedModeBanner: false, themeMode: dark ? ThemeMode.dark : ThemeMode.light,
-      theme: ThemeData(useMaterial3: true, colorScheme: scheme, scaffoldBackgroundColor: const Color(0xFFF5F6F3),
-        cardTheme: const CardThemeData(color: Colors.white, elevation: 0, margin: EdgeInsets.zero),
-        inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: const Color(0xFFEEF0E9),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none))),
-      darkTheme: ThemeData(useMaterial3: true, colorScheme: scheme, scaffoldBackgroundColor: const Color(0xFF0D1016),
-        cardTheme: const CardThemeData(color: Color(0xFF151A22), elevation: 0, margin: EdgeInsets.zero),
-        inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: const Color(0xFF1A202A),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none))),
+      title: 'ControlDeck',
+      debugShowCheckedModeBanner: false,
+      themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+      theme: DeckTheme.light,
+      darkTheme: DeckTheme.dark,
       home: _SplashGate(dark: dark, onTheme: _setTheme, configured: cloudEnabled),
     );
   }
