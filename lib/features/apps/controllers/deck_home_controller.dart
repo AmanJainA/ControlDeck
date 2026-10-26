@@ -82,6 +82,8 @@ class DeckHomeController extends ChangeNotifier {
 
   Future<void> save(DeckApp app, {bool isNew = false}) async {
     final existingIndex = _apps.indexWhere((item) => item.id == app.id);
+    final previous = existingIndex < 0 ? null : _apps[existingIndex];
+
     if (existingIndex < 0) {
       _apps.add(app);
     } else {
@@ -89,26 +91,51 @@ class DeckHomeController extends ChangeNotifier {
     }
     notifyListeners();
 
-    if (isNew && ownerId != null) {
-      await _repository.insert(app, ownerId: ownerId);
-    } else {
-      await _repository.saveAll(_apps, ownerId: ownerId);
+    try {
+      if (isNew && ownerId != null) {
+        await _repository.insert(app, ownerId: ownerId);
+      } else {
+        await _repository.saveAll(_apps, ownerId: ownerId);
+      }
+    } catch (_) {
+      if (existingIndex < 0) {
+        _apps.removeWhere((item) => item.id == app.id);
+      } else if (previous != null) {
+        _apps[existingIndex] = previous;
+      }
+      notifyListeners();
+      rethrow;
     }
   }
 
   Future<void> toggleFavorite(DeckApp app) async {
-    app.favorite = !app.favorite;
+    final previous = app.favorite;
+    app.favorite = !previous;
     notifyListeners();
-    await _repository.saveAll(_apps, ownerId: ownerId);
+    try {
+      await _repository.saveAll(_apps, ownerId: ownerId);
+    } catch (_) {
+      app.favorite = previous;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> remove(DeckApp app) async {
-    _apps.removeWhere((item) => item.id == app.id);
+    final index = _apps.indexWhere((item) => item.id == app.id);
+    if (index < 0) return;
+    final removed = _apps.removeAt(index);
     notifyListeners();
-    if (ownerId != null) {
-      await _repository.delete(app, ownerId: ownerId);
-    } else {
-      await _repository.saveAll(_apps, ownerId: ownerId);
+    try {
+      if (ownerId != null) {
+        await _repository.delete(app, ownerId: ownerId);
+      } else {
+        await _repository.saveAll(_apps, ownerId: ownerId);
+      }
+    } catch (_) {
+      _apps.insert(index, removed);
+      notifyListeners();
+      rethrow;
     }
   }
 }
