@@ -26,7 +26,7 @@ class DeckWorkspaceHero extends StatelessWidget {
           decoration: BoxDecoration(color: accent.withValues(alpha: .18), borderRadius: BorderRadius.circular(16)),
           child: icon is IconData
               ? Icon(icon as IconData, color: accent, size: 28)
-              : IconTheme(data: const IconThemeData(color: accent, size: 28), child: icon as Widget),
+              : IconTheme(data: IconThemeData(color: accent, size: 28), child: icon as Widget),
         ),
         const SizedBox(height: 18),
         Text(title, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
