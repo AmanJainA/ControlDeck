@@ -340,6 +340,7 @@ class _DeckHomeState extends State<DeckHome> {
       builder: (_) => DeckAppEditorDialog(
         categories: categories,
         initialApp: old,
+        nextSortOrder: controller.apps.length,
       ),
     );
     if (item == null || !mounted) return;
