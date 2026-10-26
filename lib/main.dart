@@ -1208,13 +1208,18 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
               final widgets = <Widget>[];
               for (final field in fields) {
                 if (field['bool'] == true) {
-                  widgets.add(Container(margin: const EdgeInsets.only(bottom: 10), decoration: BoxDecoration(border: Border.all(color: cs.outlineVariant), borderRadius: BorderRadius.circular(14)), child: CheckboxListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                    title: Text(field['label'].toString(), style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Turn on or off for this item'),
-                    value: boolValues[field['key']] ?? true,
-                    onChanged: (v) => setDialog(() => boolValues[field['key'].toString()] = v ?? false),
-                  )));
+                  widgets.add(Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(border: Border.all(color: cs.outlineVariant), borderRadius: BorderRadius.circular(14)),
+                    child: SwitchListTile.adaptive(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                      visualDensity: VisualDensity.compact,
+                      title: Text(field['label'].toString(), style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Turn on or off for this item'),
+                      value: boolValues[field['key']] ?? true,
+                      onChanged: (v) => setDialog(() => boolValues[field['key'].toString()] = v),
+                    ),
+                  ));
                 } else {
                   final multi = field['multi'] == true;
                   final array = field['array'] == true;
@@ -1540,7 +1545,7 @@ class _PortfolioAdminNativeScreenState extends State<PortfolioAdminNativeScreen>
                             TextButton.icon(onPressed: () => viewRecord(current, row), icon: const Icon(Icons.visibility_outlined, size: 18), label: const Text('View')),
                             const Spacer(),
                             if (row['is_visible'] is bool) Transform.scale(
-                              scale: 0.78,
+                              scale: 0.62,
                               child: Switch.adaptive(
                               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               value: isVisible,
