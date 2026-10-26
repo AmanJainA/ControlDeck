@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'lifehub_workspace.dart';
 import 'features/apps/models/deck_app.dart';
+import 'features/apps/controllers/deck_home_controller.dart';
+import 'features/apps/repositories/deck_app_repository.dart';
 import 'notes_workspace.dart';
 import 'supabase_config.dart';
 
@@ -277,57 +279,46 @@ class DeckHome extends StatefulWidget {
 }
 
 class _DeckHomeState extends State<DeckHome> {
+  late final DeckHomeController controller;
   final search = TextEditingController();
   List<DeckApp> apps = starterApps();
   String category = 'All apps', page = 'Overview';
   bool favoritesOnly = false, loading = true, cloudError = false, searchExpanded = false;
 
-  @override void initState() { super.initState(); search.addListener(_refresh); _load(); }
-  @override void dispose() { search.removeListener(_refresh); search.dispose(); super.dispose(); }
-  void _refresh() { if (mounted) setState(() {}); }
+  @override void initState() {
+    super.initState();
+    controller = DeckHomeController(
+      repository: DeckAppRepository(),
+      ownerId: widget.cloudUserId,
+    );
+    search.addListener(_refresh);
+    _load();
+  }
+  @override void dispose() {
+    search.removeListener(_refresh);
+    search.dispose();
+    controller.dispose();
+    super.dispose();
+  }
+  void _refresh() {
+    controller.setQuery(search.text);
+    if (mounted) setState(() {});
+  }
 
   Future<void> _load() async {
     try {
-      if (widget.cloudUserId != null) {
-        final client = Supabase.instance.client;
-        final data = await client.from('controldeck_apps').select().order('sort_order').order('name');
-        if (data.isEmpty) {
-          final seeds = starterApps();
-          await client.from('controldeck_apps').insert(seeds.map((a) => a.toJson(ownerId: widget.cloudUserId)).toList());
-          if (mounted) setState(() => apps = seeds);
-        } else if (mounted) {
-          setState(() => apps = data.map((e) => DeckApp.fromJson(Map<String, dynamic>.from(e))).toList());
-        }
-      } else {
-        final prefs = await SharedPreferences.getInstance();
-        final raw = prefs.getString('controldeck.apps');
-        if (raw != null) {
-          final saved = (jsonDecode(raw) as List).map((e) => DeckApp.fromJson(Map<String, dynamic>.from(e as Map))).toList();
-          if (saved.isNotEmpty && mounted) setState(() => apps = saved);
-        }
-      }
+      await controller.load();
+      if (mounted) setState(() => apps = controller.apps.toList());
     } catch (_) {
       cloudError = widget.cloudUserId != null;
-      if (cloudError && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cloud database not ready. Follow the SQL setup in the repository README.')));
-    } finally { if (mounted) setState(() => loading = false); }
-  }
-
-  Future<void> _saveLocal() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('controldeck.apps', jsonEncode(apps.map((a) => a.toJson()).toList()));
-  }
-
-  Future<void> _persist(DeckApp app, {bool insert = false, bool delete = false}) async {
-    if (widget.cloudUserId != null) {
-      final client = Supabase.instance.client;
-      if (delete) {
-        await client.from('controldeck_apps').delete().eq('id', app.id).eq('owner_id', widget.cloudUserId!);
-      } else if (insert) {
-        await client.from('controldeck_apps').insert(app.toJson(ownerId: widget.cloudUserId));
-      } else {
-        await client.from('controldeck_apps').update(app.toJson(ownerId: widget.cloudUserId)).eq('id', app.id).eq('owner_id', widget.cloudUserId!);
+      if (cloudError && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cloud database not ready. Follow the SQL setup in the repository README.')),
+        );
       }
-    } else { await _saveLocal(); }
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
   }
 
   List<DeckApp> get shown {
@@ -378,15 +369,24 @@ class _DeckHomeState extends State<DeckHome> {
         item.iconKey = icon;
         if (isNew) apps.add(item);
       });
-      try { await _persist(item, insert: isNew); }
-      catch (_) { message('Could not save to the cloud. Check the ControlDeck SQL setup.'); }
+      try {
+        await controller.save(item, isNew: isNew);
+        if (mounted) setState(() => apps = controller.apps.toList());
+      } catch (_) {
+        message('Could not save to the cloud. Check the ControlDeck SQL setup.');
+      }
     }
     name.dispose(); description.dispose();
   }
 
   Future<void> toggleFavorite(DeckApp app) async {
     setState(() => app.favorite = !app.favorite);
-    try { await _persist(app); } catch (_) { message('Could not sync this change to the cloud.'); }
+    try {
+      // The controller persists the updated model through the repository.
+      await controller.toggleFavorite(app);
+    } catch (_) {
+      message('Could not sync this change to the cloud.');
+    }
   }
 
   Future<void> removeApp(DeckApp app) async {
@@ -397,7 +397,11 @@ class _DeckHomeState extends State<DeckHome> {
         FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove'))]));
     if (confirm != true) return;
     setState(() => apps.removeWhere((x) => x.id == app.id));
-    try { await _persist(app, delete: true); } catch (_) { message('Could not sync removal to the cloud.'); }
+    try {
+      await controller.remove(app);
+    } catch (_) {
+      message('Could not sync removal to the cloud.');
+    }
   }
 
   @override Widget build(BuildContext context) {
