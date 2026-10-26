@@ -608,6 +608,7 @@ class _NotesFullNativeScreenState extends State<NotesFullNativeScreen> {
   ])));
   List<Widget> homeView(ThemeData theme) => [
     const _NotesHero(title: 'Welcome to Notes', subtitle: 'Your coding curriculum, lessons and learning progress in one place.'),
+    const SizedBox(height:10),
     LayoutBuilder(builder: (context, constraints) {
       final columns = constraints.maxWidth > 700 ? 3 : 1;
       return GridView.count(
