@@ -921,11 +921,18 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
             PopupMenuItem(value:'Copy to clipboard',child:Text('Copy to clipboard')),
             PopupMenuItem(value:'Export as CSV',child:Text('Export as CSV')),
           ],
-          child:OutlinedButton.icon(
-            onPressed:null,
-            icon:const Icon(Icons.file_download_outlined,size:18),
-            label:const Text('Export Report',maxLines:1,overflow:TextOverflow.ellipsis),
-            style:OutlinedButton.styleFrom(padding:const EdgeInsets.symmetric(horizontal:10),minimumSize:const Size(0,48)),
+          child:Container(
+            height:48,
+            padding:const EdgeInsets.symmetric(horizontal:10),
+            decoration:BoxDecoration(
+              border:Border.all(color:Theme.of(context).colorScheme.outline),
+              borderRadius:BorderRadius.circular(8),
+            ),
+            child:Row(mainAxisSize:MainAxisSize.min,children:[
+              const Icon(Icons.file_download_outlined,size:18),
+              const SizedBox(width:6),
+              const Text('Export Report',maxLines:1,overflow:TextOverflow.ellipsis),
+            ]),
           ),
         )),
         const SizedBox(width:4),
