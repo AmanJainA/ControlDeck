@@ -697,7 +697,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         const SizedBox(height:10),
         if(!busy && filtered.isEmpty)const EmptyRailway(title:'No Nangia documents found',detail:'No records match the Nangia menu or your search.'),
         for(final f in filtered)
-          Card(clipBehavior:Clip.antiAlias,child:ListTile(
+          Card(margin:const EdgeInsets.only(bottom:5),clipBehavior:Clip.antiAlias,child:ListTile(
             leading:fileIcon((f['type']??'').toString()),
             title:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w700)),
             subtitle:Text([
@@ -726,7 +726,17 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         const SizedBox(height:10),
         TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search_rounded),labelText:'Search reports and documents')),const SizedBox(height:10),
         if(filtered.isEmpty)const EmptyRailway(title:'No files found',detail:'No active documents match the selected folder, type and search.'),
-        if(filtered.isNotEmpty)Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columnSpacing:22,columns:const [DataColumn(label:Text('Document')),DataColumn(label:Text('Type')),DataColumn(label:Text('Folder')),DataColumn(label:Text('Uploaded by')),DataColumn(label:Text('Uploaded at')),DataColumn(label:Text('Open'))],rows:filtered.map((f)=>DataRow(onSelectChanged:(_)=>showFile(f),cells:[DataCell(SizedBox(width:220,child:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis))),DataCell(Row(mainAxisSize:MainAxisSize.min,children:[fileIcon((f['type']??'').toString()),const SizedBox(width:6),Text((f['type']??'FILE').toString().toUpperCase())])),DataCell(Text((f['folder']??'—').toString())),DataCell(Text((f['uploaded_by']??'—').toString())),DataCell(Text((f['uploaded_at']??'—').toString())),DataCell(IconButton(tooltip:'Open details',onPressed:()=>showFile(f),icon:const Icon(Icons.open_in_new_rounded)))])).toList()))),
+        if(filtered.isNotEmpty && (menu?['menuname']??'').toString().trim().toLowerCase() == 'my data')
+          for(final f in filtered)
+            Card(margin:const EdgeInsets.only(bottom:5),clipBehavior:Clip.antiAlias,child:ListTile(
+              leading:fileIcon((f['type']??'').toString()),
+              title:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w700)),
+              subtitle:Text((f['type']??'FILE').toString().toUpperCase(),maxLines:1,overflow:TextOverflow.ellipsis),
+              trailing:TextButton.icon(onPressed:()=>openDocument(f),icon:const Icon(Icons.open_in_new_rounded,size:18),label:const Text('Open')),
+              onTap:()=>showFile(f),
+            )),
+        if(filtered.isNotEmpty && (menu?['menuname']??'').toString().trim().toLowerCase() != 'my data')
+          Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columnSpacing:22,columns:const [DataColumn(label:Text('Document')),DataColumn(label:Text('Type')),DataColumn(label:Text('Folder')),DataColumn(label:Text('Uploaded by')),DataColumn(label:Text('Uploaded at')),DataColumn(label:Text('Open'))],rows:filtered.map((f)=>DataRow(onSelectChanged:(_)=>showFile(f),cells:[DataCell(SizedBox(width:220,child:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis))),DataCell(Row(mainAxisSize:MainAxisSize.min,children:[fileIcon((f['type']??'').toString()),const SizedBox(width:6),Text((f['type']??'FILE').toString().toUpperCase())])),DataCell(Text((f['folder']??'—').toString())),DataCell(Text((f['uploaded_by']??'—').toString())),DataCell(Text((f['uploaded_at']??'—').toString())),DataCell(IconButton(tooltip:'Open details',onPressed:()=>showFile(f),icon:const Icon(Icons.open_in_new_rounded)))])).toList()))),
       ],
     ])));
   }
