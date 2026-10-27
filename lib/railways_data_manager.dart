@@ -20,19 +20,19 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
 
   static const Map<String,List<Map<String,dynamic>>> fields = {
     'main_heading_master': [
-      {'key':'headingname','label':'Heading name'}, {'key':'status','label':'Status (1 active, 0 inactive'}, {'key':'created_by','label':'Created by'}
+      {'key':'headingname','label':'Heading name'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
     ],
     'menu_master': [
-      {'key':'menuname','label':'Menu name'}, {'key':'main_heading_id','label':'Main heading ID'}, {'key':'status','label':'Status (1 active, 0 inactive'}, {'key':'created_by','label':'Created by'}
+      {'key':'menuname','label':'Menu name'}, {'key':'main_heading_id','label':'Main heading'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
     ],
     'folder_master': [
-      {'key':'foldername','label':'Folder name'}, {'key':'main_heading_id','label':'Main heading ID'}, {'key':'menu_id','label':'Menu ID'}, {'key':'status','label':'Status (1 active, 0 inactive'}, {'key':'created_by','label':'Created by'}
+      {'key':'foldername','label':'Folder name'}, {'key':'main_heading_id','label':'Main heading'}, {'key':'menu_id','label':'Menu'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
     ],
     'user_main_heading_access': [
-      {'key':'user_id','label':'User ID'}, {'key':'main_heading_id','label':'Main heading ID'}, {'key':'created_by','label':'Created by'}
+      {'key':'user_id','label':'User ID'}, {'key':'main_heading_id','label':'Main heading'}, {'key':'created_by','label':'Created by'}
     ],
     'user_menu_access': [
-      {'key':'user_id','label':'User ID'}, {'key':'menu_id','label':'Menu ID'}, {'key':'created_by','label':'Created by'}
+      {'key':'user_id','label':'User ID'}, {'key':'menu_id','label':'Menu'}, {'key':'created_by','label':'Created by'}
     ],
     'users': [
       {'key':'username','label':'Username'}, {'key':'password','label':'Password'}, {'key':'role','label':'Role: admin / subadmin / user'}, {'key':'email','label':'Email'}, {'key':'dept','label':'Department'}, {'key':'project','label':'Project'}
@@ -41,10 +41,10 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       {'key':'work_item_id','label':'Work item ID'}, {'key':'datacollection_id','label':'Document ID'}, {'key':'relation_type','label':'Relation type'}, {'key':'created_by','label':'Created by user ID'}
     ],
     'work_items': [
-      {'key':'title','label':'Title'}, {'key':'description','label':'Description','multi':true}, {'key':'main_heading_id','label':'Main heading ID'}, {'key':'menu_id','label':'Menu ID'}, {'key':'folder_id','label':'Folder ID'}, {'key':'parent_id','label':'Parent task ID'}, {'key':'work_type','label':'Work type'}, {'key':'status','label':'Status: todo / in_progress / done / blocked'}, {'key':'priority','label':'Priority: low / medium / high / urgent'}, {'key':'assigned_to','label':'Assigned user ID'}, {'key':'due_date','label':'Due date YYYY-MM-DD'}, {'key':'sort_order','label':'Sort order'}, {'key':'created_by','label':'Created by user ID'}
+      {'key':'title','label':'Title'}, {'key':'description','label':'Description','multi':true}, {'key':'main_heading_id','label':'Main heading'}, {'key':'menu_id','label':'Menu'}, {'key':'folder_id','label':'Folder ID'}, {'key':'parent_id','label':'Parent task ID'}, {'key':'work_type','label':'Work type'}, {'key':'status','label':'Status: todo / in_progress / done / blocked'}, {'key':'priority','label':'Priority: low / medium / high / urgent'}, {'key':'assigned_to','label':'Assigned user ID'}, {'key':'due_date','label':'Due date YYYY-MM-DD'}, {'key':'sort_order','label':'Sort order'}, {'key':'created_by','label':'Created by user ID'}
     ],
     'datacollection': [
-      {'key':'name','label':'Document title'}, {'key':'links','label':'Storage path or URL','multi':true}, {'key':'type','label':'File type'}, {'key':'main_heading_id','label':'Main heading ID'}, {'key':'menu_id','label':'Menu ID'}, {'key':'folder_id','label':'Folder ID'}, {'key':'menuname','label':'Menu name'}, {'key':'folder','label':'Folder name'}, {'key':'status','label':'Status: 0 pending, 1 approved, 2 rejected'}, {'key':'remark','label':'Remark','multi':true}, {'key':'uploaded_by','label':'Uploaded by'}, {'key':'source_type','label':'Source type'}
+      {'key':'name','label':'Document title'}, {'key':'links','label':'Storage path or URL','multi':true}, {'key':'type','label':'File type'}, {'key':'main_heading_id','label':'Main heading'}, {'key':'menu_id','label':'Menu'}, {'key':'folder_id','label':'Folder ID'}, {'key':'menuname','label':'Menu name'}, {'key':'folder','label':'Folder name'}, {'key':'status','label':'Status: 0 pending, 1 approved, 2 rejected'}, {'key':'remark','label':'Remark','multi':true}, {'key':'uploaded_by','label':'Uploaded by'}, {'key':'source_type','label':'Source type'}
     ],
   };
 
@@ -57,7 +57,19 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       final data = widget.table == 'user_presence'
           ? await widget.db.from(widget.table).select('*').order('last_seen', ascending: false)
           : await widget.db.from(widget.table).select('*').order('id', ascending: false);
-      if (mounted) setState(() { rows = List<Map<String,dynamic>>.from(data); busy = false; });
+      var loaded = List<Map<String,dynamic>>.from(data);
+      if (['menu_master','folder_master'].contains(widget.table)) {
+        final headingRows = await widget.db.from('main_heading_master').select('id,headingname');
+        final headingNames = {for (final h in headingRows) (h['id'] as num).toInt(): (h['headingname'] ?? '').toString()};
+        final menuRows = await widget.db.from('menu_master').select('id,menuname');
+        final menuNames = {for (final m in menuRows) (m['id'] as num).toInt(): (m['menuname'] ?? '').toString()};
+        loaded = loaded.map((row) => {
+          ...row,
+          if (row['main_heading_id'] != null) 'main_heading_name': headingNames[(row['main_heading_id'] as num).toInt()] ?? 'Unknown heading',
+          if (row['menu_id'] != null) 'menu_name': menuNames[(row['menu_id'] as num).toInt()] ?? 'Unknown menu',
+        }).toList();
+      }
+      if (mounted) setState(() { rows = loaded; busy = false; });
     } catch (e) {
       if (mounted) setState(() { error = e.toString().replaceFirst('Exception: ', ''); busy = false; });
     }
@@ -199,7 +211,20 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
                         .where((f) => f['key'] != 'password').take(5);
                     return DataRow(cells: [
                       DataCell(SizedBox(width: 150, child: Text(title.toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
-                      ...visibleFields.map((f) => DataCell(SizedBox(width: 130, child: Text((row[f['key'].toString()] ?? '—').toString(), maxLines: 2, overflow: TextOverflow.ellipsis)))),
+                      ...visibleFields.map((f) {
+                        final key = f['key'].toString();
+                        if (key == 'status' && ['main_heading_master','menu_master','folder_master'].contains(widget.table)) {
+                          final active = (row[key] ?? '0').toString() == '1';
+                          return DataCell(Switch(value: active, onChanged: (value) async {
+                            try {
+                              await widget.db.from(widget.table).update({'status': value ? '1' : '0'}).eq('id', row['id']);
+                              await load();
+                            } catch (e) { if (mounted) setState(() => error = e.toString().replaceFirst('Exception: ', '')); }
+                          }));
+                        }
+                        final displayKey = key == 'main_heading_id' ? 'main_heading_name' : key == 'menu_id' ? 'menu_name' : key;
+                        return DataCell(SizedBox(width: 130, child: Text((row[displayKey] ?? row[key] ?? '—').toString(), maxLines: 2, overflow: TextOverflow.ellipsis)));
+                      }),
                       DataCell(readOnly ? const Icon(Icons.chevron_right_rounded) : PopupMenuButton<String>(
                         onSelected: (v) { if (v == 'edit') edit(row); if (v == 'delete') remove(row); },
                         itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('Edit')), PopupMenuItem(value: 'delete', child: Text('Delete'))],
