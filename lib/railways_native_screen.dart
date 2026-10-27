@@ -530,19 +530,23 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       file['links'],
     ].where((value) => value != null).map((value) => value.toString().toLowerCase()).toList();
     final typeText = values.join(' ');
+    final declaredType = (file['type'] ?? '').toString().toLowerCase().trim();
     switch (typeFilter) {
       case 'img':
-        return ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'tif', 'tiff']
+        return ['img', 'image', 'images', 'picture', 'photo'].contains(declaredType)
+            || ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'tif', 'tiff']
             .any((ext) => RegExp(r'(^|[. /])' + ext + r'($|[? ;/])').hasMatch(typeText))
             || typeText.contains('image/');
       case 'pdf':
-        return typeText.contains('pdf') || typeText.contains('application/pdf');
+        return ['pdf', 'application/pdf'].contains(declaredType) || typeText.contains('pdf');
       case 'doc':
-        return ['doc', 'docx', 'odt', 'rtf'].any((ext) =>
+        return ['doc', 'docx', 'word', 'document'].contains(declaredType)
+            || ['doc', 'docx', 'odt', 'rtf'].any((ext) =>
             RegExp(r'(^|[. /])' + ext + r'($|[? ;/])').hasMatch(typeText))
             || typeText.contains('wordprocessingml') || typeText.contains('msword');
       case 'xls':
-        return ['xls', 'xlsx', 'csv', 'ods'].any((ext) =>
+        return ['xls', 'xlsx', 'excel', 'spreadsheet', 'csv'].contains(declaredType)
+            || ['xls', 'xlsx', 'csv', 'ods'].any((ext) =>
             RegExp(r'(^|[. /])' + ext + r'($|[? ;/])').hasMatch(typeText))
             || typeText.contains('spreadsheet') || typeText.contains('excel') || typeText.contains('text/csv');
       default:
