@@ -82,6 +82,12 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       final key = f['key'].toString();
       controllers[key] = TextEditingController(text: old?[key]?.toString() ?? '');
     }
+    if (widget.table == 'work_items' && old != null) {
+      try {
+        final links = await widget.db.from('work_item_links').select('datacollection_id').eq('work_item_id', old['id']);
+        controllers['linked_document_ids']?.text = links.map((x) => x['datacollection_id'].toString()).join(', ');
+      } catch (_) {}
+    }
     final accepted = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
       title: Text((old == null ? 'Add ' : 'Edit ') + widget.title),
       content: SizedBox(width: 540, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -117,6 +123,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       for (final f in spec) {
         final key = f['key'].toString();
         final value = controllers[key]!.text.trim();
+        if (key == 'linked_document_ids') continue;
         if (value.isEmpty) { payload[key] = null; continue; }
         final numericKeys = <String>{'main_heading_id','menu_id','folder_id','parent_id','assigned_to','sort_order'};
         if (widget.table == 'work_items') numericKeys.add('created_by');
@@ -137,10 +144,28 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       }
       setState(() { busy = true; error = null; });
       try {
+        dynamic savedId = old?['id'];
         if (old != null) {
           await widget.db.from(widget.table).update(payload).eq('id', old['id']);
         } else {
-          await widget.db.from(widget.table).insert(payload);
+          if (widget.table == 'work_items') {
+            final inserted = await widget.db.from(widget.table).insert(payload).select('id').single();
+            savedId = inserted['id'];
+          } else {
+            await widget.db.from(widget.table).insert(payload);
+          }
+        }
+        if (widget.table == 'work_items' && savedId != null) {
+          await widget.db.from('work_item_links').delete().eq('work_item_id', savedId);
+          final ids = (controllers['linked_document_ids']?.text ?? '').split(',').map((v) => int.tryParse(v.trim())).whereType<int>().toSet().toList();
+          if (ids.isNotEmpty) {
+            await widget.db.from('work_item_links').insert(ids.map((id) => {
+              'work_item_id': savedId,
+              'datacollection_id': id,
+              'relation_type': 'deliverable',
+              'created_by': widget.user['id'],
+            }).toList());
+          }
         }
         await load();
       } catch (e) {
