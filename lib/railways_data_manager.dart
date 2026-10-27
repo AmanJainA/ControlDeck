@@ -35,7 +35,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       {'key':'user_id','label':'User ID'}, {'key':'menu_id','label':'Menu'}, {'key':'created_by','label':'Created by'}
     ],
     'users': [
-      {'key':'username','label':'Username'}, {'key':'password','label':'Password'}, {'key':'role','label':'Role: admin / subadmin / user'}, {'key':'email','label':'Email'}, {'key':'dept','label':'Department'}, {'key':'project','label':'Project'}
+      {'key':'username','label':'Username'}, {'key':'password','label':'Password'}, {'key':'role','label':'Role: admin / subadmin / user'}, {'key':'email','label':'Email'}, {'key':'dept','label':'Department'}, {'key':'project','label':'Project'}, {'key':'menu_access_ids','label':'Menu access IDs (comma separated)'}
     ],
     'work_item_links': [
       {'key':'work_item_id','label':'Work item ID'}, {'key':'datacollection_id','label':'Document ID'}, {'key':'relation_type','label':'Relation type'}, {'key':'created_by','label':'Created by user ID'}
@@ -88,6 +88,12 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
         controllers['linked_document_ids']?.text = links.map((x) => x['datacollection_id'].toString()).join(', ');
       } catch (_) {}
     }
+    if (widget.table == 'users' && old != null) {
+      try {
+        final access = await widget.db.from('user_menu_access').select('menu_id').eq('user_id', old['id']);
+        controllers['menu_access_ids']?.text = access.map((x) => x['menu_id'].toString()).join(', ');
+      } catch (_) {}
+    }
     final accepted = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
       title: Text((old == null ? 'Add ' : 'Edit ') + widget.title),
       content: SizedBox(width: 540, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -123,7 +129,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       for (final f in spec) {
         final key = f['key'].toString();
         final value = controllers[key]!.text.trim();
-        if (key == 'linked_document_ids') continue;
+        if (key == 'linked_document_ids' || key == 'menu_access_ids') continue;
         if (value.isEmpty) { payload[key] = null; continue; }
         final numericKeys = <String>{'main_heading_id','menu_id','folder_id','parent_id','assigned_to','sort_order'};
         if (widget.table == 'work_items') numericKeys.add('created_by');
@@ -148,7 +154,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
         if (old != null) {
           await widget.db.from(widget.table).update(payload).eq('id', old['id']);
         } else {
-          if (widget.table == 'work_items') {
+          if (widget.table == 'work_items' || widget.table == 'users') {
             final inserted = await widget.db.from(widget.table).insert(payload).select('id').single();
             savedId = inserted['id'];
           } else {
@@ -163,6 +169,17 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
               'work_item_id': savedId,
               'datacollection_id': id,
               'relation_type': 'deliverable',
+              'created_by': widget.user['id'],
+            }).toList());
+          }
+        }
+        if (widget.table == 'users' && savedId != null) {
+          await widget.db.from('user_menu_access').delete().eq('user_id', savedId);
+          final menuIds = (controllers['menu_access_ids']?.text ?? '').split(',').map((v) => int.tryParse(v.trim())).whereType<int>().toSet().toList();
+          if (menuIds.isNotEmpty) {
+            await widget.db.from('user_menu_access').insert(menuIds.map((id) => {
+              'user_id': savedId,
+              'menu_id': id,
               'created_by': widget.user['id'],
             }).toList());
           }
