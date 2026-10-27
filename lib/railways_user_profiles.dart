@@ -118,7 +118,7 @@ class _RailwaysUserProfilesState extends State<RailwaysUserProfiles> {
           if (availableMenus.isEmpty) const Align(alignment: Alignment.centerLeft, child: Text('Select a main heading to see its menus.')),
           ...availableMenus.map((m) {
             final id = (m['id'] as num).toInt();
-            final h = headings.where((x) => (x['id'] as num).toInt() == (m['main_heading_id'] as num).toInt()).firstOrNull;
+            Map<String, dynamic>? h;\n            for (final candidate in headings) { if ((candidate['id'] as num).toInt() == (m['main_heading_id'] as num).toInt()) { h = candidate; break; } }
             return CheckboxListTile(dense: true, contentPadding: EdgeInsets.zero, value: selectedMenus.contains(id), title: Text((m['menuname'] ?? '').toString()), subtitle: Text((h?['headingname'] ?? '').toString()), onChanged: (v) => setDialog(() { if (v == true) { if (!selectedMenus.contains(id)) selectedMenus.add(id); } else { selectedMenus.remove(id); } }));
           }),
         ]))),
