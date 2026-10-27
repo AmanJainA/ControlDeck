@@ -857,8 +857,9 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     final uniquePages = trackingRows.map((r)=>r['page_name']).where((v)=>v!=null && v.toString().isNotEmpty).toSet().length;
     final totalVisits = trackingRows.fold<int>(0,(sum,r)=>sum+((num.tryParse((r['visit_count']??1).toString())??1).toInt()));
     final adminLogins = trackingRows.where((r)=>(r['role']??'').toString().toLowerCase()=='admin').length;
+    final trackingCardWidth = (MediaQuery.of(context).size.width - 56).clamp(120.0, 1000.0) / 2;
     Widget stat(String label,String value,IconData icon,Color color) => SizedBox(
-      width: 190,
+      width: trackingCardWidth,
       child: Card(child: Padding(
         padding: const EdgeInsets.all(14),
         child: Row(children:[
@@ -882,8 +883,6 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       return value.toString();
     }
     return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      hero('Manage Tracking','Monitor active users, login history and page activity.',Icons.monitor_heart_outlined),
-      const SizedBox(height:16),
       SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[for(final tab in tabs)Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(avatar:Icon(tab.icon,size:18),label:Text(tab.label),selected:trackingTab==tab.id,onSelected:(_)=>loadTracking(tab.id)))])),
       const SizedBox(height:12),
       if (trackingTab=='login') Wrap(spacing:10,runSpacing:8,children:[
@@ -901,24 +900,41 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       const SizedBox(height:12),
       TextField(onChanged:(v)=>setState(()=>trackingSearch=v),decoration:InputDecoration(prefixIcon:const Icon(Icons.search_rounded),labelText:trackingTab=='online'?'Search username, email or role':trackingTab=='login'?'Search login history':'Search page activity',isDense:true,suffixIcon:trackingSearch.isEmpty?null:IconButton(onPressed:()=>setState(()=>trackingSearch=''),icon:const Icon(Icons.clear_rounded)))),
       const SizedBox(height:8),
-      Wrap(spacing:8,runSpacing:8,crossAxisAlignment:WrapCrossAlignment.center,children:[
-        if(trackingTab=='online'||trackingTab=='login') SizedBox(width:180,child:DropdownButtonFormField<String>(
+      Row(children:[
+        Expanded(child:SizedBox(height:48,child:DropdownButtonFormField<String>(
           value:trackingRoleFilter,
-          decoration:const InputDecoration(labelText:'Role',border:OutlineInputBorder(),isDense:true,contentPadding:EdgeInsets.symmetric(horizontal:8,vertical:12)),
+          decoration:InputDecoration(
+            labelText:trackingTab=='activity'?'Page':'Role',
+            border:const OutlineInputBorder(),
+            isDense:true,
+            contentPadding:const EdgeInsets.symmetric(horizontal:10,vertical:10),
+          ),
           isExpanded:true,
-          items:[const DropdownMenuItem(value:'all',child:Text('All roles')),...roles.map((r)=>DropdownMenuItem(value:r,child:Text(r[0].toUpperCase()+r.substring(1))))],
-          onChanged:(v)=>setState(()=>trackingRoleFilter=v??'all'))),
-        if(trackingTab=='activity') SizedBox(width:220,child:DropdownButtonFormField<String>(
-          value:trackingRoleFilter,
-          decoration:const InputDecoration(labelText:'Page',border:OutlineInputBorder(),isDense:true,contentPadding:EdgeInsets.symmetric(horizontal:8,vertical:12)),
-          isExpanded:true,
-          items:[const DropdownMenuItem(value:'all',child:Text('All pages')),...pages.map((p)=>DropdownMenuItem(value:p,child:Text(p,overflow:TextOverflow.ellipsis)))],
-          onChanged:(v)=>setState(()=>trackingRoleFilter=v??'all'))),
-        PopupMenuButton<String>(onSelected:exportTracking,itemBuilder:(_)=>const [
-          PopupMenuItem(value:'Copy to clipboard',child:Text('Copy to clipboard')),
-          PopupMenuItem(value:'Export as CSV',child:Text('Export as CSV')),
-        ],child:const Chip(avatar:Icon(Icons.file_download_outlined),label:Text('Export Report'))),
-        IconButton(tooltip:'Refresh tracking data',onPressed:()=>loadTracking(trackingTab),icon:const Icon(Icons.refresh_rounded)),
+          items:trackingTab=='activity'
+            ? [const DropdownMenuItem(value:'all',child:Text('All pages')),...pages.map((p)=>DropdownMenuItem(value:p,child:Text(p,overflow:TextOverflow.ellipsis)))]
+            : [const DropdownMenuItem(value:'all',child:Text('All roles')),...roles.map((r)=>DropdownMenuItem(value:r,child:Text(r[0].toUpperCase()+r.substring(1),overflow:TextOverflow.ellipsis)))],
+          onChanged:(v)=>setState(()=>trackingRoleFilter=v??'all')))),
+        const SizedBox(width:8),
+        SizedBox(height:48,child:PopupMenuButton<String>(
+          onSelected:exportTracking,
+          itemBuilder:(_)=>const [
+            PopupMenuItem(value:'Copy to clipboard',child:Text('Copy to clipboard')),
+            PopupMenuItem(value:'Export as CSV',child:Text('Export as CSV')),
+          ],
+          child:OutlinedButton.icon(
+            onPressed:null,
+            icon:const Icon(Icons.file_download_outlined,size:18),
+            label:const Text('Export Report',maxLines:1,overflow:TextOverflow.ellipsis),
+            style:OutlinedButton.styleFrom(padding:const EdgeInsets.symmetric(horizontal:10),minimumSize:const Size(0,48)),
+          ),
+        )),
+        const SizedBox(width:4),
+        SizedBox(width:44,height:48,child:IconButton(
+          tooltip:'Refresh tracking data',
+          onPressed:()=>loadTracking(trackingTab),
+          icon:const Icon(Icons.refresh_rounded),
+          padding:EdgeInsets.zero,
+        )),
       ]),
       if(error!=null)Card(color:Theme.of(context).colorScheme.errorContainer,child:Padding(padding:const EdgeInsets.all(12),child:Text(error!))),
       if(busy)const LinearProgressIndicator(),
