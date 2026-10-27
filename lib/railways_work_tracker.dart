@@ -101,9 +101,9 @@ class _RailwaysWorkTrackerState extends State<RailwaysWorkTracker> {
     }).toList();
   }
 
-  String headingName(dynamic id) => headings.where((h) => h['id'].toString() == id.toString()).map((h) => (h['headingname'] ?? '').toString()).firstOrNull ?? 'Heading #$id';
-  String menuName(dynamic id) => menus.where((m) => m['id'].toString() == id.toString()).map((m) => (m['menuname'] ?? '').toString()).firstOrNull ?? 'Menu #$id';
-  String folderName(dynamic id) => folders.where((f) => f['id'].toString() == id.toString()).map((f) => (f['foldername'] ?? '').toString()).firstOrNull ?? '';
+  String headingName(dynamic id) { for (final h in headings) { if (h['id'].toString() == id.toString()) return (h['headingname'] ?? '').toString(); } return 'Heading #$id'; }
+  String menuName(dynamic id) { for (final m in menus) { if (m['id'].toString() == id.toString()) return (m['menuname'] ?? '').toString(); } return 'Menu #$id'; }
+  String folderName(dynamic id) { for (final f in folders) { if (f['id'].toString() == id.toString()) return (f['foldername'] ?? '').toString(); } return ''; }
 
   List<Map<String, dynamic>> get treeItems {
     final rows = visibleItems;
@@ -282,12 +282,13 @@ class _RailwaysWorkTrackerState extends State<RailwaysWorkTracker> {
   Widget _workCard(Map<String, dynamic> row) {
     final depth = (row['_depth'] as int?) ?? 0;
     final status = (row['status'] ?? 'todo').toString(), priority = (row['priority'] ?? 'medium').toString();
-    final type = workTypes.where((w) => w['value'] == row['work_type']).map((w) => w['label']).firstOrNull ?? (row['work_type'] ?? 'General Todo').toString();
+    var type = (row['work_type'] ?? 'General Todo').toString();
+    for (final workType in workTypes) { if (workType['value'] == row['work_type']) { type = workType['label']!; break; } }
     final linked = (row['links'] as List? ?? const []).cast<Map<String, dynamic>>();
     final docsById = {for (final d in documents) (d['id'] as num).toInt(): d};
     final due = DateTime.tryParse((row['due_date'] ?? '').toString());
     Color color(String s) => s == 'done' ? Colors.green : s == 'in_progress' ? Colors.blue : s == 'blocked' ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.outline;
-    Widget chip(String text, Color c) => Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: c.withValues(alpha: .12), borderRadius: BorderRadius.circular(20)), child: Text(text, style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w700)));
+    Widget chip(String text, Color c) => Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: c.withOpacity(.12), borderRadius: BorderRadius.circular(20)), child: Text(text, style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w700)));
     return Padding(padding: EdgeInsets.only(left: (depth * 12).clamp(0, 48).toDouble(), bottom: 8), child: Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Icon(depth > 0 ? Icons.subdirectory_arrow_right_rounded : Icons.task_alt_rounded, color: Theme.of(context).colorScheme.primary),
