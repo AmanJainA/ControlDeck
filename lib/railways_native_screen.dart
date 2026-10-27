@@ -463,10 +463,27 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   Future<void> loadTracking(String tab) async {
     if (!admin) return;
     final table = tab == 'online' ? 'user_presence' : tab == 'login' ? 'login_history' : 'page_activity';
-    setState(() { view = 'tracking'; trackingTab = tab; trackingRows = []; busy = true; error = null; });
+    setState(() { view = 'tracking'; trackingTab = tab; trackingRows = []; trackingSearch = ''; busy = true; error = null; });
     try {
-      final rows = await db.from(table).select('*').limit(200);
-      if (mounted) setState(() { trackingRows = List<Map<String,dynamic>>.from(rows); });
+      final raw = await db.from(table).select('*').limit(500);
+      var rows = List<Map<String,dynamic>>.from(raw);
+      if (tab == 'online' && rows.isNotEmpty) {
+        final userIds = rows.map((r) => r['user_id']).where((id) => id != null).toSet().toList();
+        final userRows = userIds.isEmpty ? <dynamic>[] : await db.from('users').select('id,username,email,role').inFilter('id', userIds);
+        final usersById = {for (final u in userRows) u['id'].toString(): u};
+        rows = rows.map((r) {
+          final u = usersById[(r['user_id'] ?? '').toString()] ?? <String,dynamic>{};
+          final lastSeen = DateTime.tryParse((r['last_seen'] ?? r['last_activity'] ?? '').toString());
+          final active = lastSeen != null && DateTime.now().difference(lastSeen.toLocal()).inMinutes <= 5;
+          return <String,dynamic>{
+            'username': u['username'] ?? r['username'] ?? '—',
+            'email': u['email'] ?? r['email'] ?? '—',
+            'role': u['role'] ?? r['role'] ?? '—',
+            'last_activity_status': active ? 'Online' : 'Inactive',
+          };
+        }).toList();
+      }
+      if (mounted) setState(() { trackingRows = rows; });
     } catch (e) {
       if (mounted) setState(() => error = message(e));
     } finally {
