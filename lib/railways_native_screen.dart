@@ -931,7 +931,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
             labelText:trackingTab=='activity'?'Page':'Role',
             border:const OutlineInputBorder(),
             isDense:true,
-            contentPadding:const EdgeInsets.symmetric(horizontal:10,vertical:10),
+            contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
           ),
           isExpanded:true,
           items:trackingTab=='activity'
