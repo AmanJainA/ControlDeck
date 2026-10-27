@@ -939,7 +939,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
             : [const DropdownMenuItem(value:'all',child:Text('All roles')),...roles.map((r)=>DropdownMenuItem(value:r,child:Text(r[0].toUpperCase()+r.substring(1),overflow:TextOverflow.ellipsis)))],
           onChanged:(v)=>setState(()=>trackingRoleFilter=v??'all')))),
         const SizedBox(width:8),
-        SizedBox(width:150,height:48,child:PopupMenuButton<String>(
+        SizedBox(height:48,child:PopupMenuButton<String>(
           onSelected:exportTracking,
           itemBuilder:(_)=>const [
             PopupMenuItem(value:'Copy to clipboard',child:Text('Copy to clipboard')),
