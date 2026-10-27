@@ -797,7 +797,31 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
               ),
             ),
         if(filtered.isNotEmpty && (menu?['menuname']??'').toString().trim().toLowerCase() != 'my data')
-          Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columnSpacing:22,columns:const [DataColumn(label:Text('Document')),DataColumn(label:Text('Type')),DataColumn(label:Text('Folder')),DataColumn(label:Text('Uploaded by')),DataColumn(label:Text('Uploaded at')),DataColumn(label:Text('Open'))],rows:filtered.map((f)=>DataRow(onSelectChanged:(_)=>showFile(f),cells:[DataCell(SizedBox(width:220,child:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis))),DataCell(Row(mainAxisSize:MainAxisSize.min,children:[fileIcon((f['type']??'').toString()),const SizedBox(width:6),Text((f['type']??'FILE').toString().toUpperCase())])),DataCell(Text((f['folder']??'—').toString())),DataCell(Text((f['uploaded_by']??'—').toString())),DataCell(Text((f['uploaded_at']??'—').toString())),DataCell(IconButton(tooltip:'Open details',onPressed:()=>showFile(f),icon:const Icon(Icons.open_in_new_rounded)))])).toList()))),
+          Builder(builder:(ctx){
+            final isNRData = (heading?['headingname'] ?? '').toString().trim().toLowerCase() == 'nr data';
+            final showFolderColumn = !isNRData || filtered.any((f)=>(f['folder'] ?? '').toString().trim().isNotEmpty);
+            final columns = <DataColumn>[
+              const DataColumn(label:Text('SN')),
+              const DataColumn(label:Text('FileName')),
+              const DataColumn(label:Text('FileType')),
+              if(showFolderColumn) const DataColumn(label:Text('Folder')),
+              const DataColumn(label:Text('Open')),
+            ];
+            return Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(
+              columnSpacing:22,
+              columns:columns,
+              rows:filtered.asMap().entries.map((entry){
+                final f=entry.value;
+                return DataRow(cells:[
+                  DataCell(Text('${entry.key+1}')),
+                  DataCell(SizedBox(width:220,child:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis))),
+                  DataCell(Row(mainAxisSize:MainAxisSize.min,children:[fileIcon((f['type']??'').toString()),const SizedBox(width:6),Text((f['type']??'FILE').toString().toUpperCase())])),
+                  if(showFolderColumn) DataCell(Text((f['folder']??'').toString().trim().isEmpty?'—':(f['folder']??'').toString())),
+                  DataCell(TextButton.icon(onPressed:()=>openDocument(f),icon:const Icon(Icons.open_in_new_rounded,size:18),label:const Text('Open'))),
+                ]);
+              }).toList(),
+            )));
+          }),
       ],
     ])));
   }
