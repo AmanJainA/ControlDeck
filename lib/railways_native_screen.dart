@@ -799,8 +799,8 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     final columns = trackingRows.isEmpty ? <String>[] : trackingRows.first.keys.toList();
     final rows = <List<dynamic>>[columns, ...trackingRows.map((row) => columns.map((key) => row[key] ?? '').toList())];
     final output = mode == 'Copy to clipboard'
-        ? rows.map((row) => row.map((value) => value.toString().replaceAll('\\t', ' ')).join('\\t')).join('\\n')
-        : rows.map((row) => row.map((value) => '"${value.toString().replaceAll('"', '""')}"').join(',')).join('\\r\\n');
+        ? rows.map((row) => row.map((value) => value.toString().replaceAll(String.fromCharCode(9), ' ')).join(String.fromCharCode(9))).join(String.fromCharCode(10))
+        : rows.map((row) => row.map((value) => '"${value.toString().replaceAll('"', '""')}"').join(',')).join(String.fromCharCode(13) + String.fromCharCode(10));
     await Clipboard.setData(ClipboardData(text: output));
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(mode == 'Copy to clipboard' ? 'Tracking records copied.' : 'Tracking CSV copied. Paste it into a spreadsheet and save as CSV.')),
