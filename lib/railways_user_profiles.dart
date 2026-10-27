@@ -103,52 +103,144 @@ class _RailwaysUserProfilesState extends State<RailwaysUserProfiles> {
       } catch(e) { if(mounted)setState(()=>error=_friendly(e)); return; }
     }
     if(!mounted)return;
-    final accepted=await showDialog<bool>(context:context,barrierDismissible:false,builder:(ctx)=>StatefulBuilder(builder:(ctx,setDialog)=>AlertDialog(
-      title:Text(wasEditing?'Edit User Profile':'Add User Profile'),
-      content:SizedBox(width:640,child:ConstrainedBox(constraints:const BoxConstraints(maxHeight:620),child:SingleChildScrollView(child:Form(key:formKey,child:Column(mainAxisSize:MainAxisSize.min,children:[
-        TextFormField(controller:username,decoration:const InputDecoration(labelText:'Username *'),validator:(v)=>(v??'').trim().isEmpty?'Username is required':null),
-        const SizedBox(height:8),
-        TextFormField(controller:email,keyboardType:TextInputType.emailAddress,decoration:const InputDecoration(labelText:'Email *'),validator:(v)=>(v??'').trim().isEmpty?'Email is required':null),
-        const SizedBox(height:8),
-        TextFormField(controller:password,obscureText:true,decoration:InputDecoration(labelText:wasEditing?'New password (optional)':'Password *'),validator:(v)=>!wasEditing&&(v??'').trim().isEmpty?'Password is required':null),
-        const SizedBox(height:8),
-        DropdownButtonFormField<String>(value:role,decoration:const InputDecoration(labelText:'Role'),items:const [
-          DropdownMenuItem(value:'admin',child:Text('Admin')),DropdownMenuItem(value:'subadmin',child:Text('SubAdmin')),DropdownMenuItem(value:'user',child:Text('User')),
-        ],onChanged:(v)=>setDialog(()=>role=v??'user')),
-        const SizedBox(height:8),
-        TextFormField(controller:dept,decoration:const InputDecoration(labelText:'Department')),
-        const SizedBox(height:14),
-        Align(alignment:Alignment.centerLeft,child:Text('Main Heading Access',style:Theme.of(ctx).textTheme.titleMedium)),
-        for(final h in headings) Builder(builder:(context) {
-          final id=(h['id'] as num).toInt();
-          return CheckboxListTile(dense:true,contentPadding:EdgeInsets.zero,title:Text((h['headingname']??'').toString()),value:selectedHeadings.contains(id),onChanged:(v)=>setDialog((){
-            if(v==true) {
-              if(!selectedHeadings.contains(id))selectedHeadings.add(id);
-              for(final m in menus.where((m)=>(m['main_heading_id'] as num).toInt()==id)) { final mid=(m['id'] as num).toInt(); if(!selectedMenus.contains(mid))selectedMenus.add(mid); }
-            } else {
-              selectedHeadings.remove(id);
-              final ids=menus.where((m)=>(m['main_heading_id'] as num).toInt()==id).map((m)=>(m['id'] as num).toInt()).toSet();
-              selectedMenus.removeWhere(ids.contains);
-            }
-          }));
-        }),
-        const Divider(),
-        Align(alignment:Alignment.centerLeft,child:Text('Menu Access',style:Theme.of(ctx).textTheme.titleMedium)),
-        for(final h in headings) ...[
-          Align(alignment:Alignment.centerLeft,child:Padding(padding:const EdgeInsets.only(top:8),child:Text((h['headingname']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w700)))),
-          for(final m in menus.where((m)=>(m['main_heading_id'] as num).toInt()==(h['id'] as num).toInt()))
-            CheckboxListTile(dense:true,contentPadding:const EdgeInsets.only(left:12),title:Text((m['menuname']??'').toString()),value:selectedMenus.contains((m['id'] as num).toInt()),onChanged:selectedHeadings.contains((h['id'] as num).toInt())?(v)=>setDialog((){
-              final id=(m['id'] as num).toInt(); if(v==true){if(!selectedMenus.contains(id))selectedMenus.add(id);}else{selectedMenus.remove(id);}
-            }):null),
-        ],
-        const SizedBox(height:8),
-        Align(alignment:Alignment.centerLeft,child:Text('Project / Main Heading Access: ${selectedHeadings.isEmpty?(role=='admin'?'All Main Headings':'None assigned'):headings.where((h)=>selectedHeadings.contains((h['id'] as num).toInt())).map((h)=>h['headingname']).join(', ')}')),
-      ])))))),
-      actions:[
-        TextButton(onPressed:saving?null:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
-        FilledButton(onPressed:saving?null:()=>Navigator.pop(ctx,true),child:Text(wasEditing?'Update User':'Add User')),
-      ],
-    )));
+    final accepted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (ctx, setDialog) {
+            final formFields = <Widget>[
+              TextFormField(
+                controller: username,
+                decoration: const InputDecoration(labelText: 'Username *'),
+                validator: (v) => (v ?? '').trim().isEmpty ? 'Username is required' : null,
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: email,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Email *'),
+                validator: (v) => (v ?? '').trim().isEmpty ? 'Email is required' : null,
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: password,
+                obscureText: true,
+                decoration: InputDecoration(labelText: wasEditing ? 'New password (optional)' : 'Password *'),
+                validator: (v) => !wasEditing && (v ?? '').trim().isEmpty ? 'Password is required' : null,
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: role,
+                decoration: const InputDecoration(labelText: 'Role'),
+                items: const [
+                  DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                  DropdownMenuItem(value: 'subadmin', child: Text('SubAdmin')),
+                  DropdownMenuItem(value: 'user', child: Text('User')),
+                ],
+                onChanged: (v) => setDialog(() => role = v ?? 'user'),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(controller: dept, decoration: const InputDecoration(labelText: 'Department')),
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Main Heading Access', style: Theme.of(ctx).textTheme.titleMedium),
+              ),
+              for (final h in headings)
+                Builder(builder: (context) {
+                  final headingId = (h['id'] as num).toInt();
+                  return CheckboxListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text((h['headingname'] ?? '').toString()),
+                    value: selectedHeadings.contains(headingId),
+                    onChanged: (checked) => setDialog(() {
+                      if (checked == true) {
+                        if (!selectedHeadings.contains(headingId)) selectedHeadings.add(headingId);
+                        for (final menu in menus.where((m) => (m['main_heading_id'] as num).toInt() == headingId)) {
+                          final menuId = (menu['id'] as num).toInt();
+                          if (!selectedMenus.contains(menuId)) selectedMenus.add(menuId);
+                        }
+                      } else {
+                        selectedHeadings.remove(headingId);
+                        final menuIds = menus
+                            .where((m) => (m['main_heading_id'] as num).toInt() == headingId)
+                            .map((m) => (m['id'] as num).toInt())
+                            .toSet();
+                        selectedMenus.removeWhere(menuIds.contains);
+                      }
+                    }),
+                  );
+                }),
+              const Divider(),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Menu Access', style: Theme.of(ctx).textTheme.titleMedium),
+              ),
+              for (final h in headings) ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text((h['headingname'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                for (final menu in menus.where((m) => (m['main_heading_id'] as num).toInt() == (h['id'] as num).toInt()))
+                  CheckboxListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.only(left: 12),
+                    title: Text((menu['menuname'] ?? '').toString()),
+                    value: selectedMenus.contains((menu['id'] as num).toInt()),
+                    onChanged: selectedHeadings.contains((h['id'] as num).toInt())
+                        ? (checked) => setDialog(() {
+                              final menuId = (menu['id'] as num).toInt();
+                              if (checked == true) {
+                                if (!selectedMenus.contains(menuId)) selectedMenus.add(menuId);
+                              } else {
+                                selectedMenus.remove(menuId);
+                              }
+                            })
+                        : null,
+                  ),
+              ],
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Project / Main Heading Access: ${selectedHeadings.isEmpty ? (role == 'admin' ? 'All Main Headings' : 'None assigned') : headings.where((h) => selectedHeadings.contains((h['id'] as num).toInt())).map((h) => h['headingname']).join(', ')}',
+                ),
+              ),
+            ];
+            return AlertDialog(
+              title: Text(wasEditing ? 'Edit User Profile' : 'Add User Profile'),
+              content: SizedBox(
+                width: 640,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 620),
+                  child: SingleChildScrollView(
+                    child: Form(
+                      key: formKey,
+                      child: Column(mainAxisSize: MainAxisSize.min, children: formFields),
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: saving ? null : () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: saving ? null : () => Navigator.pop(ctx, true),
+                  child: Text(wasEditing ? 'Update User' : 'Add User'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
     if(accepted!=true)return;
     if(!(formKey.currentState?.validate()??false)) { if(mounted) setState(()=>error='Please complete the required fields.'); return; }
     setState(()=>saving=true);
