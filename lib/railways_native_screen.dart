@@ -720,25 +720,22 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
             ));
           }),
       ]else if(view=='nangia')...[
-        hero('Nangia', 'Browse the Nangia document register, search files and open project documents.', Icons.business_center_outlined),
-        const SizedBox(height:12),
         TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search_rounded),labelText:'Search Nangia documents')),
         const SizedBox(height:10),
         SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[for(final t in const ['all','img','pdf','doc','xls'])Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:Text(t=='all'?'All types':t.toUpperCase()),selected:typeFilter==t,onSelected:(_)=>setState(()=>typeFilter=t)))])),
         const SizedBox(height:10),
         if(!busy && filtered.isEmpty)const EmptyRailway(title:'No Nangia documents found',detail:'No records match the Nangia menu or your search.'),
         for(final f in filtered)
-          Card(margin:const EdgeInsets.only(bottom:5),clipBehavior:Clip.antiAlias,child:ListTile(
-            leading:fileIcon((f['type']??'').toString()),
-            title:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w700)),
-            subtitle:Text([
-              (f['type']??'FILE').toString().toUpperCase(),
-              if((f['uploaded_by']??'').toString().isNotEmpty) 'Uploaded by ${f['uploaded_by']}',
-              if(_formatDateTime(f['uploaded_at']).isNotEmpty) (f['uploaded_at']??'').toString(),
-            ].join(' · '),maxLines:2,overflow:TextOverflow.ellipsis),
-            trailing:IconButton(tooltip:'Open document',onPressed:()=>openDocument(f),icon:const Icon(Icons.open_in_new_rounded)),
-            onTap:()=>showFile(f),
-          )),
+          Card(
+            margin: const EdgeInsets.only(bottom:8),
+            clipBehavior: Clip.antiAlias,
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal:14, vertical:4),
+              title:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w700)),
+              subtitle:Text((f['type']??'FILE').toString().toUpperCase(),maxLines:1,overflow:TextOverflow.ellipsis),
+              trailing:TextButton.icon(onPressed:()=>openDocument(f),icon:const Icon(Icons.open_in_new_rounded,size:18),label:const Text('Open')),
+            ),
+          ),
       ]else if(view=='pending')...[
         hero('Pending Approvals', 'Approve or reject documents submitted by Railway users.', Icons.fact_check_outlined),
         if(files.isEmpty)const EmptyRailway(title:'No pending documents',detail:'There are no submissions waiting for approval.'),
