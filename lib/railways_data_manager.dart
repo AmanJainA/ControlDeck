@@ -17,7 +17,6 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
   String? error;
   List<Map<String,dynamic>> rows = [];
   final search = TextEditingController();
-  final headingName = TextEditingController();
   String uploadStatusFilter = '0';
 
   static const Map<String,List<Map<String,dynamic>>> fields = {
@@ -51,25 +50,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
   };
 
   @override void initState() { super.initState(); load(); }
-  @override void dispose() { search.dispose(); headingName.dispose(); super.dispose(); }
-
-  Future<void> addMainHeading() async {
-    final name = headingName.text.trim();
-    if (name.isEmpty) { setState(() => error = 'Enter a Heading Name.'); return; }
-    setState(() { busy = true; error = null; });
-    try {
-      final username = (widget.user['username'] ?? widget.user['name'] ?? 'Admin').toString();
-      await widget.db.from('main_heading_master').insert({
-        'headingname': name,
-        'status': '1',
-        'created_by': username,
-      });
-      headingName.clear();
-      await load();
-    } catch (e) {
-      if (mounted) setState(() { error = e.toString().replaceFirst('Exception: ', ''); busy = false; });
-    }
-  }
+  @override void dispose() { search.dispose(); super.dispose(); }
 
   Future<void> load() async {
     setState(() { busy = true; error = null; });
@@ -272,14 +253,6 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       appBar: widget.embedded ? null : AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: Text(widget.title), actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh_rounded))]),
       body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1100), child: Column(children: [
         if (error != null) Padding(padding: const EdgeInsets.all(12), child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-        if (widget.table == 'main_heading_master') Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-          child: Row(children: [
-            Expanded(child: TextField(controller: headingName, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(prefixIcon: Icon(Icons.account_tree_outlined), labelText: 'Heading Name', hintText: 'Enter Main Heading'))),
-            const SizedBox(width: 10),
-            FilledButton.icon(onPressed: busy ? null : addMainHeading, icon: const Icon(Icons.add_rounded), label: const Text('Add Heading')),
-          ]),
-        ),
         if (widget.table == 'datacollection') Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: Wrap(spacing: 8, runSpacing: 8, children: [
@@ -290,7 +263,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
         Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 6), child: Row(children: [
           Expanded(child: TextField(controller: search, onChanged: (_) => setState(() {}), decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), labelText: 'Search records'))),
           const SizedBox(width: 10),
-          if (!readOnly && widget.table != 'main_heading_master') FilledButton.icon(onPressed: () => edit(), icon: const Icon(Icons.add_rounded), label: const Text('Add')),
+          if (!readOnly) FilledButton.icon(onPressed: () => edit(), icon: const Icon(Icons.add_rounded), label: const Text('Add')),
         ])),
         Expanded(child: busy ? const Center(child: CircularProgressIndicator()) : filtered.isEmpty
           ? const Center(child: DeckEmptyState(title:'No records found',detail:'Try another search or add a new record.',icon:Icons.search_off_rounded))
@@ -301,20 +274,16 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
                 child: DataTable(
                   columnSpacing: 18,
                   columns: [
-                    if (widget.table != 'main_heading_master') const DataColumn(label: Text('Record')),
+                    const DataColumn(label: Text('Record')),
                     ...visibleFields.map((f) => DataColumn(label: Text(f['label'].toString()))),
                     const DataColumn(label: Text('Actions')),
                   ],
                   rows: filtered.map((row) {
                     final title = row['headingname'] ?? row['menuname'] ?? row['foldername'] ?? row['username'] ?? row['title'] ?? row['name'] ?? row['id'] ?? 'Record';
                     return DataRow(cells: [
-                      if (widget.table != 'main_heading_master') DataCell(SizedBox(width: 150, child: Text(title.toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
+                      DataCell(SizedBox(width: 150, child: Text(title.toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
                       ...visibleFields.map((f) {
                         final key = f['key'].toString();
-                        if (key == 'status' && widget.table == 'main_heading_master') {
-                          final active = (row[key] ?? '0').toString() == '1';
-                          return DataCell(Text(active ? '1 (Active)' : '0 (Not Active)'));
-                        }
                         if (key == 'status' && ['menu_master','folder_master'].contains(widget.table)) {
                           final active = (row[key] ?? '0').toString() == '1';
                           return DataCell(Switch(value: active, onChanged: (value) async {
