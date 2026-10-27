@@ -737,15 +737,19 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       (id:'login',label:'Login History',icon:Icons.history_rounded),
       (id:'activity',label:'Page Activity',icon:Icons.timeline_rounded),
     ];
-    final columns=trackingRows.isEmpty?<String>[]:trackingRows.first.keys.take(6).map((k)=>k.toString()).toList();
+    final query=trackingSearch.trim().toLowerCase();
+    final filteredRows=trackingRows.where((r)=>r.values.any((v)=>v!=null&&v.toString().toLowerCase().contains(query))).toList();
+    final columns=trackingTab=='online'?<String>['username','email','role','last_activity_status']:trackingRows.isEmpty?<String>[]:trackingRows.first.keys.where((k)=>k!='id').map((k)=>k.toString()).toList();
     return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       hero('Manage Tracking','Monitor active users, login history and page activity.',Icons.monitor_heart_outlined),
       const SizedBox(height:16),
       SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[for(final tab in tabs)Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(avatar:Icon(tab.icon,size:18),label:Text(tab.label),selected:trackingTab==tab.id,onSelected:(_)=>loadTracking(tab.id)))])),
       const SizedBox(height:12),
+      TextField(onChanged:(v)=>setState(()=>trackingSearch=v),decoration:InputDecoration(prefixIcon:const Icon(Icons.search_rounded),labelText:trackingTab=='online'?'Search users':trackingTab=='login'?'Search login history':'Search page activity',suffixIcon:trackingSearch.isEmpty?null:IconButton(onPressed:()=>setState(()=>trackingSearch=''),icon:const Icon(Icons.clear_rounded)))),
+      const SizedBox(height:8),
       if(busy)const LinearProgressIndicator(),
       if(!busy&&trackingRows.isEmpty)EmptyRailway(title:'No ${trackingTab=='online'?'online users':trackingTab=='login'?'login history':'page activity'} found',detail:'No records are available for this tab, or the current account cannot read its data.'),
-      if(trackingRows.isNotEmpty)Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columns:columns.map((k)=>DataColumn(label:Text(k.replaceAll('_',' ').toUpperCase()))).toList(),rows:trackingRows.map((r)=>DataRow(cells:columns.map((k)=>DataCell(SizedBox(width:150,child:Text((r[k]??'—').toString(),maxLines:2,overflow:TextOverflow.ellipsis)))).toList())).toList()))),
+      if(filteredRows.isNotEmpty)Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columns:columns.map((k)=>DataColumn(label:Text(k.replaceAll('_',' ').toUpperCase()))).toList(),rows:filteredRows.map((r)=>DataRow(cells:columns.map((k)=>DataCell(SizedBox(width:150,child:Text((r[k]??'—').toString(),maxLines:2,overflow:TextOverflow.ellipsis)))).toList())).toList()))),
     ]);
   }
 
