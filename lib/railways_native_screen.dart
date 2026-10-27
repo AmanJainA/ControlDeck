@@ -522,6 +522,34 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     Navigator.of(context).maybePop();
   }
 
+  bool _matchesTypeFilter(Map<String, dynamic> file) {
+    if (typeFilter == 'all') return true;
+    final values = [
+      file['type'],
+      file['name'],
+      file['links'],
+    ].where((value) => value != null).map((value) => value.toString().toLowerCase()).toList();
+    final typeText = values.join(' ');
+    switch (typeFilter) {
+      case 'img':
+        return ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'tif', 'tiff']
+            .any((ext) => RegExp(r'(^|[. /])' + ext + r'($|[? ;/])').hasMatch(typeText))
+            || typeText.contains('image/');
+      case 'pdf':
+        return typeText.contains('pdf') || typeText.contains('application/pdf');
+      case 'doc':
+        return ['doc', 'docx', 'odt', 'rtf'].any((ext) =>
+            RegExp(r'(^|[. /])' + ext + r'($|[? ;/])').hasMatch(typeText))
+            || typeText.contains('wordprocessingml') || typeText.contains('msword');
+      case 'xls':
+        return ['xls', 'xlsx', 'csv', 'ods'].any((ext) =>
+            RegExp(r'(^|[. /])' + ext + r'($|[? ;/])').hasMatch(typeText))
+            || typeText.contains('spreadsheet') || typeText.contains('excel') || typeText.contains('text/csv');
+      default:
+        return true;
+    }
+  }
+
   Future<void> openDocument(Map<String,dynamic> file) async {
     final link = (file['links'] ?? '').toString().trim();
     if (link.isEmpty) {
@@ -628,8 +656,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   Widget workspaceView(){
     if(view=='users'&&admin) return RailwaysDataManager(key:const ValueKey('railways-user-access-tab'),db:db,user:user!,table:'users',title:'User Access',embedded:true);
     final filtered=files.where((f){
-      final type=(f['type']??'').toString().toLowerCase();
-      final typeMatch=typeFilter=='all'||(typeFilter=='img'?['png','jpg','jpeg','gif','svg','webp'].any(type.contains):typeFilter=='pdf'?type.contains('pdf'):typeFilter=='doc'?type.contains('doc'):typeFilter=='xls'?type.contains('xls')||type.contains('csv'):true);
+      final typeMatch = _matchesTypeFilter(f);
       return (selectedFolderId==null||(f['folder_id'] as num?)?.toInt()==selectedFolderId)&&typeMatch&&'${f['name']??''} ${f['type']??''} ${f['folder']??''} ${f['uploaded_by']??''}'.toLowerCase().contains(search.text.toLowerCase());
     }).toList();
     return Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:1100),child:ListView(padding:const EdgeInsets.all(20),children:[
@@ -728,13 +755,15 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         if(filtered.isEmpty)const EmptyRailway(title:'No files found',detail:'No active documents match the selected folder, type and search.'),
         if(filtered.isNotEmpty && (menu?['menuname']??'').toString().trim().toLowerCase() == 'my data')
           for(final f in filtered)
-            Card(margin:const EdgeInsets.only(bottom:5),clipBehavior:Clip.antiAlias,child:ListTile(
-              leading:fileIcon((f['type']??'').toString()),
-              title:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w700)),
-              subtitle:Text((f['type']??'FILE').toString().toUpperCase(),maxLines:1,overflow:TextOverflow.ellipsis),
-              trailing:TextButton.icon(onPressed:()=>openDocument(f),icon:const Icon(Icons.open_in_new_rounded,size:18),label:const Text('Open')),
-              onTap:()=>showFile(f),
-            )),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                title: Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w700)),
+                subtitle:Text((f['type']??'FILE').toString().toUpperCase(),maxLines:1,overflow:TextOverflow.ellipsis),
+                trailing:TextButton.icon(onPressed:()=>openDocument(f),icon:const Icon(Icons.open_in_new_rounded,size:18),label:const Text('Open')),
+              ),
+            ),
         if(filtered.isNotEmpty && (menu?['menuname']??'').toString().trim().toLowerCase() != 'my data')
           Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columnSpacing:22,columns:const [DataColumn(label:Text('Document')),DataColumn(label:Text('Type')),DataColumn(label:Text('Folder')),DataColumn(label:Text('Uploaded by')),DataColumn(label:Text('Uploaded at')),DataColumn(label:Text('Open'))],rows:filtered.map((f)=>DataRow(onSelectChanged:(_)=>showFile(f),cells:[DataCell(SizedBox(width:220,child:Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis))),DataCell(Row(mainAxisSize:MainAxisSize.min,children:[fileIcon((f['type']??'').toString()),const SizedBox(width:6),Text((f['type']??'FILE').toString().toUpperCase())])),DataCell(Text((f['folder']??'—').toString())),DataCell(Text((f['uploaded_by']??'—').toString())),DataCell(Text((f['uploaded_at']??'—').toString())),DataCell(IconButton(tooltip:'Open details',onPressed:()=>showFile(f),icon:const Icon(Icons.open_in_new_rounded)))])).toList()))),
       ],
