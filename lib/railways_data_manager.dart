@@ -24,7 +24,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       {'key':'headingname','label':'Main Heading'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
     ],
     'menu_master': [
-      {'key':'menuname','label':'Menu name'}, {'key':'main_heading_id','label':'Main heading'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
+      {'key':'menuname','label':'Menu Name'}, {'key':'main_heading_id','label':'Main Heading'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
     ],
     'folder_master': [
       {'key':'foldername','label':'Folder name'}, {'key':'main_heading_id','label':'Main heading'}, {'key':'menu_id','label':'Menu'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
@@ -89,6 +89,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
         ? (fields[widget.table] ?? const []).where((f) => f['key'] == 'headingname').toList()
         : widget.table == 'menu_master'
             ? (fields[widget.table] ?? const []).where((f) => ['main_heading_id', 'menuname'].contains(f['key'])).toList()
+                ..sort((a, b) => const ['main_heading_id', 'menuname'].indexOf(a['key'].toString()).compareTo(const ['main_heading_id', 'menuname'].indexOf(b['key'].toString()))
             : fields[widget.table] ?? const [];
     List<Map<String, dynamic>> headingOptions = [];
     if (widget.table == 'menu_master') {
