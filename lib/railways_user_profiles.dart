@@ -306,7 +306,7 @@ class _RailwaysUserProfilesState extends State<RailwaysUserProfiles> {
     return RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[
       if(error!=null)_message(error!,true),
       if(notice!=null)_message(notice!,false),
-      LayoutBuilder(builder:(ctx,c){final cols=c.maxWidth>760?3:c.maxWidth>480?2:1;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:cols,childAspectRatio:cols==1?4.5:2.8,mainAxisSpacing:10,crossAxisSpacing:10,children:[
+      LayoutBuilder(builder:(ctx,c){final compact=c.maxWidth<420;return GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:3,childAspectRatio:compact?0.92:c.maxWidth<650?1.35:2.8,mainAxisSpacing:6,crossAxisSpacing:6,children:[
         _stat('Total Users',users.length,Icons.people_outline,Colors.blue),
         _stat('Administrators',adminCount,Icons.admin_panel_settings_outlined,Colors.red),
         _stat('Users',users.length-adminCount-subCount,Icons.person_outline,Colors.green),
@@ -315,11 +315,16 @@ class _RailwaysUserProfilesState extends State<RailwaysUserProfiles> {
       Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         const Text('All Users',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
         const SizedBox(height:12),
-        LayoutBuilder(builder:(ctx,c)=>Wrap(spacing:10,runSpacing:10,alignment:WrapAlignment.end,children:[
-          SizedBox(width:c.maxWidth>580?240:c.maxWidth,child:TextField(decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'Search users...',border:OutlineInputBorder(),isDense:true),onChanged:(v)=>setState((){search=v;page=1;}))),
-          SizedBox(width:145,child:DropdownButtonFormField<String>(value:roleFilter,decoration:const InputDecoration(labelText:'Role',border:OutlineInputBorder(),isDense:true),items:const [DropdownMenuItem(value:'all',child:Text('All')),DropdownMenuItem(value:'admin',child:Text('Admin')),DropdownMenuItem(value:'subadmin',child:Text('SubAdmin')),DropdownMenuItem(value:'user',child:Text('Users'))],onChanged:(v)=>setState((){roleFilter=v??'all';page=1;}))),
-          PopupMenuButton<String>(onSelected:export,itemBuilder:(_)=>const [PopupMenuItem(value:'Copy to clipboard',child:Text('Copy to clipboard')),PopupMenuItem(value:'Export as Excel',child:Text('Export as Excel')),PopupMenuItem(value:'Export as CSV',child:Text('Export as CSV'))],child:const Chip(avatar:Icon(Icons.file_download_outlined),label:Text('Export Report'))),
-          FilledButton.icon(onPressed:()=>openForm(),icon:const Icon(Icons.add),label:const Text('Add User')),
+        LayoutBuilder(builder:(ctx,c)=>Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          TextField(decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'Search users...',border:OutlineInputBorder(),isDense:true),onChanged:(v)=>setState((){search=v;page=1;})),
+          const SizedBox(height:8),
+          Row(children:[
+            Expanded(flex:3,child:DropdownButtonFormField<String>(value:roleFilter,decoration:const InputDecoration(labelText:'Role',border:OutlineInputBorder(),isDense:true,contentPadding:EdgeInsets.symmetric(horizontal:8,vertical:12)),isExpanded:true,items:const [DropdownMenuItem(value:'all',child:Text('All')),DropdownMenuItem(value:'admin',child:Text('Admin')),DropdownMenuItem(value:'subadmin',child:Text('SubAdmin')),DropdownMenuItem(value:'user',child:Text('Users'))],onChanged:(v)=>setState((){roleFilter=v??'all';page=1;}))),
+            const SizedBox(width:6),
+            Expanded(flex:4,child:PopupMenuButton<String>(onSelected:export,itemBuilder:(_)=>const [PopupMenuItem(value:'Copy to clipboard',child:Text('Copy to clipboard')),PopupMenuItem(value:'Export as Excel',child:Text('Export as Excel')),PopupMenuItem(value:'Export as CSV',child:Text('Export as CSV'))],child:Container(height:48,padding:const EdgeInsets.symmetric(horizontal:6),decoration:BoxDecoration(border:Border.all(color:Theme.of(ctx).colorScheme.outline),borderRadius:BorderRadius.circular(8)),child:const Row(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(Icons.file_download_outlined,size:18),SizedBox(width:4),Flexible(child:Text('Export Report',maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(fontSize:12)))])))),
+            const SizedBox(width:6),
+            Expanded(flex:3,child:FilledButton.icon(style:FilledButton.styleFrom(padding:const EdgeInsets.symmetric(horizontal:6),minimumSize:const Size(0,48)),onPressed:()=>openForm(),icon:const Icon(Icons.add,size:18),label:const FittedBox(fit:BoxFit.scaleDown,child:Text('Add User')))),
+          ]),
         ])),
         const SizedBox(height:12),
         if(busy)const LinearProgressIndicator(),
@@ -353,7 +358,7 @@ class _RailwaysUserProfilesState extends State<RailwaysUserProfiles> {
   }
 
   Widget _message(String value,bool bad)=>Padding(padding:const EdgeInsets.only(bottom:10),child:Material(color:(bad?Colors.red:Colors.green).withOpacity(.08),borderRadius:BorderRadius.circular(10),child:ListTile(leading:Icon(bad?Icons.error_outline:Icons.check_circle_outline,color:bad?Colors.red:Colors.green),title:Text(value),trailing:IconButton(onPressed:()=>setState(()=>bad?error=null:notice=null),icon:const Icon(Icons.close)))));
-  Widget _stat(String label,int value,IconData icon,Color color)=>Card(child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[CircleAvatar(backgroundColor:color.withOpacity(.12),child:Icon(icon,color:color)),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('$value',style:const TextStyle(fontSize:25,fontWeight:FontWeight.w800)),Text(label)]))])));
+  Widget _stat(String label,int value,IconData icon,Color color)=>Card(child:LayoutBuilder(builder:(ctx,c){final compact=c.maxWidth<135;return Padding(padding:EdgeInsets.all(compact?6:16),child:compact?Column(mainAxisAlignment:MainAxisAlignment.center,children:[CircleAvatar(radius:15,backgroundColor:color.withOpacity(.12),child:Icon(icon,color:color,size:17)),const SizedBox(height:5),FittedBox(fit:BoxFit.scaleDown,child:Text('$value',style:const TextStyle(fontSize:22,fontWeight:FontWeight.w800))),Text(label,textAlign:TextAlign.center,maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w600))]):Row(children:[CircleAvatar(backgroundColor:color.withOpacity(.12),child:Icon(icon,color:color)),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('$value',style:const TextStyle(fontSize:25,fontWeight:FontWeight.w800)),Text(label)]))]));}));
   Widget _role(String value){final r=value.toLowerCase();final color=r=='admin'?Colors.red:r=='subadmin'?Colors.orange:Colors.green;return Chip(label:Text(r=='admin'?'Admin':r=='subadmin'?'SubAdmin':'User'),backgroundColor:color.withOpacity(.12),side:BorderSide.none);}
   Widget _chips(List<String> values)=>SizedBox(width:210,child:values.isEmpty?const Text('—'):Wrap(spacing:4,runSpacing:2,children:values.map((v)=>Chip(label:Text(v,style:const TextStyle(fontSize:11)),visualDensity:VisualDensity.compact)).toList()));
 }
