@@ -317,12 +317,12 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
                       return DataRow(cells: [
                         DataCell(Text('${entry.key + 1}')),
                         DataCell(SizedBox(width: 190, child: Text((row['headingname'] ?? '—').toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
-                        DataCell(Transform.scale(scale: 0.72, child: Switch.adaptive(value: active, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, onChanged: (value) async {
+                        DataCell(SizedBox(width: 42, height: 24, child: FittedBox(fit: BoxFit.contain, child: Switch.adaptive(value: active, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, onChanged: (value) async {
                           try {
                             await widget.db.from(widget.table).update({'status': value ? '1' : '0'}).eq('id', row['id']);
                             await load();
                           } catch (e) { if (mounted) setState(() => error = e.toString().replaceFirst('Exception: ', '')); }
-                        }))),
+                        })))),
                         DataCell(Text((row['created_by'] ?? '—').toString())),
                         DataCell(SizedBox(width: 170, child: Text(formatCreatedAt(row['created_at']), maxLines: 2))),
                         DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
