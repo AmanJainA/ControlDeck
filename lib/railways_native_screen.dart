@@ -28,7 +28,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   List<Map<String, dynamic>> latestMenus = [];
   int? selectedFolderId;
   int? dashboardHeadingId;
-  String typeFilter='all', trackingTab='online', trackingSearch='';
+  String typeFilter='all', trackingTab='online', trackingSearch='', trackingRoleFilter='all';
   bool busy=true;
   String view='login';
   String? error;
@@ -464,24 +464,35 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
 
   Future<void> loadTracking(String tab) async {
     if (!admin) return;
-    final table = tab == 'online' ? 'user_presence' : tab == 'login' ? 'login_history' : 'page_activity';
-    setState(() { view = 'tracking'; trackingTab = tab; trackingRows = []; trackingSearch = ''; busy = true; error = null; });
+    setState(() { view = 'tracking'; trackingTab = tab; trackingRows = []; trackingSearch = ''; trackingRoleFilter = 'all'; busy = true; error = null; });
     try {
-      final raw = await db.from(table).select('*').limit(500);
+      dynamic raw;
+      if (tab == 'online') {
+        final cutoff = DateTime.now().toUtc().subtract(const Duration(seconds: 35)).toIso8601String();
+        raw = await db.from('user_presence')
+            .select('session_id,user_id,username,email,role,last_seen,login_time')
+            .eq('online', true).gte('last_seen', cutoff).order('last_seen', ascending: false).limit(500);
+      } else if (tab == 'login') {
+        raw = await db.from('login_history').select('*').order('login_time', ascending: false).limit(500);
+      } else {
+        raw = await db.from('page_activity').select('*')
+            .order('activity_date', ascending: false).order('visit_time', ascending: false).limit(500);
+      }
       var rows = List<Map<String,dynamic>>.from(raw);
-      if (tab == 'online' && rows.isNotEmpty) {
-        final userIds = rows.map((r) => r['user_id']).where((id) => id != null).toSet().toList();
-        final userRows = userIds.isEmpty ? <dynamic>[] : await db.from('users').select('id,username,email,role').inFilter('id', userIds);
-        final usersById = {for (final u in userRows) u['id'].toString(): u};
-        rows = rows.map((r) {
-          final u = usersById[(r['user_id'] ?? '').toString()] ?? <String,dynamic>{};
-          final lastSeen = DateTime.tryParse((r['last_seen'] ?? r['last_activity'] ?? '').toString());
-          final active = lastSeen != null && DateTime.now().difference(lastSeen.toLocal()).inMinutes <= 5;
+      if (tab == 'online') {
+        final seen = <String>{};
+        rows = rows.where((r) {
+          final id = (r['user_id'] ?? r['session_id'] ?? '').toString();
+          return seen.add(id);
+        }).map((r) {
+          final lastSeen = DateTime.tryParse((r['last_seen'] ?? '').toString());
+          final lastActivity = lastSeen == null ? '—' : lastSeen.toLocal().toString().substring(0, 19);
           return <String,dynamic>{
-            'username': u['username'] ?? r['username'] ?? '—',
-            'email': u['email'] ?? r['email'] ?? '—',
-            'role': u['role'] ?? r['role'] ?? '—',
-            'last_activity_status': active ? 'Online' : 'Inactive',
+            'username': r['username'] ?? '—',
+            'email': r['email'] ?? '—',
+            'role': r['role'] ?? 'User',
+            'last_activity': lastActivity,
+            'status': 'Online',
           };
         }).toList();
       }
@@ -790,14 +801,24 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       (id:'activity',label:'Page Activity',icon:Icons.timeline_rounded),
     ];
     final query=trackingSearch.trim().toLowerCase();
-    final filteredRows=trackingRows.where((r)=>r.values.any((v)=>v!=null&&v.toString().toLowerCase().contains(query))).toList();
-    final columns=trackingTab=='online'?<String>['username','email','role','last_activity_status']:trackingRows.isEmpty?<String>[]:trackingRows.first.keys.where((k)=>k!='id').map((k)=>k.toString()).toList();
+    final filteredRows=trackingRows.where((r) {
+      final matchesSearch = query.isEmpty || r.values.any((v)=>v!=null&&v.toString().toLowerCase().contains(query));
+      final matchesRole = trackingTab!='online' || trackingRoleFilter=='all' || (r['role']??'user').toString().toLowerCase()==trackingRoleFilter;
+      return matchesSearch && matchesRole;
+    }).toList();
+    final columns=trackingTab=='online'?<String>['username','email','role','last_activity','status']:trackingRows.isEmpty?<String>[]:trackingRows.first.keys.where((k)=>k!='id').map((k)=>k.toString()).toList();
     return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       hero('Manage Tracking','Monitor active users, login history and page activity.',Icons.monitor_heart_outlined),
       const SizedBox(height:16),
       SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[for(final tab in tabs)Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(avatar:Icon(tab.icon,size:18),label:Text(tab.label),selected:trackingTab==tab.id,onSelected:(_)=>loadTracking(tab.id)))])),
       const SizedBox(height:12),
-      TextField(onChanged:(v)=>setState(()=>trackingSearch=v),decoration:InputDecoration(prefixIcon:const Icon(Icons.search_rounded),labelText:trackingTab=='online'?'Search users':trackingTab=='login'?'Search login history':'Search page activity',suffixIcon:trackingSearch.isEmpty?null:IconButton(onPressed:()=>setState(()=>trackingSearch=''),icon:const Icon(Icons.clear_rounded)))),
+      LayoutBuilder(builder:(ctx,c)=>Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Expanded(flex:trackingTab=='online'?3:1,child:TextField(onChanged:(v)=>setState(()=>trackingSearch=v),decoration:InputDecoration(prefixIcon:const Icon(Icons.search_rounded),labelText:trackingTab=='online'?'Search username, email or role':trackingTab=='login'?'Search login history':'Search page activity',isDense:true,suffixIcon:trackingSearch.isEmpty?null:IconButton(onPressed:()=>setState(()=>trackingSearch=''),icon:const Icon(Icons.clear_rounded))))),
+        if(trackingTab=='online')...[
+          const SizedBox(width:8),
+          Expanded(flex:2,child:DropdownButtonFormField<String>(value:trackingRoleFilter,decoration:const InputDecoration(labelText:'Role',border:OutlineInputBorder(),isDense:true,contentPadding:EdgeInsets.symmetric(horizontal:8,vertical:12)),isExpanded:true,items:const [DropdownMenuItem(value:'all',child:Text('All roles')),DropdownMenuItem(value:'admin',child:Text('Admin')),DropdownMenuItem(value:'subadmin',child:Text('Subadmin')),DropdownMenuItem(value:'user',child:Text('User'))],onChanged:(v)=>setState(()=>trackingRoleFilter=v??'all'))),
+        ],
+      ])),
       const SizedBox(height:8),
       if(busy)const LinearProgressIndicator(),
       if(!busy&&trackingRows.isEmpty)EmptyRailway(title:'No ${trackingTab=='online'?'online users':trackingTab=='login'?'login history':'page activity'} found',detail:'No records are available for this tab, or the current account cannot read its data.'),
