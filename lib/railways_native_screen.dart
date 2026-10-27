@@ -750,7 +750,10 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         if(menus.isEmpty)const EmptyRailway(title:'No menus available',detail:'No active menus or access grants were found.'),
         for(final m in menus)Card(child:ListTile(leading:const Icon(Icons.folder_copy_outlined),title:Text((m['menuname']??'Menu').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>openMenu(m))),
       ]else...[
-        hero((menu?['menuname']??'Files').toString(),'${filtered.length} records · searchable document register',Icons.description_outlined),const SizedBox(height:14),
+        if ((menu?['menuname'] ?? '').toString().trim().toLowerCase() != 'my data') ...[
+          hero((menu?['menuname']??'Files').toString(),'${filtered.length} records · searchable document register',Icons.description_outlined),
+          const SizedBox(height:14),
+        ],
         if (folders.isNotEmpty) SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:const Text('All'),selected:selectedFolderId==null,onSelected:(_)=>setState(()=>selectedFolderId=null))),for(final folder in folders)Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:Text((folder['foldername']??'Folder').toString()),selected:selectedFolderId==(folder['id'] as num).toInt(),onSelected:(_)=>setState(()=>selectedFolderId=(folder['id'] as num).toInt())))])),
         if (folders.isNotEmpty) const SizedBox(height:10),
         SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[for(final t in const ['all','img','pdf','doc','xls'])Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:Text(t=='all'?'All types':t.toUpperCase()),selected:typeFilter==t,onSelected:(_)=>setState(()=>typeFilter=t)))])),
@@ -759,10 +762,11 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         if(filtered.isEmpty)const EmptyRailway(title:'No files found',detail:'No active documents match the selected folder, type and search.'),
         if(filtered.isNotEmpty && (menu?['menuname']??'').toString().trim().toLowerCase() == 'my data')
           for(final f in filtered)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 5),
+            Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              clipBehavior: Clip.antiAlias,
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                 title: Text((f['name']??'Untitled document').toString(),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w700)),
                 subtitle:Text((f['type']??'FILE').toString().toUpperCase(),maxLines:1,overflow:TextOverflow.ellipsis),
                 trailing:TextButton.icon(onPressed:()=>openDocument(f),icon:const Icon(Icons.open_in_new_rounded,size:18),label:const Text('Open')),
