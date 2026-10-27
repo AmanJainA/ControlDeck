@@ -27,7 +27,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       {'key':'main_heading_id','label':'Main heading'}, {'key':'menuname','label':'Menu name'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
     ],
     'folder_master': [
-      {'key':'foldername','label':'Folder name'}, {'key':'main_heading_id','label':'Main heading'}, {'key':'menu_id','label':'Menu'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
+      {'key':'main_heading_id','label':'Main Heading'}, {'key':'menu_id','label':'Menu'}, {'key':'foldername','label':'Folder Name'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
     ],
     'user_main_heading_access': [
       {'key':'user_id','label':'User ID'}, {'key':'main_heading_id','label':'Main heading'}, {'key':'created_by','label':'Created by'}
@@ -91,13 +91,28 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
             ? (fields[widget.table] ?? const [])
                 .where((f) => f['key'] == 'main_heading_id' || f['key'] == 'menuname')
                 .toList()
-            : fields[widget.table] ?? const [];
+            : widget.table == 'folder_master'
+                ? (fields[widget.table] ?? const [])
+                    .where((f) => ['main_heading_id', 'menu_id', 'foldername'].contains(f['key']))
+                    .toList()
+                : fields[widget.table] ?? const [];
     List<Map<String, dynamic>> headingOptions = [];
-    if (widget.table == 'menu_master') {
+    List<Map<String, dynamic>> menuOptions = [];
+    if (['menu_master', 'folder_master'].contains(widget.table)) {
       try {
         headingOptions = List<Map<String, dynamic>>.from(await widget.db.from('main_heading_master').select('id,headingname').eq('status', '1').order('headingname'));
       } catch (e) {
         if (mounted) setState(() => error = 'Could not load Main Heading options: $e');
+      }
+    }
+    if (widget.table == 'folder_master') {
+      try {
+        final headingId = old?['main_heading_id'];
+        var query = widget.db.from('menu_master').select('id,menuname,main_heading_id').eq('status', '1');
+        if (headingId != null) query = query.eq('main_heading_id', headingId);
+        menuOptions = List<Map<String, dynamic>>.from(await query.order('menuname'));
+      } catch (e) {
+        if (mounted) setState(() => error = 'Could not load Menu options: $e');
       }
     }
     final controllers = <String,TextEditingController>{};
@@ -119,19 +134,47 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
     }
     final accepted = await showDialog<bool>(context: context, builder: (ctx) {
       String? selectedHeadingId = controllers['main_heading_id']?.text.isNotEmpty == true ? controllers['main_heading_id']!.text : null;
+      String? selectedMenuId = controllers['menu_id']?.text.isNotEmpty == true ? controllers['menu_id']!.text : null;
       return StatefulBuilder(builder: (ctx, setDialogState) => AlertDialog(
         title: Text((old == null ? 'Add ' : 'Edit ') + widget.title),
         content: SizedBox(width: 540, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          for (final f in spec) Padding(padding: const EdgeInsets.only(bottom: 10), child: f['key'] == 'main_heading_id' && widget.table == 'menu_master'
+          for (final f in spec) Padding(padding: const EdgeInsets.only(bottom: 10), child: f['key'] == 'main_heading_id' && ['menu_master', 'folder_master'].contains(widget.table)
               ? DropdownButtonFormField<String>(
                   value: headingOptions.any((h) => h['id'].toString() == selectedHeadingId) ? selectedHeadingId : null,
                   decoration: InputDecoration(labelText: f['label'].toString(), border: const OutlineInputBorder()),
                   hint: const Text('Select Main Heading'),
                   isExpanded: true,
                   items: headingOptions.map((h) => DropdownMenuItem<String>(value: h['id'].toString(), child: Text((h['headingname'] ?? '').toString(), overflow: TextOverflow.ellipsis))).toList(),
-                  onChanged: (value) => setDialogState(() { selectedHeadingId = value; controllers['main_heading_id']!.text = value ?? ''; }),
+                  onChanged: (value) async {
+                    setDialogState(() {
+                      selectedHeadingId = value;
+                      controllers['main_heading_id']!.text = value ?? '';
+                      if (widget.table == 'folder_master') {
+                        selectedMenuId = null;
+                        controllers['menu_id']!.clear();
+                        menuOptions = [];
+                      }
+                    });
+                    if (widget.table == 'folder_master' && value != null) {
+                      try {
+                        final options = List<Map<String, dynamic>>.from(await widget.db.from('menu_master').select('id,menuname,main_heading_id').eq('status', '1').eq('main_heading_id', num.parse(value)).order('menuname'));
+                        if (ctx.mounted) setDialogState(() { menuOptions = options; });
+                      } catch (e) {
+                        if (mounted) setState(() => error = 'Could not load Menu options: $e');
+                      }
+                    }
+                  },
                 )
-              : TextField(
+              : f['key'] == 'menu_id' && widget.table == 'folder_master'
+                  ? DropdownButtonFormField<String>(
+                      value: menuOptions.any((m) => m['id'].toString() == selectedMenuId) ? selectedMenuId : null,
+                      decoration: InputDecoration(labelText: f['label'].toString(), border: const OutlineInputBorder()),
+                      hint: const Text('Select Menu'),
+                      isExpanded: true,
+                      items: menuOptions.map((m) => DropdownMenuItem<String>(value: m['id'].toString(), child: Text((m['menuname'] ?? '').toString(), overflow: TextOverflow.ellipsis))).toList(),
+                      onChanged: (value) => setDialogState(() { selectedMenuId = value; controllers['menu_id']!.text = value ?? ''; }),
+                    )
+                  : TextField(
                   controller: controllers[f['key'].toString()],
                   minLines: f['multi'] == true ? 2 : 1,
                   maxLines: f['multi'] == true ? 4 : 1,
@@ -197,7 +240,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
           } else {
             await widget.db.from(widget.table).insert(payload);
           }
-        } else if (widget.table == 'menu_master') {
+        } else if (['menu_master', 'folder_master'].contains(widget.table)) {
           if (old == null) {
             payload['status'] = '1';
             payload['created_by'] = (widget.user['username'] ?? '').toString();
@@ -349,6 +392,16 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
                           DataColumn(label: Text('Created Date')),
                           DataColumn(label: Text('Action')),
                         ]
+                      : widget.table == 'folder_master'
+                      ? const [
+                          DataColumn(label: Text('SN')),
+                          DataColumn(label: Text('Main Heading')),
+                          DataColumn(label: Text('Menu')),
+                          DataColumn(label: Text('Folder')),
+                          DataColumn(label: Text('Created By')),
+                          DataColumn(label: Text('Created Date')),
+                          DataColumn(label: Text('Action')),
+                        ]
                       : [
                           const DataColumn(label: Text('Record')),
                           ...visibleFields.map((f) => DataColumn(label: Text(f['label'].toString()))),
@@ -361,6 +414,20 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
                         DataCell(Text('${entry.key + 1}')),
                         DataCell(SizedBox(width: 170, child: Text((row['main_heading_name'] ?? '—').toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
                         DataCell(SizedBox(width: 170, child: Text((row['menuname'] ?? '—').toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
+                        DataCell(Text((row['created_by'] ?? '—').toString())),
+                        DataCell(SizedBox(width: 170, child: Text(formatCreatedAt(row['created_at']), maxLines: 2))),
+                        DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(tooltip: 'Edit', icon: const Icon(Icons.edit_outlined, size: 20), onPressed: () => edit(row)),
+                          IconButton(tooltip: 'Delete', icon: const Icon(Icons.delete_outline, size: 20), onPressed: () => remove(row)),
+                        ])),
+                      ]);
+                    }
+                    if (widget.table == 'folder_master') {
+                      return DataRow(cells: [
+                        DataCell(Text('${entry.key + 1}')),
+                        DataCell(SizedBox(width: 150, child: Text((row['main_heading_name'] ?? '—').toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
+                        DataCell(SizedBox(width: 150, child: Text((row['menu_name'] ?? '—').toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
+                        DataCell(SizedBox(width: 170, child: Text((row['foldername'] ?? '—').toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
                         DataCell(Text((row['created_by'] ?? '—').toString())),
                         DataCell(SizedBox(width: 170, child: Text(formatCreatedAt(row['created_at']), maxLines: 2))),
                         DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
