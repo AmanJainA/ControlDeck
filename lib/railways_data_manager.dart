@@ -89,7 +89,6 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
         ? (fields[widget.table] ?? const []).where((f) => f['key'] == 'headingname').toList()
         : widget.table == 'menu_master'
             ? (fields[widget.table] ?? const []).where((f) => ['main_heading_id', 'menuname'].contains(f['key'])).toList()
-                ..sort((a, b) => const ['main_heading_id', 'menuname'].indexOf(a['key'].toString()).compareTo(const ['main_heading_id', 'menuname'].indexOf(b['key'].toString()))
             : fields[widget.table] ?? const [];
     List<Map<String, dynamic>> headingOptions = [];
     if (widget.table == 'menu_master') {
