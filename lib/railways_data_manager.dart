@@ -85,7 +85,9 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
   }
 
   Future<void> edit([Map<String,dynamic>? old]) async {
-    final spec = fields[widget.table] ?? const [];
+    final spec = widget.table == 'main_heading_master'
+        ? (fields[widget.table] ?? const []).where((f) => f['key'] == 'headingname').toList()
+        : fields[widget.table] ?? const [];
     final controllers = <String,TextEditingController>{};
     for (final f in spec) {
       final key = f['key'].toString();
@@ -160,7 +162,18 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       setState(() { busy = true; error = null; });
       try {
         dynamic savedId = old?['id'];
-        if (old != null) {
+        if (widget.table == 'main_heading_master') {
+          if (old == null) {
+            payload['status'] = '1';
+            payload['created_by'] = (widget.user['username'] ?? '').toString();
+            payload['created_at'] = DateTime.now().toIso8601String();
+          }
+          if (old != null) {
+            await widget.db.from(widget.table).update(payload).eq('id', old['id']);
+          } else {
+            await widget.db.from(widget.table).insert(payload);
+          }
+        } else if (old != null) {
           await widget.db.from(widget.table).update(payload).eq('id', old['id']);
         } else {
           if (widget.table == 'work_items' || widget.table == 'users') {
@@ -230,6 +243,16 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
 
   bool get readOnly => ['user_presence','login_history','page_activity','file_uploads'].contains(widget.table);
 
+  String formatCreatedAt(dynamic value) {
+    final parsed = value == null ? null : DateTime.tryParse(value.toString())?.toLocal();
+    if (parsed == null) return '—';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final hour = parsed.hour % 12 == 0 ? 12 : parsed.hour % 12;
+    final minute = parsed.minute.toString().padLeft(2, '0');
+    final ampm = parsed.hour >= 12 ? 'PM' : 'AM';
+    return '${parsed.day} ${months[parsed.month - 1]} ${parsed.year}, $hour:$minute $ampm';
+  }
+
   @override Widget build(BuildContext context) {
     final visibleFields = widget.table == 'datacollection'
         ? const <Map<String,dynamic>>[
@@ -273,12 +296,41 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
               child: SingleChildScrollView(
                 child: DataTable(
                   columnSpacing: 18,
-                  columns: [
-                    const DataColumn(label: Text('Record')),
-                    ...visibleFields.map((f) => DataColumn(label: Text(f['label'].toString()))),
-                    const DataColumn(label: Text('Actions')),
-                  ],
-                  rows: filtered.map((row) {
+                  columns: widget.table == 'main_heading_master'
+                      ? const [
+                          DataColumn(label: Text('SN')),
+                          DataColumn(label: Text('Main Heading')),
+                          DataColumn(label: Text('Status')),
+                          DataColumn(label: Text('Created By')),
+                          DataColumn(label: Text('Created Date')),
+                          DataColumn(label: Text('Action')),
+                        ]
+                      : [
+                          const DataColumn(label: Text('Record')),
+                          ...visibleFields.map((f) => DataColumn(label: Text(f['label'].toString()))),
+                          const DataColumn(label: Text('Actions')),
+                        ],
+                  rows: filtered.asMap().entries.map((entry) {
+                    final row = entry.value;
+                    if (widget.table == 'main_heading_master') {
+                      final active = (row['status'] ?? '0').toString() == '1';
+                      return DataRow(cells: [
+                        DataCell(Text('${entry.key + 1}')),
+                        DataCell(SizedBox(width: 190, child: Text((row['headingname'] ?? '—').toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
+                        DataCell(Switch(value: active, onChanged: (value) async {
+                          try {
+                            await widget.db.from(widget.table).update({'status': value ? '1' : '0'}).eq('id', row['id']);
+                            await load();
+                          } catch (e) { if (mounted) setState(() => error = e.toString().replaceFirst('Exception: ', '')); }
+                        })),
+                        DataCell(Text((row['created_by'] ?? '—').toString())),
+                        DataCell(SizedBox(width: 170, child: Text(formatCreatedAt(row['created_at']), maxLines: 2))),
+                        DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(tooltip: 'Edit', icon: const Icon(Icons.edit_outlined, size: 20), onPressed: () => edit(row)),
+                          IconButton(tooltip: 'Delete', icon: const Icon(Icons.delete_outline, size: 20), onPressed: () => remove(row)),
+                        ])),
+                      ]);
+                    }
                     final title = row['headingname'] ?? row['menuname'] ?? row['foldername'] ?? row['username'] ?? row['title'] ?? row['name'] ?? row['id'] ?? 'Record';
                     return DataRow(cells: [
                       DataCell(SizedBox(width: 150, child: Text(title.toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
