@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'supabase_config.dart';
 import 'railways_data_manager.dart';
 import 'railways_work_tracker.dart';
+import 'railways_user_profiles.dart';
 
 /// Native Flutter implementation of the Railways workspace.
 class RailwaysNativeScreen extends StatefulWidget {
@@ -665,7 +666,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   ])));
 
   Widget workspaceView(){
-    if(view=='users'&&admin) return RailwaysDataManager(key:const ValueKey('railways-user-access-tab'),db:db,user:user!,table:'users',title:'User Access',embedded:true);
+    if(view=='users'&&admin) return RailwaysUserProfiles(key:const ValueKey('railways-user-access-tab'),db:db,user:user!);
     final filtered=files.where((f){
       final typeMatch = _matchesTypeFilter(f);
       return (selectedFolderId==null||(f['folder_id'] as num?)?.toInt()==selectedFolderId)&&typeMatch&&'${f['name']??''} ${f['type']??''} ${f['folder']??''} ${f['uploaded_by']??''}'.toLowerCase().contains(search.text.toLowerCase());
