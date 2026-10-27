@@ -21,7 +21,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
 
   static const Map<String,List<Map<String,dynamic>>> fields = {
     'main_heading_master': [
-      {'key':'headingname','label':'Heading name'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
+      {'key':'headingname','label':'Main Heading'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
     ],
     'menu_master': [
       {'key':'menuname','label':'Menu name'}, {'key':'main_heading_id','label':'Main heading'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
