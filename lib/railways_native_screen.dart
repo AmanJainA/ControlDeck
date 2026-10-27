@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'supabase_config.dart';
 import 'railways_data_manager.dart';
+import 'railways_work_tracker.dart';
 
 /// Native Flutter implementation of the Railways workspace.
 class RailwaysNativeScreen extends StatefulWidget {
@@ -508,6 +509,12 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     remark.dispose();
   }
 
+  Future<void> openWorkTracker() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => RailwaysWorkTracker(db: db, user: user!, onOpenDocument: openDocument),
+    ));
+  }
+
   Future<void> openNativeManager(String table, String title) async {
     await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => RailwaysDataManager(db: db, user: user!, table: table, title: title)));
     if (mounted) {
@@ -687,7 +694,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
           Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.account_tree_outlined), title: const Text('Main Headings'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('main_heading_master', 'Main Headings'))),
           Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.menu_open_rounded), title: const Text('Manage Menus'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('menu_master', 'Manage Menus'))),
           Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.folder_outlined), title: const Text('Manage Folders'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('folder_master', 'Manage Folders'))),
-          Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.task_alt_rounded), title: const Text('Work Tracker'), subtitle: const Text('Manage tasks, reports and due dates'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openNativeManager('work_items', 'Work Tracker'))),
+          Card(margin:const EdgeInsets.only(bottom:5),child: ListTile(leading: const Icon(Icons.task_alt_rounded), title: const Text('Work Tracker'), subtitle: const Text('Manage tasks, reports and due dates'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () => openWorkTracker())),
         ],
       ]else if(view=='nr')...[
         hero('NR Data Dashboard','Your dashboard and menus in one workspace.',Icons.dashboard_customize_outlined),
