@@ -532,13 +532,8 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         Text((f['name']??'Document').toString(),style:Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),
         const SizedBox(height:14),
         detail('Type',(f['type']??'Unknown').toString()),
-        detail('Folder',(f['folder']??'—').toString()),
-        detail('Uploaded by',(f['uploaded_by']??'—').toString()),
-        detail('Uploaded at',_formatDateTime(f['uploaded_at'])),
-        if((f['remark']??'').toString().isNotEmpty)detail('Remark',f['remark'].toString()),
         const SizedBox(height:16),
-        SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:link.isEmpty?null:()=>openDocument(f),icon:const Icon(Icons.open_in_new_rounded),label:const Text('Open document'))),
-        const SizedBox(height:8),Text('File details are displayed in Flutter. The linked document opens in a supported viewer.',style:Theme.of(ctx).textTheme.bodySmall),
+        SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:link.isEmpty?null:()=>openDocument(f),icon:const Icon(Icons.open_in_new_rounded),label:const Text('Open'))),
       ]))));
   }
 
@@ -683,6 +678,8 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
         hero('Nangia', 'Browse the Nangia document register, search files and open project documents.', Icons.business_center_outlined),
         const SizedBox(height:12),
         TextField(controller:search,onChanged:(_)=>setState((){}),decoration:const InputDecoration(prefixIcon:Icon(Icons.search_rounded),labelText:'Search Nangia documents')),
+        const SizedBox(height:10),
+        SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[for(final t in const ['all','img','pdf','doc','xls'])Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:Text(t=='all'?'All types':t.toUpperCase()),selected:typeFilter==t,onSelected:(_)=>setState(()=>typeFilter=t)))])),
         const SizedBox(height:10),
         if(!busy && filtered.isEmpty)const EmptyRailway(title:'No Nangia documents found',detail:'No records match the Nangia menu or your search.'),
         for(final f in filtered)
