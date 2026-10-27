@@ -143,7 +143,7 @@ class _RailwaysUserProfilesState extends State<RailwaysUserProfiles> {
         ],
         const SizedBox(height:8),
         Align(alignment:Alignment.centerLeft,child:Text('Project / Main Heading Access: ${selectedHeadings.isEmpty?(role=='admin'?'All Main Headings':'None assigned'):headings.where((h)=>selectedHeadings.contains((h['id'] as num).toInt())).map((h)=>h['headingname']).join(', ')}')),
-      ])))),
+      ]))))),
       actions:[
         TextButton(onPressed:saving?null:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),
         FilledButton(onPressed:saving?null:()=>Navigator.pop(ctx,true),child:Text(wasEditing?'Update User':'Add User')),
