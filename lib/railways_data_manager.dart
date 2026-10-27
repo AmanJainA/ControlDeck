@@ -24,7 +24,7 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       {'key':'headingname','label':'Main Heading'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
     ],
     'menu_master': [
-      {'key':'menuname','label':'Menu Name'}, {'key':'main_heading_id','label':'Main Heading'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
+      {'key':'main_heading_id','label':'Main heading'}, {'key':'menuname','label':'Menu name'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
     ],
     'folder_master': [
       {'key':'foldername','label':'Folder name'}, {'key':'main_heading_id','label':'Main heading'}, {'key':'menu_id','label':'Menu'}, {'key':'status','label':'Active'}, {'key':'created_by','label':'Created by'}
