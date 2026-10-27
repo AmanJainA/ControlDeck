@@ -29,7 +29,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   List<Map<String, dynamic>> latestMenus = [];
   int? selectedFolderId;
   int? dashboardHeadingId;
-  String typeFilter='all', trackingTab='online', trackingSearch='', trackingRoleFilter='all';
+  String typeFilter='all', trackingTab='online', trackingSearch='', trackingRoleFilter='all', trackingPageFilter='all';
   bool busy=true;
   String view='login';
   String? error;
@@ -465,7 +465,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
 
   Future<void> loadTracking(String tab) async {
     if (!admin) return;
-    setState(() { view = 'tracking'; trackingTab = tab; trackingRows = []; trackingSearch = ''; trackingRoleFilter = 'all'; busy = true; error = null; });
+    setState(() { view = 'tracking'; trackingTab = tab; trackingRows = []; trackingSearch = ''; trackingRoleFilter = 'all'; trackingPageFilter = 'all'; busy = true; error = null; });
     try {
       dynamic raw;
       if (tab == 'online') {
@@ -474,10 +474,10 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
             .select('session_id,user_id,username,email,role,last_seen,login_time')
             .eq('online', true).gte('last_seen', cutoff).order('last_seen', ascending: false).limit(500);
       } else if (tab == 'login') {
-        raw = await db.from('login_history').select('*').order('login_time', ascending: false).limit(500);
+        raw = await db.from('login_history').select('*').order('login_time', ascending: false).limit(1000);
       } else {
         raw = await db.from('page_activity').select('*')
-            .order('activity_date', ascending: false).order('visit_time', ascending: false).limit(500);
+            .order('activity_date', ascending: false).order('visit_time', ascending: false).limit(1000);
       }
       var rows = List<Map<String,dynamic>>.from(raw);
       if (tab == 'online') {
@@ -796,15 +796,33 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   }
 
   Future<void> exportTracking(String mode) async {
-    final columns = trackingRows.isEmpty ? <String>[] : trackingRows.first.keys.toList();
-    final rows = <List<dynamic>>[columns, ...trackingRows.map((row) => columns.map((key) => row[key] ?? '').toList())];
+    final rows = trackingFilteredRows();
+    final columns = trackingColumns();
+    final data = <List<dynamic>>[columns, ...rows.map((row) => columns.map((key) => row[key] ?? '').toList())];
     final output = mode == 'Copy to clipboard'
-        ? rows.map((row) => row.map((value) => value.toString().replaceAll(String.fromCharCode(9), ' ')).join(String.fromCharCode(9))).join(String.fromCharCode(10))
-        : rows.map((row) => row.map((value) => '"${value.toString().replaceAll('"', '""')}"').join(',')).join(String.fromCharCode(13) + String.fromCharCode(10));
+        ? data.map((row) => row.map((value) => value.toString().replaceAll(String.fromCharCode(9), ' ')).join(String.fromCharCode(9))).join(String.fromCharCode(10))
+        : data.map((row) => row.map((value) => '"${value.toString().replaceAll('"', '""')}"').join(',')).join(String.fromCharCode(13) + String.fromCharCode(10));
     await Clipboard.setData(ClipboardData(text: output));
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mode == 'Copy to clipboard' ? 'Tracking records copied.' : 'Tracking CSV copied. Paste it into a spreadsheet and save as CSV.')),
+      SnackBar(content: Text(mode == 'Copy to clipboard' ? 'Filtered tracking records copied.' : 'Filtered tracking CSV copied. Paste it into a spreadsheet and save as CSV.')),
     );
+  }
+
+  List<Map<String,dynamic>> trackingFilteredRows() {
+    final query = trackingSearch.trim().toLowerCase();
+    return trackingRows.where((r) {
+      final matchesSearch = query.isEmpty || r.values.any((v) => v != null && v.toString().toLowerCase().contains(query));
+      final matchesRole = trackingTab != 'online' || trackingRoleFilter == 'all' || (r['role'] ?? 'user').toString().toLowerCase() == trackingRoleFilter;
+      final page = (r['page_name'] ?? r['page'] ?? '').toString();
+      final matchesPage = trackingTab != 'activity' || trackingPageFilter == 'all' || page == trackingPageFilter;
+      return matchesSearch && matchesRole && matchesPage;
+    }).toList();
+  }
+
+  List<String> trackingColumns() {
+    if (trackingTab == 'online') return ['username', 'email', 'role', 'last_activity', 'status'];
+    if (trackingRows.isEmpty) return [];
+    return trackingRows.first.keys.where((k) => k != 'id').map((k) => k.toString()).toList();
   }
 
   Widget trackingContent(){
@@ -813,30 +831,84 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       (id:'login',label:'Login History',icon:Icons.history_rounded),
       (id:'activity',label:'Page Activity',icon:Icons.timeline_rounded),
     ];
-    final query=trackingSearch.trim().toLowerCase();
-    final filteredRows=trackingRows.where((r) {
-      final matchesSearch = query.isEmpty || r.values.any((v)=>v!=null&&v.toString().toLowerCase().contains(query));
-      final matchesRole = trackingTab!='online' || trackingRoleFilter=='all' || (r['role']??'user').toString().toLowerCase()==trackingRoleFilter;
-      return matchesSearch && matchesRole;
-    }).toList();
-    final columns=trackingTab=='online'?<String>['username','email','role','last_activity','status']:trackingRows.isEmpty?<String>[]:trackingRows.first.keys.where((k)=>k!='id').map((k)=>k.toString()).toList();
+    final filteredRows = trackingFilteredRows();
+    final columns = trackingColumns();
+    final uniqueUsers = trackingRows.map((r) => (r['user_id'] ?? '').toString()).where((v) => v.isNotEmpty).toSet().length;
+    final uniquePages = trackingRows.map((r) => (r['page_name'] ?? '').toString()).where((v) => v.isNotEmpty).toSet().length;
+    final totalVisits = trackingRows.fold<int>(0, (sum, r) => sum + ((num.tryParse((r['visit_count'] ?? '').toString()) ?? 0).toInt()));
+    final adminLogins = trackingRows.where((r) => (r['role'] ?? '').toString().toLowerCase() == 'admin').length;
+    final pageNames = trackingRows.map((r) => (r['page_name'] ?? r['page'] ?? '').toString()).where((v) => v.isNotEmpty).toSet().toList()..sort();
+    String pretty(String key) => key.replaceAll('_',' ').split(' ').map((s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}').join(' ');
+    String dateValue(dynamic value) {
+      if (value == null || value.toString().isEmpty) return '—';
+      final parsed = DateTime.tryParse(value.toString());
+      if (parsed == null) return value.toString();
+      return '${parsed.toLocal().day.toString().padLeft(2,'0')} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parsed.toLocal().month-1]} ${parsed.toLocal().year}, ${parsed.toLocal().hour.toString().padLeft(2,'0')}:${parsed.toLocal().minute.toString().padLeft(2,'0')}';
+    }
     return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       hero('Manage Tracking','Monitor active users, login history and page activity.',Icons.monitor_heart_outlined),
       const SizedBox(height:16),
-      SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[for(final tab in tabs)Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(avatar:Icon(tab.icon,size:18),label:Text(tab.label),selected:trackingTab==tab.id,onSelected:(_)=>loadTracking(tab.id)))])),
+      Card(child:Padding(padding:const EdgeInsets.fromLTRB(12,8,12,0),child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[
+        for(final tab in tabs) Padding(padding:const EdgeInsets.only(right:6),child:TextButton.icon(
+          onPressed:trackingTab==tab.id?null:()=>loadTracking(tab.id),
+          icon:Icon(tab.icon,size:18),
+          label:Text(tab.label),
+          style:TextButton.styleFrom(
+            foregroundColor:trackingTab==tab.id?Theme.of(context).colorScheme.primary:Theme.of(context).colorScheme.onSurfaceVariant,
+            backgroundColor:trackingTab==tab.id?Theme.of(context).colorScheme.primary.withOpacity(.10):Colors.transparent,
+            padding:const EdgeInsets.symmetric(horizontal:12,vertical:12),
+            shape:const RoundedRectangleBorder(borderRadius:BorderRadius.vertical(top:Radius.circular(8))),
+          ),
+        )),
+      ])))),
       const SizedBox(height:12),
-      TextField(onChanged:(v)=>setState(()=>trackingSearch=v),decoration:InputDecoration(prefixIcon:const Icon(Icons.search_rounded),labelText:trackingTab=='online'?'Search username, email or role':trackingTab=='login'?'Search login history':'Search page activity',isDense:true,suffixIcon:trackingSearch.isEmpty?null:IconButton(onPressed:()=>setState(()=>trackingSearch=''),icon:const Icon(Icons.clear_rounded)))),
-      const SizedBox(height:8),
-      Wrap(spacing:8,runSpacing:8,crossAxisAlignment:WrapCrossAlignment.center,children:[
-        if(trackingTab=='online')SizedBox(width:150,child:DropdownButtonFormField<String>(value:trackingRoleFilter,decoration:const InputDecoration(labelText:'Role',border:OutlineInputBorder(),isDense:true,contentPadding:EdgeInsets.symmetric(horizontal:8,vertical:12)),isExpanded:true,items:const [DropdownMenuItem(value:'all',child:Text('All roles')),DropdownMenuItem(value:'admin',child:Text('Admin')),DropdownMenuItem(value:'subadmin',child:Text('Subadmin')),DropdownMenuItem(value:'user',child:Text('User'))],onChanged:(v)=>setState(()=>trackingRoleFilter=v??'all'))),
-        PopupMenuButton<String>(onSelected:exportTracking,itemBuilder:(_)=>const [PopupMenuItem(value:'Copy to clipboard',child:Text('Copy to clipboard')),PopupMenuItem(value:'Export as CSV',child:Text('Export as CSV'))],child:const Chip(avatar:Icon(Icons.file_download_outlined),label:Text('Export Report'))),
-      ]),
-      if(error!=null)Card(color:Theme.of(context).colorScheme.errorContainer,child:Padding(padding:const EdgeInsets.all(12),child:Text(error!))),
-      if(busy)const LinearProgressIndicator(),
-      if(!busy&&trackingRows.isEmpty)EmptyRailway(title:'No ${trackingTab=='online'?'online users':trackingTab=='login'?'login history':'page activity'} found',detail:'No records are available for this tab, or the current account cannot read its data.'),
-      if(filteredRows.isNotEmpty)Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columns:columns.map((k)=>DataColumn(label:Text(k.replaceAll('_',' ').toUpperCase()))).toList(),rows:filteredRows.map((r)=>DataRow(cells:columns.map((k)=>DataCell(SizedBox(width:150,child:Text((r[k]??'—').toString(),maxLines:2,overflow:TextOverflow.ellipsis)))).toList())).toList()))),
+      if(trackingTab=='login') LayoutBuilder(builder:(ctx,c)=>GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:c.maxWidth<520?3:3,childAspectRatio:c.maxWidth<400?1.0:2.3,mainAxisSpacing:8,crossAxisSpacing:8,children:[
+        _trackingStat('Login Records','${trackingRows.length}',Icons.login_rounded,Colors.blue),
+        _trackingStat('Unique Users','${uniqueUsers}',Icons.people_outline_rounded,Colors.green),
+        _trackingStat('Admin Logins','${adminLogins}',Icons.admin_panel_settings_outlined,Colors.orange),
+      ])),
+      if(trackingTab=='activity') LayoutBuilder(builder:(ctx,c)=>GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:3,childAspectRatio:c.maxWidth<400?1.0:2.3,mainAxisSpacing:8,crossAxisSpacing:8,children:[
+        _trackingStat('Active Users','${uniqueUsers}',Icons.people_outline_rounded,Colors.blue),
+        _trackingStat('Unique Pages','${uniquePages}',Icons.web_rounded,Colors.green),
+        _trackingStat('Total Visits','${totalVisits}',Icons.touch_app_outlined,Colors.orange),
+      ])),
+      Card(clipBehavior:Clip.antiAlias,child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Row(children:[
+          Expanded(child:Text(trackingTab=='online'?'Currently Online':trackingTab=='login'?'Login History':'Activity Records',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w800))),
+          if(trackingTab=='online')Container(padding:const EdgeInsets.symmetric(horizontal:9,vertical:5),decoration:BoxDecoration(color:Colors.green.withOpacity(.12),borderRadius:BorderRadius.circular(20)),child:const Row(mainAxisSize:MainAxisSize.min,children:[Icon(Icons.circle,size:8,color:Colors.green),SizedBox(width:5),Text('Live',style:TextStyle(fontSize:12,fontWeight:FontWeight.w700,color:Colors.green))])),
+          IconButton(tooltip:'Refresh',onPressed:()=>loadTracking(trackingTab),icon:const Icon(Icons.refresh_rounded)),
+        ]),
+        Text(trackingTab=='online'?' ${filteredRows.length} users shown • updates on refresh':trackingTab=='login'?' ${trackingRows.length} login records':' ${trackingRows.length} activity records',style:Theme.of(context).textTheme.bodySmall?.copyWith(color:Theme.of(context).colorScheme.onSurfaceVariant)),
+        const SizedBox(height:12),
+        LayoutBuilder(builder:(ctx,c)=>Column(children:[
+          TextField(onChanged:(v)=>setState(()=>trackingSearch=v),decoration:InputDecoration(prefixIcon:const Icon(Icons.search_rounded),hintText:trackingTab=='online'?'Search username, email or role':trackingTab=='login'?'Search login history...':'Search activity...',isDense:true,border:const OutlineInputBorder(),suffixIcon:trackingSearch.isEmpty?null:IconButton(onPressed:()=>setState(()=>trackingSearch=''),icon:const Icon(Icons.clear_rounded)))),
+          const SizedBox(height:8),
+          Row(children:[
+            if(trackingTab=='online') Expanded(child:DropdownButtonFormField<String>(value:trackingRoleFilter,decoration:const InputDecoration(labelText:'Role',border:OutlineInputBorder(),isDense:true,contentPadding:EdgeInsets.symmetric(horizontal:8,vertical:12)),isExpanded:true,items:const [DropdownMenuItem(value:'all',child:Text('All roles')),DropdownMenuItem(value:'admin',child:Text('Admin')),DropdownMenuItem(value:'subadmin',child:Text('Subadmin')),DropdownMenuItem(value:'user',child:Text('User'))],onChanged:(v)=>setState(()=>trackingRoleFilter=v??'all'))),
+            if(trackingTab=='activity') Expanded(child:DropdownButtonFormField<String>(value:trackingPageFilter,decoration:const InputDecoration(labelText:'Page',border:OutlineInputBorder(),isDense:true,contentPadding:EdgeInsets.symmetric(horizontal:8,vertical:12)),isExpanded:true,items:[const DropdownMenuItem(value:'all',child:Text('All pages')),...pageNames.map((p)=>DropdownMenuItem(value:p,child:Text(p,overflow:TextOverflow.ellipsis)))],onChanged:(v)=>setState(()=>trackingPageFilter=v??'all'))),
+            if(trackingTab!='online') const Spacer(),
+            const SizedBox(width:8),
+            PopupMenuButton<String>(onSelected:exportTracking,itemBuilder:(_)=>const [PopupMenuItem(value:'Copy to clipboard',child:Text('Copy to clipboard')),PopupMenuItem(value:'Export as CSV',child:Text('Export as CSV'))],child:Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:12),decoration:BoxDecoration(border:Border.all(color:Theme.of(ctx).colorScheme.outline),borderRadius:BorderRadius.circular(8)),child:const Row(mainAxisSize:MainAxisSize.min,children:[Icon(Icons.file_download_outlined,size:18),SizedBox(width:5),Text('Export')])),
+          ]),
+        ])),
+        if(error!=null) Padding(padding:const EdgeInsets.only(top:10),child:Container(width:double.infinity,padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:Theme.of(context).colorScheme.errorContainer,borderRadius:BorderRadius.circular(8)),child:Text(error!))),
+        if(busy) const Padding(padding:EdgeInsets.symmetric(vertical:8),child:LinearProgressIndicator()),
+        if(!busy&&trackingRows.isEmpty) EmptyRailway(title:'No ${trackingTab=='online'?'online users':trackingTab=='login'?'login history':'page activity'} found',detail:'No records are available for this tab, or the current account cannot read its data.'),
+        if(!busy&&trackingRows.isNotEmpty&&filteredRows.isEmpty) const Padding(padding:EdgeInsets.all(24),child:Center(child:Text('No records match your search or filters.'))),
+        if(filteredRows.isNotEmpty) SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columnSpacing:20,headingRowHeight:48,dataRowMinHeight:52,dataRowMaxHeight:76,columns:columns.map((k)=>DataColumn(label:Text(pretty(k)))).toList(),rows:filteredRows.map((r)=>DataRow(cells:columns.map((k){
+          final rawValue=r[k];
+          final isDate=['last_activity','last_seen','login_time','activity_date','visit_time','created_at','updated_at'].contains(k);
+          final value=isDate?dateValue(rawValue):(rawValue??'—').toString();
+          if(k=='status'&&trackingTab=='online')return const DataCell(Chip(label:Text('Online'),backgroundColor:Color(0xFFE5F7EC),side:BorderSide.none));
+          if(k=='role')return DataCell(Chip(label:Text((rawValue??'User').toString()),side:BorderSide.none));
+          if(k=='username')return DataCell(SizedBox(width:140,child:Row(children:[CircleAvatar(radius:14,child:Text(((rawValue??'?').toString().isEmpty?'?':(rawValue??'?').toString()[0]).toUpperCase())),const SizedBox(width:8),Expanded(child:Text(value,maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w700)))])));
+          return DataCell(SizedBox(width:150,child:Text(value,maxLines:2,overflow:TextOverflow.ellipsis)));
+        })).toList())),
+      ]))),
     ]);
   }
+
+  Widget _trackingStat(String label,String value,IconData icon,Color color)=>Card(child:Padding(padding:const EdgeInsets.all(10),child:Row(children:[CircleAvatar(radius:15,backgroundColor:color.withOpacity(.12),child:Icon(icon,color:color,size:17)),const SizedBox(width:8),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisAlignment:MainAxisAlignment.center,children:[Text(value,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w800)),Text(label,maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11))]))])));
 
   Widget hero(String title,String subtitle,IconData icon)=>DeckPageHero(title:title,subtitle:subtitle,icon:icon,gradientColors:const [Color(0xFF102D4D),Color(0xFF176B87)],iconColor:Colors.white,horizontal:true,padding:const EdgeInsets.all(22));
   Widget metric(String label,String value,IconData icon)=>DeckMetricCard(label:label,value:value,icon:icon,iconColor:const Color(0xFF1685A4),margin:EdgeInsets.zero);
