@@ -88,7 +88,9 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
     final spec = widget.table == 'main_heading_master'
         ? (fields[widget.table] ?? const []).where((f) => f['key'] == 'headingname').toList()
         : widget.table == 'menu_master'
-            ? (fields[widget.table] ?? const []).where((f) => ['main_heading_id', 'menuname'].contains(f['key'])).toList()
+            ? (fields[widget.table] ?? const [])
+                .where((f) => f['key'] == 'main_heading_id' || f['key'] == 'menuname')
+                .toList()
             : fields[widget.table] ?? const [];
     List<Map<String, dynamic>> headingOptions = [];
     if (widget.table == 'menu_master') {
