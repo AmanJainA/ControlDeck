@@ -26,7 +26,7 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
   List<Map<String, dynamic>> latestMenus = [];
   int? selectedFolderId;
   int? dashboardHeadingId;
-  String typeFilter='all', trackingTab='online';
+  String typeFilter='all', trackingTab='online', trackingSearch='';
   bool busy=true;
   String view='login';
   String? error;
