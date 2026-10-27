@@ -88,12 +88,12 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
     final spec = widget.table == 'main_heading_master'
         ? (fields[widget.table] ?? const []).where((f) => f['key'] == 'headingname').toList()
         : widget.table == 'menu_master'
-            ? (fields[widget.table] ?? const []).where((f) => ['menuname', 'main_heading_id'].contains(f['key'])).toList()
+            ? (fields[widget.table] ?? const []).where((f) => ['main_heading_id', 'menuname'].contains(f['key'])).toList()
             : fields[widget.table] ?? const [];
     List<Map<String, dynamic>> headingOptions = [];
     if (widget.table == 'menu_master') {
       try {
-        headingOptions = List<Map<String, dynamic>>.from(await widget.db.from('main_heading_master').select('id,headingname').order('headingname'));
+        headingOptions = List<Map<String, dynamic>>.from(await widget.db.from('main_heading_master').select('id,headingname').eq('status', '1').order('headingname'));
       } catch (e) {
         if (mounted) setState(() => error = 'Could not load Main Heading options: $e');
       }
