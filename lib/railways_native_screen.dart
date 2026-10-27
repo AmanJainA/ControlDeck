@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'shared/widgets/deck_components.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:file_picker/file_picker.dart';
@@ -794,6 +795,18 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
     ])));
   }
 
+  Future<void> exportTracking(String mode) async {
+    final columns = trackingRows.isEmpty ? <String>[] : trackingRows.first.keys.toList();
+    final rows = <List<dynamic>>[columns, ...trackingRows.map((row) => columns.map((key) => row[key] ?? '').toList())];
+    final output = mode == 'Copy to clipboard'
+        ? rows.map((row) => row.map((value) => value.toString().replaceAll('\\t', ' ')).join('\\t')).join('\\n')
+        : rows.map((row) => row.map((value) => '"${value.toString().replaceAll('"', '""')}"').join(',')).join('\\r\\n');
+    await Clipboard.setData(ClipboardData(text: output));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mode == 'Copy to clipboard' ? 'Tracking records copied.' : 'Tracking CSV copied. Paste it into a spreadsheet and save as CSV.')),
+    );
+  }
+
   Widget trackingContent(){
     final tabs=<({String id,String label,IconData icon})>[
       (id:'online',label:'Currently Online',icon:Icons.person_pin_circle_outlined),
@@ -812,14 +825,13 @@ class _RailwaysNativeScreenState extends State<RailwaysNativeScreen> {
       const SizedBox(height:16),
       SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[for(final tab in tabs)Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(avatar:Icon(tab.icon,size:18),label:Text(tab.label),selected:trackingTab==tab.id,onSelected:(_)=>loadTracking(tab.id)))])),
       const SizedBox(height:12),
-      LayoutBuilder(builder:(ctx,c)=>Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Expanded(flex:trackingTab=='online'?3:1,child:TextField(onChanged:(v)=>setState(()=>trackingSearch=v),decoration:InputDecoration(prefixIcon:const Icon(Icons.search_rounded),labelText:trackingTab=='online'?'Search username, email or role':trackingTab=='login'?'Search login history':'Search page activity',isDense:true,suffixIcon:trackingSearch.isEmpty?null:IconButton(onPressed:()=>setState(()=>trackingSearch=''),icon:const Icon(Icons.clear_rounded))))),
-        if(trackingTab=='online')...[
-          const SizedBox(width:8),
-          Expanded(flex:2,child:DropdownButtonFormField<String>(value:trackingRoleFilter,decoration:const InputDecoration(labelText:'Role',border:OutlineInputBorder(),isDense:true,contentPadding:EdgeInsets.symmetric(horizontal:8,vertical:12)),isExpanded:true,items:const [DropdownMenuItem(value:'all',child:Text('All roles')),DropdownMenuItem(value:'admin',child:Text('Admin')),DropdownMenuItem(value:'subadmin',child:Text('Subadmin')),DropdownMenuItem(value:'user',child:Text('User'))],onChanged:(v)=>setState(()=>trackingRoleFilter=v??'all'))),
-        ],
-      ])),
+      TextField(onChanged:(v)=>setState(()=>trackingSearch=v),decoration:InputDecoration(prefixIcon:const Icon(Icons.search_rounded),labelText:trackingTab=='online'?'Search username, email or role':trackingTab=='login'?'Search login history':'Search page activity',isDense:true,suffixIcon:trackingSearch.isEmpty?null:IconButton(onPressed:()=>setState(()=>trackingSearch=''),icon:const Icon(Icons.clear_rounded)))),
       const SizedBox(height:8),
+      Wrap(spacing:8,runSpacing:8,crossAxisAlignment:WrapCrossAlignment.center,children:[
+        if(trackingTab=='online')SizedBox(width:150,child:DropdownButtonFormField<String>(value:trackingRoleFilter,decoration:const InputDecoration(labelText:'Role',border:OutlineInputBorder(),isDense:true,contentPadding:EdgeInsets.symmetric(horizontal:8,vertical:12)),isExpanded:true,items:const [DropdownMenuItem(value:'all',child:Text('All roles')),DropdownMenuItem(value:'admin',child:Text('Admin')),DropdownMenuItem(value:'subadmin',child:Text('Subadmin')),DropdownMenuItem(value:'user',child:Text('User'))],onChanged:(v)=>setState(()=>trackingRoleFilter=v??'all'))),
+        PopupMenuButton<String>(onSelected:exportTracking,itemBuilder:(_)=>const [PopupMenuItem(value:'Copy to clipboard',child:Text('Copy to clipboard')),PopupMenuItem(value:'Export as CSV',child:Text('Export as CSV'))],child:const Chip(avatar:Icon(Icons.file_download_outlined),label:Text('Export Report'))),
+      ]),
+      if(error!=null)Card(color:Theme.of(context).colorScheme.errorContainer,child:Padding(padding:const EdgeInsets.all(12),child:Text(error!))),
       if(busy)const LinearProgressIndicator(),
       if(!busy&&trackingRows.isEmpty)EmptyRailway(title:'No ${trackingTab=='online'?'online users':trackingTab=='login'?'login history':'page activity'} found',detail:'No records are available for this tab, or the current account cannot read its data.'),
       if(filteredRows.isNotEmpty)Card(clipBehavior:Clip.antiAlias,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:DataTable(columns:columns.map((k)=>DataColumn(label:Text(k.replaceAll('_',' ').toUpperCase()))).toList(),rows:filteredRows.map((r)=>DataRow(cells:columns.map((k)=>DataCell(SizedBox(width:150,child:Text((r[k]??'—').toString(),maxLines:2,overflow:TextOverflow.ellipsis)))).toList())).toList()))),
