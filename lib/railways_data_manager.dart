@@ -87,7 +87,17 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
   Future<void> edit([Map<String,dynamic>? old]) async {
     final spec = widget.table == 'main_heading_master'
         ? (fields[widget.table] ?? const []).where((f) => f['key'] == 'headingname').toList()
-        : fields[widget.table] ?? const [];
+        : widget.table == 'menu_master'
+            ? (fields[widget.table] ?? const []).where((f) => ['menuname', 'main_heading_id'].contains(f['key'])).toList()
+            : fields[widget.table] ?? const [];
+    List<Map<String, dynamic>> headingOptions = [];
+    if (widget.table == 'menu_master') {
+      try {
+        headingOptions = List<Map<String, dynamic>>.from(await widget.db.from('main_heading_master').select('id,headingname').order('headingname'));
+      } catch (e) {
+        if (mounted) setState(() => error = 'Could not load Main Heading options: $e');
+      }
+    }
     final controllers = <String,TextEditingController>{};
     for (final f in spec) {
       final key = f['key'].toString();
@@ -105,18 +115,30 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
         controllers['menu_access_ids']?.text = access.map((x) => x['menu_id'].toString()).join(', ');
       } catch (_) {}
     }
-    final accepted = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: Text((old == null ? 'Add ' : 'Edit ') + widget.title),
-      content: SizedBox(width: 540, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        for (final f in spec) Padding(padding: const EdgeInsets.only(bottom: 10), child: TextField(
-          controller: controllers[f['key'].toString()],
-          minLines: f['multi'] == true ? 2 : 1,
-          maxLines: f['multi'] == true ? 4 : 1,
-          decoration: InputDecoration(labelText: f['label'].toString()),
-        )),
-      ]))),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save'))],
-    ));
+    final accepted = await showDialog<bool>(context: context, builder: (ctx) {
+      String? selectedHeadingId = controllers['main_heading_id']?.text.isNotEmpty == true ? controllers['main_heading_id']!.text : null;
+      return StatefulBuilder(builder: (ctx, setDialogState) => AlertDialog(
+        title: Text((old == null ? 'Add ' : 'Edit ') + widget.title),
+        content: SizedBox(width: 540, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          for (final f in spec) Padding(padding: const EdgeInsets.only(bottom: 10), child: f['key'] == 'main_heading_id' && widget.table == 'menu_master'
+              ? DropdownButtonFormField<String>(
+                  value: headingOptions.any((h) => h['id'].toString() == selectedHeadingId) ? selectedHeadingId : null,
+                  decoration: InputDecoration(labelText: f['label'].toString(), border: const OutlineInputBorder()),
+                  hint: const Text('Select Main Heading'),
+                  isExpanded: true,
+                  items: headingOptions.map((h) => DropdownMenuItem<String>(value: h['id'].toString(), child: Text((h['headingname'] ?? '').toString(), overflow: TextOverflow.ellipsis))).toList(),
+                  onChanged: (value) => setDialogState(() { selectedHeadingId = value; controllers['main_heading_id']!.text = value ?? ''; }),
+                )
+              : TextField(
+                  controller: controllers[f['key'].toString()],
+                  minLines: f['multi'] == true ? 2 : 1,
+                  maxLines: f['multi'] == true ? 4 : 1,
+                  decoration: InputDecoration(labelText: f['label'].toString()),
+                )),
+        ]))),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save'))],
+      ));
+    });
     if (accepted == true) {
       final requiredKeys = <String, List<String>>{
         'main_heading_master': ['headingname'],
@@ -163,6 +185,17 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
       try {
         dynamic savedId = old?['id'];
         if (widget.table == 'main_heading_master') {
+          if (old == null) {
+            payload['status'] = '1';
+            payload['created_by'] = (widget.user['username'] ?? '').toString();
+            payload['created_at'] = DateTime.now().toIso8601String();
+          }
+          if (old != null) {
+            await widget.db.from(widget.table).update(payload).eq('id', old['id']);
+          } else {
+            await widget.db.from(widget.table).insert(payload);
+          }
+        } else if (widget.table == 'menu_master') {
           if (old == null) {
             payload['status'] = '1';
             payload['created_by'] = (widget.user['username'] ?? '').toString();
@@ -296,7 +329,16 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
               child: SingleChildScrollView(
                 child: DataTable(
                   columnSpacing: 18,
-                  columns: widget.table == 'main_heading_master'
+                  columns: widget.table == 'menu_master'
+                      ? const [
+                          DataColumn(label: Text('SN')),
+                          DataColumn(label: Text('Main Heading')),
+                          DataColumn(label: Text('Menu Name')),
+                          DataColumn(label: Text('Created By')),
+                          DataColumn(label: Text('Created Date')),
+                          DataColumn(label: Text('Action')),
+                        ]
+                      : widget.table == 'main_heading_master'
                       ? const [
                           DataColumn(label: Text('SN')),
                           DataColumn(label: Text('Main Heading')),
@@ -312,6 +354,19 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
                         ],
                   rows: filtered.asMap().entries.map((entry) {
                     final row = entry.value;
+                    if (widget.table == 'menu_master') {
+                      return DataRow(cells: [
+                        DataCell(Text('${entry.key + 1}')),
+                        DataCell(SizedBox(width: 170, child: Text((row['main_heading_name'] ?? '—').toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
+                        DataCell(SizedBox(width: 170, child: Text((row['menuname'] ?? '—').toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
+                        DataCell(Text((row['created_by'] ?? '—').toString())),
+                        DataCell(SizedBox(width: 170, child: Text(formatCreatedAt(row['created_at']), maxLines: 2))),
+                        DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(tooltip: 'Edit', icon: const Icon(Icons.edit_outlined, size: 20), onPressed: () => edit(row)),
+                          IconButton(tooltip: 'Delete', icon: const Icon(Icons.delete_outline, size: 20), onPressed: () => remove(row)),
+                        ])),
+                      ]);
+                    }
                     if (widget.table == 'main_heading_master') {
                       final active = (row['status'] ?? '0').toString() == '1';
                       return DataRow(cells: [
