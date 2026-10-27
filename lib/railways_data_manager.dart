@@ -17,6 +17,8 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
   String? error;
   List<Map<String,dynamic>> rows = [];
   final search = TextEditingController();
+  final headingName = TextEditingController();
+  String uploadStatusFilter = '0';
 
   static const Map<String,List<Map<String,dynamic>>> fields = {
     'main_heading_master': [
@@ -49,7 +51,25 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
   };
 
   @override void initState() { super.initState(); load(); }
-  @override void dispose() { search.dispose(); super.dispose(); }
+  @override void dispose() { search.dispose(); headingName.dispose(); super.dispose(); }
+
+  Future<void> addMainHeading() async {
+    final name = headingName.text.trim();
+    if (name.isEmpty) { setState(() => error = 'Enter a Heading Name.'); return; }
+    setState(() { busy = true; error = null; });
+    try {
+      final username = (widget.user['username'] ?? widget.user['name'] ?? 'Admin').toString();
+      await widget.db.from('main_heading_master').insert({
+        'headingname': name,
+        'status': '1',
+        'created_by': username,
+      });
+      headingName.clear();
+      await load();
+    } catch (e) {
+      if (mounted) setState(() { error = e.toString().replaceFirst('Exception: ', ''); busy = false; });
+    }
+  }
 
   Future<void> load() async {
     setState(() { busy = true; error = null; });
@@ -58,6 +78,14 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
           ? await widget.db.from(widget.table).select('*').order('last_seen', ascending: false)
           : await widget.db.from(widget.table).select('*').order('id', ascending: false);
       var loaded = List<Map<String,dynamic>>.from(data);
+      if (widget.table == 'datacollection') {
+        final headingRows = await widget.db.from('main_heading_master').select('id,headingname');
+        final headingNames = {for (final h in headingRows) (h['id'] as num).toInt(): (h['headingname'] ?? '').toString()};
+        loaded = loaded.map((row) => {
+          ...row,
+          if (row['main_heading_id'] != null) 'main_heading_name': headingNames[(row['main_heading_id'] as num).toInt()] ?? 'Unknown heading',
+        }).toList();
+      }
       if (['menu_master','folder_master'].contains(widget.table)) {
         final headingRows = await widget.db.from('main_heading_master').select('id,headingname');
         final headingNames = {for (final h in headingRows) (h['id'] as num).toInt(): (h['headingname'] ?? '').toString()};
@@ -222,15 +250,47 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
   bool get readOnly => ['user_presence','login_history','page_activity','file_uploads'].contains(widget.table);
 
   @override Widget build(BuildContext context) {
-    final filtered = rows.where((r) => r.values.any((v) => v != null && v.toString().toLowerCase().contains(search.text.toLowerCase()))).toList();
+    final visibleFields = widget.table == 'datacollection'
+        ? const <Map<String,dynamic>>[
+            {'key':'uploaded_by','label':'Uploaded By'},
+            {'key':'main_heading_id','label':'Main Heading'},
+            {'key':'menuname','label':'Menu'},
+            {'key':'folder','label':'Folder'},
+            {'key':'type','label':'Type'},
+            {'key':'source_type','label':'Source'},
+            {'key':'status','label':'Status'},
+            {'key':'remark','label':'Remark'},
+          ]
+        : (fields[widget.table] ?? const <Map<String,dynamic>>[]).where((f) => f['key'] != 'password').take(5).toList();
+    final filtered = rows.where((r) {
+      final matchesSearch = r.values.any((v) => v != null && v.toString().toLowerCase().contains(search.text.toLowerCase()));
+      if (!matchesSearch) return false;
+      if (widget.table == 'datacollection' && uploadStatusFilter != 'all') return (r['status'] ?? '').toString() == uploadStatusFilter;
+      return true;
+    }).toList();
     return Scaffold(
       appBar: widget.embedded ? null : AppBar(leading: IconButton(onPressed: () => Navigator.of(context).maybePop(), icon: const Icon(Icons.arrow_back_rounded)), title: Text(widget.title), actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh_rounded))]),
       body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1100), child: Column(children: [
         if (error != null) Padding(padding: const EdgeInsets.all(12), child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-        Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 6), child: Row(children: [
+        if (widget.table == 'main_heading_master') Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+          child: Row(children: [
+            Expanded(child: TextField(controller: headingName, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(prefixIcon: Icon(Icons.account_tree_outlined), labelText: 'Heading Name', hintText: 'Enter Main Heading'))),
+            const SizedBox(width: 10),
+            FilledButton.icon(onPressed: busy ? null : addMainHeading, icon: const Icon(Icons.add_rounded), label: const Text('Add Heading')),
+          ]),
+        ),
+        if (widget.table == 'datacollection') Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final item in const [('0', 'Pending'), ('1', 'Approved'), ('2', 'Rejected'), ('all', 'All')])
+              ChoiceChip(label: Text(item.$2), selected: uploadStatusFilter == item.$1, onSelected: (_) => setState(() => uploadStatusFilter = item.$1)),
+          ]),
+        ),
+        Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 6), child: Row(children: [
           Expanded(child: TextField(controller: search, onChanged: (_) => setState(() {}), decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), labelText: 'Search records'))),
           const SizedBox(width: 10),
-          if (!readOnly) FilledButton.icon(onPressed: () => edit(), icon: const Icon(Icons.add_rounded), label: const Text('Add')),
+          if (!readOnly && widget.table != 'main_heading_master') FilledButton.icon(onPressed: () => edit(), icon: const Icon(Icons.add_rounded), label: const Text('Add')),
         ])),
         Expanded(child: busy ? const Center(child: CircularProgressIndicator()) : filtered.isEmpty
           ? const Center(child: DeckEmptyState(title:'No records found',detail:'Try another search or add a new record.',icon:Icons.search_off_rounded))
@@ -241,21 +301,21 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
                 child: DataTable(
                   columnSpacing: 18,
                   columns: [
-                    const DataColumn(label: Text('Record')),
-                    ...((fields[widget.table] ?? const <Map<String,dynamic>>[])
-                        .where((f) => f['key'] != 'password').take(5)
-                        .map((f) => DataColumn(label: Text(f['label'].toString())))),
+                    if (widget.table != 'main_heading_master') const DataColumn(label: Text('Record')),
+                    ...visibleFields.map((f) => DataColumn(label: Text(f['label'].toString()))),
                     const DataColumn(label: Text('Actions')),
                   ],
                   rows: filtered.map((row) {
                     final title = row['headingname'] ?? row['menuname'] ?? row['foldername'] ?? row['username'] ?? row['title'] ?? row['name'] ?? row['id'] ?? 'Record';
-                    final visibleFields = (fields[widget.table] ?? const <Map<String,dynamic>>[])
-                        .where((f) => f['key'] != 'password').take(5);
                     return DataRow(cells: [
-                      DataCell(SizedBox(width: 150, child: Text(title.toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
+                      if (widget.table != 'main_heading_master') DataCell(SizedBox(width: 150, child: Text(title.toString(), maxLines: 2, overflow: TextOverflow.ellipsis))),
                       ...visibleFields.map((f) {
                         final key = f['key'].toString();
-                        if (key == 'status' && ['main_heading_master','menu_master','folder_master'].contains(widget.table)) {
+                        if (key == 'status' && widget.table == 'main_heading_master') {
+                          final active = (row[key] ?? '0').toString() == '1';
+                          return DataCell(Text(active ? '1 (Active)' : '0 (Not Active)'));
+                        }
+                        if (key == 'status' && ['menu_master','folder_master'].contains(widget.table)) {
                           final active = (row[key] ?? '0').toString() == '1';
                           return DataCell(Switch(value: active, onChanged: (value) async {
                             try {
@@ -265,7 +325,11 @@ class _RailwaysDataManagerState extends State<RailwaysDataManager> {
                           }));
                         }
                         final displayKey = key == 'main_heading_id' ? 'main_heading_name' : key == 'menu_id' ? 'menu_name' : key;
-                        return DataCell(SizedBox(width: 130, child: Text((row[displayKey] ?? row[key] ?? '—').toString(), maxLines: 2, overflow: TextOverflow.ellipsis)));
+                        final rawValue = row[displayKey] ?? row[key];
+                        final displayValue = key == 'status' && widget.table == 'datacollection'
+                            ? (rawValue?.toString() == '0' ? 'Pending' : rawValue?.toString() == '1' ? 'Approved' : rawValue?.toString() == '2' ? 'Rejected' : '—')
+                            : (rawValue ?? '—').toString();
+                        return DataCell(SizedBox(width: 130, child: Text(displayValue, maxLines: 2, overflow: TextOverflow.ellipsis)));
                       }),
                       DataCell(readOnly ? const Icon(Icons.chevron_right_rounded) : PopupMenuButton<String>(
                         onSelected: (v) { if (v == 'edit') edit(row); if (v == 'delete') remove(row); },
